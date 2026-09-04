@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MathQuest</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <section class="hud">
+      <div><strong>MATHQUEST</strong><span>Escape Matemático</span></div>
+      <div class="stats"><span id="lives">❤️❤️❤️</span><span id="score">Puntos: 0</span></div>
+    </section>
+    <section class="game-shell">
+      <canvas id="game" width="960" height="540"></canvas>
+      <div id="challenge" class="modal hidden"><div class="card">
+        <small>PUERTA MATEMÁTICA</small>
+        <h2>¿Cuánto es 7 × (3 + 2)?</h2>
+        <div class="answers">
+          <button data-answer="A">A · 28</button><button data-answer="B">B · 35</button><button data-answer="C">C · 42</button>
+        </div>
+        <p>También puedes usar las teclas A, B o C.</p><div id="feedback"></div>
+      </div></div>
+      <div id="finish" class="modal hidden"><div class="card">
+        <small>MISIÓN COMPLETADA</small><h2>🏆 ¡Escapaste del laberinto!</h2>
+        <p>Más adelante esta victoria activará el servo y abrirá la caja del premio.</p>
+        <button id="restart">Jugar otra vez</button>
+      </div></div>
+    </section>
+    <p class="help">Mover: WASD o flechas · Reto: A / B / C</p>
+  </main>
+  <script src="js/game.js"></script>
+</body>
+</html>
