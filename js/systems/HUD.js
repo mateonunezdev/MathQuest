@@ -66,9 +66,50 @@ export class HUD {
 
         this.renderLevelBadge(ctx, padding, 12);
         this.renderLives(ctx, canvas.width / 2, 18);
-        this.renderScore(ctx, canvas.width - padding, 18);
+        this.renderScore(ctx, canvas.width - padding - 60, 18);
+        this.renderMuteButton(ctx, canvas.width - padding, 18);
 
         ctx.restore();
+    }
+
+    renderMuteButton(ctx, rightX, y) {
+        const isMuted = window.game?.audio?.muted || false;
+        const centerX = rightX - 20;
+        
+        ctx.save();
+        ctx.translate(centerX, y);
+        
+        // Button background
+        ctx.fillStyle = 'rgba(10, 21, 35, 0.8)';
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Icon
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(isMuted ? '🔇' : '🔊', 0, 2);
+        
+        ctx.restore();
+        
+        // Store rect for click detection
+        this.muteButtonRect = {
+            x: rightX - 42,
+            y: y - 22,
+            w: 44,
+            h: 44
+        };
+    }
+
+    checkMuteClick(x, y) {
+        if (!this.muteButtonRect) return false;
+        const rect = this.muteButtonRect;
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
     }
 
     renderLevelBadge(ctx, x, y) {
