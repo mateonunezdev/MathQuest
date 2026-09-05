@@ -169,15 +169,15 @@ class Game {
 
     update(dt) {
         if (this.state === GameState.PLAYING) {
-            this.input.update();
             this.player.update(dt, this.input);
-            this.collision.resolve(this.player, this.level);
+            this.collision.resolve(this.player, this.level, this.door);
 
             this.door.update(dt, this.player);
             this.goal.update(dt, this.player);
 
             this.updateCamera(dt);
             this.updateParticles(dt);
+            this.input.update();  // Limpiar estados temporales DESPUÉS de que todos los sistemas consumieron el input
         } else if (this.state === GameState.CHALLENGE) {
             this.mathChallenge.update(dt);
         } else if (this.state === GameState.VICTORY) {

@@ -1,3 +1,5 @@
+import { Particle } from './Particle.js';
+
 export class MathDoor {
     constructor(tileX, tileY, challengeId) {
         this.tileSize = 60;

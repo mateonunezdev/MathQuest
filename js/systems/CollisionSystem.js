@@ -3,12 +3,12 @@ export class CollisionSystem {
         this.tileSize = 60;
     }
 
-    resolve(entity, level) {
+    resolve(entity, level, door) {
         const nextX = entity.x + entity.vx;
         const nextY = entity.y + entity.vy;
 
-        const hitX = this.checkCollision(nextX, entity.y, entity.width, entity.height, level);
-        const hitY = this.checkCollision(entity.x, nextY, entity.width, entity.height, level);
+        const hitX = this.checkCollision(nextX, entity.y, entity.width, entity.height, level, door);
+        const hitY = this.checkCollision(entity.x, nextY, entity.width, entity.height, level, door);
 
         if (!hitX) entity.x = nextX;
         else entity.vx = 0;
@@ -20,7 +20,7 @@ export class CollisionSystem {
         entity.y = Math.max(0, Math.min(entity.y, level.height * this.tileSize - entity.height));
     }
 
-    checkCollision(x, y, width, height, level) {
+    checkCollision(x, y, width, height, level, door) {
         const tileSize = this.tileSize;
         const left = Math.floor(x / tileSize);
         const right = Math.floor((x + width - 1) / tileSize);
@@ -34,6 +34,19 @@ export class CollisionSystem {
                 if (tile === 1) return true;
             }
         }
+
+        // Check door: if door exists and is locked, block passage
+        if (door && door.locked) {
+            const doorLeft = door.x;
+            const doorRight = door.x + door.width;
+            const doorTop = door.y;
+            const doorBottom = door.y + door.height;
+
+            if (x < doorRight && x + width > doorLeft && y < doorBottom && y + height > doorTop) {
+                return true;
+            }
+        }
+
         return false;
     }
 

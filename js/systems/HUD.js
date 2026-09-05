@@ -257,14 +257,15 @@ export class HUD {
     }
 
     renderVictoryButton(ctx) {
-        const y = 220;
-        const pulse = Math.sin(this.time * 3) * 0.1 + 1;
+        const canvas = ctx.canvas;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
 
         ctx.fillStyle = 'rgba(55, 196, 255, 0.2)';
-        ctx.strokeStyle = `rgba(55, 196, 255, ${0.6 * pulse})`;
+        ctx.strokeStyle = '#37c4ff';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-100, y - 20, 200, 45, 10);
+        ctx.roundRect(centerX - 100, 20, 200, 45, 10);
         ctx.fill();
         ctx.stroke();
 
@@ -272,11 +273,11 @@ export class HUD {
         ctx.font = 'bold 16px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('JUGAR DE NUEVO', 0, y + 2);
+        ctx.fillText('JUGAR DE NUEVO', centerX, 20 + 2);
 
         this.victoryButtonRect = {
             x: centerX - 100,
-            y: centerY + y - 20,
+            y: centerY + 20 - 20,
             w: 200,
             h: 45
         };
