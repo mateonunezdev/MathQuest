@@ -9,29 +9,19 @@ export class LevelData {
         const height = 9;
         const tileSize = 60;
 
-        // Layout redesign para progresión obligatoria:
-        // START AREA → CORREDOR → PUERTA ÚNICA → SECTOR FINAL → GOAL
-        // Mientras puerta esté cerrada: NO hay ruta al goal
-        // Después de abrir: Goal es alcanzable
+        // Layout: ZONA IZQUIERDA → corredor → [PUERTA ÚNICA] → corredor → ZONA DERECHA → GOAL
+        // Mientras puerta CERRADA: start → goal = IMPOSIBLE
+        // Mientras puerta ABIERTA: start → goal = POSIBLE
         
         const tilemap = [
-            // Row 0: muro superior
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            // Row 1: área de start + corredor hacia la puerta
             [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            // Row 2: muros laterales, techo del corredor
-            [1,0,1,1,1,0,0,0,0,1,1,1,1,0,0,1],
-            // Row 3: continue corridor, door at column 11
+            [1,0,1,1,1,0,0,0,0,1,1,1,0,0,0,1],
             [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
-            // Row 4: door at (11,4), sector final comienza
-            [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
-            // Row 5: pasillo que lleva al goal (fila intermedia)
+            [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
             [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            // Row 6: area goal (misma fila que goal x=14)
             [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            // Row 7: nearly there
             [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-            // Row 8: muro inferior
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
         ];
 
