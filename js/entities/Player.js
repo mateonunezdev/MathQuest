@@ -42,8 +42,6 @@ export class Player {
             if (this.walkSpeed < 0.05) this.walkCycle = 0;
         }
 
-        this.x += this.vx * dt;
-        this.y += this.vy * dt;
         this.bobOffset = Math.sin(this.walkCycle) * 3 * this.walkSpeed;
 
         if (this.invulnerable > 0) {

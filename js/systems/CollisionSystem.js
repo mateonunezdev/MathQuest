@@ -3,12 +3,15 @@ export class CollisionSystem {
         this.tileSize = 60;
     }
 
-    resolve(entity, level, door) {
-        const nextX = entity.x + entity.vx;
-        const nextY = entity.y + entity.vy;
+    resolve(entity, level, door, dt) {
+        const dx = entity.vx * dt;
+        const dy = entity.vy * dt;
 
-        const hitX = this.checkCollision(nextX, entity.y, entity.width, entity.height, level, door);
-        const hitY = this.checkCollision(entity.x, nextY, entity.width, entity.height, level, door);
+        const nextX = entity.x + dx;
+        const nextY = entity.y + dy;
+
+        const hitX = this.checkCollision(entity.x + dx, entity.y, entity.width, entity.height, level, door);
+        const hitY = this.checkCollision(entity.x, entity.y + dy, entity.width, entity.height, level, door);
 
         if (!hitX) entity.x = nextX;
         else entity.vx = 0;

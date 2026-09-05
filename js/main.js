@@ -19,7 +19,7 @@ const GameState = {
 
 class Game {
     constructor() {
-        this.canvas = document.querySelector('#game');
+this.canvas = document.querySelector('#game');
         this.ctx = this.canvas.getContext('2d');
         this.state = GameState.START;
         this.previousState = null;
@@ -35,7 +35,34 @@ class Game {
         this.renderer = new Renderer(this.ctx, this.camera);
         this.mathChallenge = new MathChallengeSystem();
         this.hud = new HUD();
-        this.level = null;
+
+        // UN SOLO listener de click en canvas para restart de victoria
+        const canvasRect = this.canvas.getBoundingClientRect();
+        this.canvas.addEventListener('click', (e) => {
+            const clientX = e.clientX;
+            const clientY = e.clientY;
+            // Convertir a coordenadas del canvas
+            const canvasX = clientX - canvasRect.left;
+            const canvasY = clientY - canvasRect.top;
+            // Asegurar que están dentro del canvas
+            if (canvasX < 0) canvasX = 0;
+            if (canvasY < 0) canvasY = 0;
+            if (canvasX > this.canvas.width) canvasX = this.canvas.width;
+            if (canvasY > this.canvas.height) canvasY = this.canvas.height;
+
+            // Permitir Enter/Space para reiniciar
+            if (e.key) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    if (this.state === GameState.VICTORY) {
+                        this.restartGame();
+                    }
+                }
+            } else if (this.state === GameState.VICTORY) {
+                if (this.hud.checkVictoryClick(canvasX, canvasY)) {
+                    this.restartGame();
+                }
+            }
+        });
 
         this.score = 0;
         this.lives = 3;
@@ -167,28 +194,19 @@ class Game {
         }
     }
 
-    update(dt) {
-        if (this.state === GameState.PLAYING) {
-            this.player.update(dt, this.input);
-            this.collision.resolve(this.player, this.level, this.door);
+    // Limpiar estados temporales al FINAL del frame, después de que todo el juego consumió el input
+        this.input.update();
+    }
 
-            this.door.update(dt, this.player);
-            this.goal.update(dt, this.player);
-
-            this.updateCamera(dt);
-            this.updateParticles(dt);
-            this.input.update();  // Limpiar estados temporales DESPUÉS de que todos los sistemas consumieron el input
-        } else if (this.state === GameState.CHALLENGE) {
-            this.mathChallenge.update(dt);
-        } else if (this.state === GameState.VICTORY) {
-            this.updateParticles(dt);
-        }
-
-        if (this.state === GameState.TRANSITION) {
-            this.transitionAlpha += this.transitionDirection * this.transitionSpeed;
-            if (this.transitionAlpha >= 1) this.transitionAlpha = 1;
-            if (this.transitionAlpha <= 0) this.transitionAlpha = 0;
-        }
+    restartGame() {
+        this.state = GameState.START;
+        this.initStartScreen();
+        this.level = null;
+        this.entities = [];
+        this.particles = [];
+        this.score = 0;
+        this.lives = this.maxLives;
+        this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
     }
 
     updateCamera(dt) {

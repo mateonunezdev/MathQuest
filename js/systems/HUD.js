@@ -256,16 +256,14 @@ export class HUD {
         });
     }
 
-    renderVictoryButton(ctx) {
-        const canvas = ctx.canvas;
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
+renderVictoryButton(ctx) {
+        // Contexto ya tiene translate/scale de renderVictoryScreen
+        // Usar coordenadas LOCALES (relativas al origen traducido)
         ctx.fillStyle = 'rgba(55, 196, 255, 0.2)';
         ctx.strokeStyle = '#37c4ff';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(centerX - 100, 20, 200, 45, 10);
+        ctx.roundRect(-100, 20, 200, 45, 10);
         ctx.fill();
         ctx.stroke();
 
@@ -273,11 +271,15 @@ export class HUD {
         ctx.font = 'bold 16px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('JUGAR DE NUEVO', centerX, 20 + 2);
+        ctx.fillText('JUGAR DE NUEVO', 0, 20 + 2);
 
+        // victoriaButtonRect en COORDENADAS GLOBALES del canvas
+        // El rectángulo está posicionado en local (-100, 20) después del translate/scale
+        // Global: centerX + localX = canvasWidth/2 + localX
+        //          centerY + localY = canvasHeight/2 + localY
         this.victoryButtonRect = {
-            x: centerX - 100,
-            y: centerY + 20 - 20,
+            x: canvas.width / 2 - 100,
+            y: canvas.height / 2 + 20,
             w: 200,
             h: 45
         };
