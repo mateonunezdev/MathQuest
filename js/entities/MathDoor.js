@@ -1,5 +1,11 @@
 import { Particle } from './Particle.js';
 
+export const DoorState = {
+    LOCKED: 'locked',
+    UNLOCKING: 'unlocking',
+    OPEN: 'open'
+};
+
 export class MathDoor {
     constructor(tileX, tileY, challengeId) {
         this.tileSize = 60;
@@ -8,7 +14,11 @@ export class MathDoor {
         this.width = this.tileSize;
         this.height = this.tileSize * 1.5;
         this.challengeId = challengeId;
-        this.locked = true;
+        
+        // State machine
+        this.state = DoorState.LOCKED;
+        this.locked = true; // Legacy compatibility
+        
         this.openProgress = 0;
         this.openTarget = 0;
         this.glowIntensity = 0;
@@ -17,6 +27,11 @@ export class MathDoor {
         this.particles = [];
         this.interactionHint = false;
         this.hintAlpha = 0;
+        
+        // Unlock animation state
+        this.unlockPhase = 0;
+        this.unlockFlash = 0;
+        this.screenShakeRequested = false;
     }
 
     update(dt, player) {
@@ -28,21 +43,60 @@ export class MathDoor {
         );
         const interactionRange = 100;
 
-        this.interactionHint = dist < interactionRange && this.locked;
+        this.interactionHint = dist < interactionRange && this.state === DoorState.LOCKED;
         this.hintAlpha += (this.interactionHint ? 1 : -1) * dt * 4;
         this.hintAlpha = Math.max(0, Math.min(1, this.hintAlpha));
+
+        // State machine updates
+        switch (this.state) {
+            case DoorState.LOCKED:
+                this.glowIntensity += (this.glowTarget - this.glowIntensity) * dt * 5;
+                this.openProgress += (this.openTarget - this.openProgress) * dt * 3;
+                break;
+                
+            case DoorState.UNLOCKING:
+                this.unlockPhase += dt * 2; // 0.5 seconds to complete
+                this.unlockFlash = Math.max(0, this.unlockFlash - dt * 3);
+                
+                // Smooth door opening
+                this.openProgress = Math.min(1, this.unlockPhase * 2);
+                
+                // Request screen shake at start of unlock
+                if (this.unlockPhase < 0.1 && !this.screenShakeRequested) {
+                    this.screenShakeRequested = true;
+                    if (window.game) {
+                        window.game.requestScreenShake(0.4, 12);
+                    }
+                }
+                
+                // Transition to OPEN when animation completes
+                if (this.unlockPhase >= 0.5) {
+                    this.state = DoorState.OPEN;
+                    this.locked = false;
+                    this.openProgress = 1;
+                    this.openTarget = 1;
+                    this.glowTarget = 1;
+                }
+                break;
+                
+            case DoorState.OPEN:
+                this.glowIntensity += (this.glowTarget - this.glowIntensity) * dt * 3;
+                this.openProgress = 1;
+                this.openTarget = 1;
+                break;
+        }
 
         this.glowIntensity += (this.glowTarget - this.glowIntensity) * dt * 5;
         this.openProgress += (this.openTarget - this.openProgress) * dt * 3;
 
-        if (this.locked && this.glowIntensity > 0) {
+        if (this.state === DoorState.LOCKED && this.glowIntensity > 0) {
             this.spawnAmbientParticle();
         }
 
         this.particles.forEach(p => p.update(dt));
         this.particles = this.particles.filter(p => !p.dead);
 
-        if (this.interactionHint && dist < 60 && this.locked) {
+        if (this.interactionHint && dist < 60 && this.state === DoorState.LOCKED) {
             if (window.game?.input?.wasPressed?.('ArrowUp') || window.game?.input?.wasPressed?.('w')) {
                 window.game?.triggerChallenge?.(this.challengeId);
             }
@@ -50,10 +104,39 @@ export class MathDoor {
     }
 
     unlock() {
-        this.locked = false;
+        if (this.state !== DoorState.LOCKED) return;
+        
+        this.state = DoorState.UNLOCKING;
+        this.unlockPhase = 0;
+        this.unlockFlash = 1;
         this.glowTarget = 1;
         this.openTarget = 1;
-        this.spawnUnlockParticles(30);
+        this.screenShakeRequested = false;
+        
+        // Dramatic particle burst
+        this.spawnUnlockParticles(50);
+        
+        // Golden particles for success
+        this.spawnGoldenParticles(30);
+    }
+
+    isBlocking() {
+        return this.state !== DoorState.OPEN;
+    }
+
+    spawnGoldenParticles(count) {
+        for (let i = 0; i < count; i++) {
+            const angle = (i / count) * Math.PI * 2;
+            const speed = 80 + Math.random() * 120;
+            this.particles.push(new Particle(
+                this.x + this.width/2,
+                this.y + this.height/2,
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                '#ffd700',
+                1.2 + Math.random() * 0.8
+            ));
+        }
     }
 
     spawnAmbientParticle() {

@@ -42,6 +42,10 @@ class Game {
         this.maxLives = 3;
         this.levelNumber = 1;
 
+        // Game feel
+        this.hitPauseTimer = 0;
+        this.hitPauseDuration = 0;
+
         this.lastTime = 0;
         this.accumulator = 0;
         this.fixedTimeStep = 1 / 60;
@@ -166,11 +170,31 @@ class Game {
             ));
         }
     }
+update(dt) {
+        // Handle hit pause - freeze everything except camera shake
+        if (this.hitPauseTimer > 0) {
+            this.hitPauseTimer -= dt;
+            if (this.hitPauseTimer < 0) this.hitPauseTimer = 0;
+            dt = 0; // Freeze game logic during hit pause
+        }
 
-    update(dt) {
         if (this.state === GameState.PLAYING) {
             this.player.update(dt, this.input);
-            this.collision.resolve(this.player, this.level, this.door);
+            const collisionInfo = this.collision.resolve(this.player, this.level, this.door, dt);
+
+            // Hit pause on wall collision for game feel
+            if (collisionInfo.hitWall && (this.player.vx !== 0 || this.player.vy !== 0)) {
+                this.hitPauseTimer = 0.05; // 50ms hit pause
+                this.camera.shake = 0.15;
+                this.camera.shakeIntensity = 4;
+            }
+            
+            // Door collision feedback
+            if (collisionInfo.hitDoor) {
+                this.hitPauseTimer = 0.08;
+                this.camera.shake = 0.2;
+                this.camera.shakeIntensity = 6;
+            }
 
             this.door.update(dt, this.player);
             this.goal.update(dt, this.player);
@@ -218,6 +242,11 @@ class Game {
             this.particles[i].update(dt);
             if (this.particles[i].dead) this.particles.splice(i, 1);
         }
+    }
+
+    requestScreenShake(duration, intensity) {
+        this.camera.shake = duration;
+        this.camera.shakeIntensity = intensity;
     }
 
     render() {
