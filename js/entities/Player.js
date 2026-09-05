@@ -15,9 +15,11 @@ export class Player {
         this.bobOffset = 0;
         this.invulnerable = 0;
         this.flashTime = 0;
+        this.time = 0;
     }
 
     update(dt, input) {
+        this.time += dt;
         const move = input.getMovementVector();
         const wasMoving = this.walkSpeed > 0.1;
 
@@ -34,15 +36,15 @@ export class Player {
                 this.direction = move.y > 0 ? 'down' : 'up';
             }
             this.idleTime = 0;
+            this.bobOffset = Math.sin(this.walkCycle * 2) * 1.5 * this.walkSpeed;
         } else {
             this.vx = 0;
             this.vy = 0;
             this.walkSpeed = Math.max(this.walkSpeed - dt * 8, 0);
             this.idleTime += dt;
+            this.bobOffset = Math.sin(this.idleTime * 2) * 1.5;
             if (this.walkSpeed < 0.05) this.walkCycle = 0;
         }
-
-        this.bobOffset = Math.sin(this.walkCycle) * 3 * this.walkSpeed;
 
         if (this.invulnerable > 0) {
             this.invulnerable -= dt;
@@ -61,139 +63,174 @@ export class Player {
         ctx.save();
         ctx.translate(px, py);
 
+        // Shadow beneath player (subtle ellipse)
         this.renderShadow(ctx);
-        this.renderBody(ctx);
-        this.renderEyes(ctx);
+
+        // Character body with directional features
+        this.renderCharacter(ctx);
+
+        // Direction indicator (arrow/chevron forward)
         this.renderDirectionIndicator(ctx);
 
         ctx.restore();
     }
 
     renderShadow(ctx) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
         ctx.beginPath();
-        ctx.ellipse(0, 18, 16, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 20, 15, 5, 0, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    renderBody(ctx) {
-        const walkBob = Math.sin(this.walkCycle * 2) * 2 * this.walkSpeed;
-        const idleBob = Math.sin(this.idleTime * 2) * 1.5;
-
+    renderCharacter(ctx) {
+        const walkBob = Math.sin(this.walkCycle * 2) * 1.5 * this.walkSpeed;
+        const idleBob = Math.sin(this.idleTime * 2.5) * 1.2;
         const bodyY = walkBob + (this.walkSpeed < 0.1 ? idleBob : 0);
 
-        ctx.fillStyle = '#1a3a5c';
+        // Torso - rounded rectangle with gradient
+        const torsoGrad = ctx.createLinearGradient(-12, -12 + walkBob, 12, 16 + bodyY);
+        torsoGrad.addColorStop(0, '#4a6a8e');
+        torsoGrad.addColorStop(0.5, '#3a5a7e');
+        torsoGrad.addColorStop(1, '#2a4a6e');
+        ctx.fillStyle = torsoGrad;
         ctx.beginPath();
-        ctx.ellipse(0, bodyY + 8, 18, 20, 0, 0, Math.PI * 2);
+        ctx.roundRect(-10, -12 + walkBob, 20, 26, 5);
         ctx.fill();
 
-        const gradient = ctx.createLinearGradient(-18, bodyY - 12, 18, bodyY + 20);
-        gradient.addColorStop(0, '#2a5a8a');
-        gradient.addColorStop(0.5, '#3a7acc');
-        gradient.addColorStop(1, '#1a4a7a');
-        ctx.fillStyle = gradient;
+        // Belt/straps detail
+        ctx.strokeStyle = 'rgba(200, 220, 240, 0.15)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(0, bodyY, 16, 18, 0, 0, Math.PI * 2);
+        ctx.moveTo(-8, -4 + walkBob);
+        ctx.lineTo(8, -4 + walkBob);
+        ctx.stroke();
+
+        // Head/Helmet - dome above torso
+        const headBaseY = -14 + walkBob;
+        ctx.fillStyle = '#2a4a6e';
+        ctx.beginPath();
+        ctx.ellipse(0, headBaseY, 11, 12, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = 'rgba(55, 196, 255, 0.3)';
+        // Helmet visor (glowing area for face)
+        const visorGrad = ctx.createRadialGradient(0, headBaseY - 1, 0, 0, headBaseY - 1, 10);
+        visorGrad.addColorStop(0, 'rgba(80, 220, 255, 0.4)');
+        visorGrad.addColorStop(0.5, 'rgba(80, 220, 255, 0.15)');
+        visorGrad.addColorStop(1, 'rgba(80, 220, 255, 0)');
+        ctx.fillStyle = visorGrad;
         ctx.beginPath();
-        ctx.ellipse(-6, bodyY - 4, 5, 6, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, headBaseY - 2, 10, 6, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        this.renderLimbs(ctx, bodyY);
-        this.renderCore(ctx, bodyY);
-    }
-
-    renderLimbs(ctx, bodyY) {
-        const legPhase = this.walkCycle;
-        const armPhase = this.walkCycle + Math.PI;
-
-        const legOffsetL = Math.sin(legPhase) * 8 * this.walkSpeed;
-        const legOffsetR = Math.sin(legPhase + Math.PI) * 8 * this.walkSpeed;
-        const armOffsetL = Math.sin(armPhase) * 6 * this.walkSpeed;
-        const armOffsetR = Math.sin(armPhase + Math.PI) * 6 * this.walkSpeed;
-
-        ctx.strokeStyle = '#2a5a8a';
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
-
+        // Helmet rim
+        ctx.strokeStyle = 'rgba(80, 180, 255, 0.3)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-10, bodyY + 12);
-        ctx.lineTo(-10 + legOffsetL * 0.5, bodyY + 24 + legOffsetL);
+        ctx.arc(0, headBaseY - 2, 10, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.beginPath();
-        ctx.moveTo(10, bodyY + 12);
-        ctx.lineTo(10 + legOffsetR * 0.5, bodyY + 24 + legOffsetR);
-        ctx.stroke();
-
-        ctx.strokeStyle = '#3a7acc';
-        ctx.lineWidth = 5;
-
-        ctx.beginPath();
-        ctx.moveTo(-16, bodyY);
-        ctx.lineTo(-20 + armOffsetL, bodyY + 8 + armOffsetL * 0.5);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(16, bodyY);
-        ctx.lineTo(20 + armOffsetR, bodyY + 8 + armOffsetR * 0.5);
-        ctx.stroke();
-    }
-
-    renderCore(ctx, bodyY) {
-        const pulse = Math.sin(this.idleTime * 3) * 0.3 + 0.7;
-        ctx.fillStyle = `rgba(55, 196, 255, ${pulse * 0.6})`;
-        ctx.beginPath();
-        ctx.arc(0, bodyY - 2, 6 * pulse, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 14px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('M', 0, bodyY - 1);
-    }
-
-    renderEyes(ctx) {
-        const eyeY = -6 + (this.walkSpeed > 0.1 ? Math.sin(this.walkCycle * 2) * 1 : 0);
+        // Eye dots that follow direction
+        const eyeY = headBaseY - 3;
         const eyeOffset = this.direction === 'left' ? -3 : this.direction === 'right' ? 3 : 0;
-        const eyeOffsetY = this.direction === 'up' ? -2 : this.direction === 'down' ? 2 : 0;
-
-        ctx.fillStyle = '#ffffff';
+        const eyeOffsetY = this.direction === 'up' ? -2 : 0;
+        
+        ctx.fillStyle = this.direction === 'down' ? 'rgba(55, 196, 255, 0.9)' : '#8aacc8';
+        const eyeSize = this.direction === 'down' ? 2 : this.direction === 'left' || this.direction === 'right' ? 3 : 2;
+        
         ctx.beginPath();
-        ctx.ellipse(-7 + eyeOffset, eyeY + eyeOffsetY, 4, 5, 0, 0, Math.PI * 2);
+        ctx.arc(-5 + eyeOffset, eyeY + eyeOffsetY, eyeSize, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.ellipse(7 + eyeOffset, eyeY + eyeOffsetY, 4, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#0a1f35';
-        ctx.beginPath();
-        ctx.arc(-7 + eyeOffset + (eyeOffset * 0.3), eyeY + eyeOffsetY, 2, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(7 + eyeOffset + (eyeOffset * 0.3), eyeY + eyeOffsetY, 2, 0, Math.PI * 2);
+        ctx.arc(5 + eyeOffset, eyeY + eyeOffsetY, eyeSize, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        // Eye shine (small white highlight)
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.beginPath();
-        ctx.arc(-7 + eyeOffset + 1.5, eyeY + eyeOffsetY - 1, 1, 0, Math.PI * 2);
+        ctx.arc(-5 + eyeOffset, eyeY + eyeOffsetY - 1, 1, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(7 + eyeOffset + 1.5, eyeY + eyeOffsetY - 1, 1, 0, Math.PI * 2);
+        ctx.arc(5 + eyeOffset, eyeY + eyeOffsetY - 1, 1, 0, Math.PI * 2);
         ctx.fill();
+
+        // Energy core in center of body
+        const coreY = -2 + bodyY;
+        const corePulse = Math.sin(this.time * 4) * 0.3 + 0.7;
+        const coreSize = 5 * corePulse;
+        
+        ctx.fillStyle = `rgba(80, 220, 255, ${corePulse * 0.6})`;
+        ctx.beginPath();
+        ctx.arc(0, coreY, coreSize, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = `rgba(80, 220, 255, ${corePulse * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(0, coreY, coreSize * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Arms - animated based on walk cycle
+        this.renderArms(ctx, walkBob);
+
+        // Legs - animated walking
+        this.renderLegs(ctx, walkBob);
+    }
+
+    renderArms(ctx, bodyY) {
+        const armSpacing = 14;
+        const armPhase = this.walkCycle + Math.PI;
+        const armOffsetL = Math.sin(armPhase) * 4 * this.walkSpeed;
+        const armOffsetR = Math.sin(armPhase + Math.PI) * 4 * this.walkSpeed;
+        const armYOffset = -4 + bodyY;
+
+        // Left arm
+        ctx.strokeStyle = '#3a5a7e';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-armSpacing, armYOffset);
+        ctx.lineTo(-armSpacing + armOffsetL * 0.8, armYOffset + 9);
+        ctx.stroke();
+
+        // Right arm
+        ctx.beginPath();
+        ctx.moveTo(armSpacing, armYOffset);
+        ctx.lineTo(armSpacing + armOffsetR * 0.8, armYOffset + 9);
+        ctx.stroke();
+    }
+
+    renderLegs(ctx, bodyY) {
+        const legSpacing = 8;
+        const legYOffset = 24 + bodyY;
+        const legPhase = this.walkCycle;
+        const legOffsetL = Math.sin(legPhase) * 4 * this.walkSpeed;
+        const legOffsetR = Math.sin(legPhase + Math.PI) * 4 * this.walkSpeed;
+
+        // Left leg
+        ctx.strokeStyle = '#2a4a6e';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-legSpacing, legYOffset);
+        ctx.lineTo(-legSpacing + legOffsetL * 0.6, legYOffset - 11);
+        ctx.stroke();
+
+        // Right leg
+        ctx.beginPath();
+        ctx.moveTo(legSpacing, legYOffset);
+        ctx.lineTo(legSpacing + legOffsetR * 0.6, legYOffset - 11);
+        ctx.stroke();
     }
 
     renderDirectionIndicator(ctx) {
         if (this.walkSpeed < 0.1) return;
 
         const indicators = {
-            up: { x: 0, y: -28, r: -Math.PI/2 },
-            down: { x: 0, y: 32, r: Math.PI/2 },
-            left: { x: -28, y: 0, r: Math.PI },
-            right: { x: 28, y: 0, r: 0 }
+            up: { x: 0, y: -38, r: -Math.PI/2 },
+            down: { x: 0, y: 42, r: Math.PI/2 },
+            left: { x: -38, y: 0, r: Math.PI },
+            right: { x: 38, y: 0, r: 0 }
         };
         const ind = indicators[this.direction];
         const pulse = Math.sin(this.time * 8) * 0.3 + 0.7;
@@ -201,11 +238,11 @@ export class Player {
         ctx.save();
         ctx.translate(ind.x, ind.y);
         ctx.rotate(ind.r);
-        ctx.fillStyle = `rgba(55, 196, 255, ${pulse * 0.5})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
         ctx.beginPath();
-        ctx.moveTo(0, -6 * pulse);
-        ctx.lineTo(-5 * pulse, 4 * pulse);
-        ctx.lineTo(5 * pulse, 4 * pulse);
+        ctx.moveTo(0, -4 * pulse);
+        ctx.lineTo(-4 * pulse, 3 * pulse);
+        ctx.lineTo(4 * pulse, 3 * pulse);
         ctx.fill();
         ctx.restore();
     }
