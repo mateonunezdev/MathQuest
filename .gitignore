@@ -1,0 +1,4 @@
+node_modules/
+screenshots/
+tools/debug-*.js
+*.log

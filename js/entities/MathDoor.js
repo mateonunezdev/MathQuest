@@ -498,6 +498,7 @@ export class MathDoor {
         
         this.conduits.forEach((conduit, ci) => {
             const x = conduit.side === -1 ? 6 : ts - 6;
+            const conduitGlow = conduit.glow;
             
             // Conduit housing (recessed channel)
             const housingGrad = ctx.createLinearGradient(x - 4, 0, x + 4, 0);
@@ -552,9 +553,9 @@ export class MathDoor {
             });
             
             // Conduit glow aura
-            if (glow > 0.1) {
+            if (conduitGlow > 0.1) {
                 ctx.save();
-                ctx.globalAlpha = glow * 0.3;
+                ctx.globalAlpha = conduitGlow * 0.3;
                 const auraGrad = ctx.createRadialGradient(x, h/2, 0, x, h/2, 20);
                 auraGrad.addColorStop(0, 'rgba(55, 196, 255, 0.4)');
                 auraGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
