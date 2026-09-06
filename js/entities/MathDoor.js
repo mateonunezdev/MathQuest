@@ -12,7 +12,7 @@ export class MathDoor {
         this.x = tileX * this.tileSize;
         this.y = tileY * this.tileSize;
         this.width = this.tileSize;
-        this.height = this.tileSize * 1.5;
+        this.height = this.tileSize * 2;
         this.challengeId = challengeId;
         
         // State machine
