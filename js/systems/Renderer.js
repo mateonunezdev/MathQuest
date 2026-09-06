@@ -13,12 +13,15 @@ export class Renderer {
     createGradients() {
         const ctx = this.ctx;
         return {
-            floorLight: '#0d1f30',
-            floorDark: '#0c1d2e',
-            wallTop: '#0d1f30',
-            wallSide: '#102a3d',
+            // Temple base: navy profundo / charcoal
+            floorLight: '#0a1a28',
+            floorDark: '#080c14',
+            wallTop: '#0f1a27',
+            wallSide: '#121820',
+            // Tech accent: cian controlado (sparingly)
             energy: ctx.createRadialGradient(0, 0, 0, 0, 0, 30),
             glow: ctx.createRadialGradient(0, 0, 0, 0, 0, 40),
+            // Reward: dorado / alerta: ámbar
             wallHighlight: ctx.createLinearGradient(0, 0, 0, 60),
             wallShadow: ctx.createLinearGradient(0, 0, 0, 60),
             floorGlow: ctx.createRadialGradient(0, 0, 0, 0, 0, 30)
@@ -118,7 +121,7 @@ export class Renderer {
 
     initGradients() {
         const g = this.gradients;
-        // Energy gradient for entities
+        // Energy gradient for entities - tech cian accent
         g.energy.addColorStop(0, 'rgba(55, 196, 255, 0.9)');
         g.energy.addColorStop(0.5, 'rgba(55, 196, 255, 0.3)');
         g.energy.addColorStop(1, 'rgba(55, 196, 255, 0)');
@@ -126,18 +129,18 @@ export class Renderer {
         g.glow.addColorStop(0, 'rgba(55, 196, 255, 0.4)');
         g.glow.addColorStop(1, 'rgba(55, 196, 255, 0)');
 
-        // Wall highlight gradient (top edge)
-        g.wallHighlight.addColorStop(0, 'rgba(55, 196, 255, 0.25)');
-        g.wallHighlight.addColorStop(0.3, 'rgba(55, 196, 255, 0.1)');
-        g.wallHighlight.addColorStop(1, 'rgba(55, 196, 255, 0)');
+        // Wall highlight gradient (top edge) - subtle dorado accent
+        g.wallHighlight.addColorStop(0, 'rgba(255, 203, 106, 0.15)');
+        g.wallHighlight.addColorStop(0.3, 'rgba(255, 203, 106, 0.05)');
+        g.wallHighlight.addColorStop(1, 'rgba(255, 203, 106, 0)');
 
         // Wall shadow gradient (bottom edge)
         g.wallShadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        g.wallShadow.addColorStop(0.7, 'rgba(0, 0, 0, 0.15)');
+        g.wallShadow.addColorStop(0.7, 'rgba(0, 0, 0, 0.2)');
         g.wallShadow.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
 
-        // Floor glow for interactive elements
-        g.floorGlow.addColorStop(0, 'rgba(55, 196, 255, 0.2)');
+        // Floor glow for interactive elements - cian sutil
+        g.floorGlow.addColorStop(0, 'rgba(55, 196, 255, 0.1)');
         g.floorGlow.addColorStop(1, 'rgba(55, 196, 255, 0)');
     }
 
@@ -148,8 +151,15 @@ export class Renderer {
         const width = level.width * this.tileSize;
         const height = level.height * this.tileSize;
 
-        // Deep space base
+        // Deep space base with subtle gradient for composition
         ctx.fillStyle = '#050e17';
+        ctx.fillRect(0, 0, width, height);
+
+        // Subtle vertical gradient to break flatness
+        const vGrad = ctx.createLinearGradient(0, 0, 0, height);
+        vGrad.addColorStop(0, 'rgba(5, 14, 23, 0.3)');
+        vGrad.addColorStop(1, 'rgba(5, 14, 23, 0.1)');
+        ctx.fillStyle = vGrad;
         ctx.fillRect(0, 0, width, height);
 
         // Circuit pattern base
@@ -334,17 +344,24 @@ export class Renderer {
         ctx.fillStyle = this.patterns.floor;
         ctx.fillRect(px, py, ts, ts);
 
-        // Very subtle large-format tile variation (not per-cell grid)
-        const tone = 0.006 + (seed % 5) * 0.003;
-        ctx.fillStyle = `rgba(55, 196, 255, ${tone})`;
+        // Large-format tile variation - warm stone tone base, cian accent only on some tiles
+        const baseTone = 0.008 + (seed % 3) * 0.002;
+        const cyanAccent = (seed % 7 === 0) ? 0.03 : 0;
+        ctx.fillStyle = `rgba(10, 20, 36, ${1 - baseTone - cyanAccent})`;
         ctx.fillRect(px, py, ts, ts);
+
+        // Cian tech accent only on select tiles (sparse, not grid-like)
+        if (cyanAccent > 0) {
+            ctx.fillStyle = `rgba(55, 196, 255, ${cyanAccent})`;
+            ctx.fillRect(px, py, ts, ts);
+        }
 
         // Sub-panel seam only at large-tile boundaries - hides the 60px grid
         const isTileEdgeX = x % large === 0;
         const isTileEdgeY = y % large === 0;
         if (isTileEdgeX || isTileEdgeY) {
-            ctx.strokeStyle = 'rgba(55, 196, 255, 0.02)';
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.015)';
+            ctx.lineWidth = 0.3;
             if (isTileEdgeY) {
                 ctx.beginPath();
                 ctx.moveTo(px, py);
@@ -359,20 +376,20 @@ export class Renderer {
             }
         }
 
-        // Occasional floor conduit detail (runs horizontally on some tiles)
+        // Occasional floor conduit detail - cian line on some large tiles only
         if ((lx * 13 + ly * 7) % 5 === 0) {
-            ctx.strokeStyle = 'rgba(55, 196, 255, 0.05)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.03)';
+            ctx.lineWidth = 0.5;
             ctx.beginPath();
             ctx.moveTo(px + 10, py + 20 + (ly % 3) * 10);
             ctx.lineTo(px + ts - 10, py + 20 + (ly % 3) * 10);
             ctx.stroke();
         }
 
-        // Occasional inset floor panel (large, not per-tile spam)
+        // Occasional inset floor panel (large, not per-tile spam) - dorado accent
         if ((lx * 17 + ly * 29) % 11 === 0) {
-            ctx.strokeStyle = 'rgba(55, 196, 255, 0.05)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(255, 203, 106, 0.04)';
+            ctx.lineWidth = 0.8;
             ctx.beginPath();
             ctx.roundRect(px + 14, py + 14, ts - 28, ts - 28, 4);
             ctx.stroke();
@@ -390,27 +407,27 @@ export class Renderer {
             right: x < level.width-1 && level.tilemap[y][x+1] === 1
         };
 
-        // Base wall with pattern
+        // Base wall with pattern - charcoal stone
         ctx.fillStyle = this.patterns.wall;
         ctx.fillRect(px, py, ts, ts);
 
-        // WALL TOP (2.5D visible top face) - lighter stone surface when wall
-        // has floor/void above it. This is the key depth cue.
+        // WALL TOP (2.5D visible top face) - strengthened depth cue
+        // when wall has floor/void above it. Key depth cue.
         if (!neighbors.up) {
             const topH = 10;
             const topGrad = ctx.createLinearGradient(px, py, px, py + topH);
-            topGrad.addColorStop(0, '#3a5a78');
-            topGrad.addColorStop(1, '#1a3a55');
+            topGrad.addColorStop(0, '#2a4466');
+            topGrad.addColorStop(1, '#1a3044');
             ctx.fillStyle = topGrad;
             ctx.fillRect(px, py, ts, topH);
 
-            // Top highlight edge line
-            ctx.fillStyle = 'rgba(200, 230, 255, 0.18)';
+            // Top highlight edge line - dorado accent
+            ctx.fillStyle = 'rgba(255, 203, 106, 0.12)';
             ctx.fillRect(px, py, ts, 1.5);
 
-            // Wall top engraving line
-            ctx.strokeStyle = 'rgba(55, 196, 255, 0.15)';
-            ctx.lineWidth = 1;
+            // Wall top engraving line - cian sutil
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.1)';
+            ctx.lineWidth = 0.8;
             ctx.beginPath();
             ctx.moveTo(px + 6, py + topH * 0.5);
             ctx.lineTo(px + ts - 6, py + topH * 0.5);
@@ -419,11 +436,11 @@ export class Renderer {
             this.renderWallDetail(px, py, 'top');
         }
 
-        // WALL FACE vertical gradient (shadowing toward base for height feel)
+        // WALL FACE vertical gradient (height feel)
         const faceGrad = ctx.createLinearGradient(px, py, px, py + ts);
-        faceGrad.addColorStop(0, 'rgba(255,255,255,0.04)');
+        faceGrad.addColorStop(0, 'rgba(255,255,255,0.02)');
         faceGrad.addColorStop(0.3, 'rgba(255,255,255,0)');
-        faceGrad.addColorStop(1, 'rgba(0,0,0,0.12)');
+        faceGrad.addColorStop(1, 'rgba(0,0,0,0.1)');
         ctx.fillStyle = faceGrad;
         ctx.fillRect(px, py, ts, ts);
 
@@ -431,31 +448,32 @@ export class Renderer {
         if (!neighbors.down) {
             const shadow = ctx.createLinearGradient(px, py + ts - 12, px, py + ts);
             shadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            shadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.35)');
-            shadow.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+            shadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.3)');
+            shadow.addColorStop(1, 'rgba(0, 0, 0, 0.55)');
             ctx.fillStyle = shadow;
             ctx.fillRect(px, py + ts - 12, ts, 12);
         }
 
         // Side faces (left/right edges exposed to floor) - column shading
+        // Stronger for clear 2.5D column feel
         if (!neighbors.left) {
             const sideGrad = ctx.createLinearGradient(px, py, px + 10, py);
-            sideGrad.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
-            sideGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            sideGrad.addColorStop(0, 'rgba(0, 0, 0, 0.4)');
+            sideGrad.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
             ctx.fillStyle = sideGrad;
             ctx.fillRect(px, py, 10, ts);
         }
         if (!neighbors.right) {
             const sideGrad = ctx.createLinearGradient(px + ts - 10, py, px + ts, py);
-            sideGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            sideGrad.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+            sideGrad.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
+            sideGrad.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
             ctx.fillStyle = sideGrad;
             ctx.fillRect(px + ts - 10, py, 10, ts);
         }
 
-        // Wall corner highlights for depth
+        // Wall corner highlights for depth - dorado accent
         if (!neighbors.up && !neighbors.left) {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.28)';
+            ctx.fillStyle = 'rgba(255, 203, 106, 0.18)';
             ctx.beginPath();
             ctx.moveTo(px, py);
             ctx.lineTo(px + 12, py);
@@ -463,7 +481,7 @@ export class Renderer {
             ctx.fill();
         }
         if (!neighbors.up && !neighbors.right) {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.28)';
+            ctx.fillStyle = 'rgba(255, 203, 106, 0.18)';
             ctx.beginPath();
             ctx.moveTo(px + ts, py);
             ctx.lineTo(px + ts - 12, py);

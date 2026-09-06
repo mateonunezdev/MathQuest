@@ -143,6 +143,11 @@ class Game {
                     <span id="mute-icon">🔊</span>
                 </button>
             </div>
+            <!-- Holographic accent strip -->
+            <div class="start-hologram">
+                <div class="hologram-left"></div>
+                <div class="hologram-right"></div>
+            </div>
         `;
         document.querySelector('.game-shell').appendChild(this.startScreen);
 

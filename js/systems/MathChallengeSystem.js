@@ -75,9 +75,9 @@ export class MathChallengeSystem {
         this.closeDelay = correct ? 1000 : 800;
 
         if (correct) {
-            this.feedback = '✓ CORRECTO - ACCESO CONCEDIDO';
+            this.feedback = '✓ ACCESO CONCEDIDO';
             this.feedbackType = 'success';
-            // Success particles
+            // Success particles - dorado/cian mix
             for (let i = 0; i < 40; i++) {
                 this.particles.push({
                     x: 480 + (Math.random() - 0.5) * 300,
@@ -86,14 +86,14 @@ export class MathChallengeSystem {
                     vy: (Math.random() - 0.5) * 300 - 100,
                     life: 2,
                     maxLife: 2,
-                    color: Math.random() < 0.5 ? '#50e3a0' : '#ffd700',
+                    color: i % 2 === 0 ? '#ffd700' : '#50e3a0',
                     size: 3 + Math.random() * 5
                 });
             }
         } else {
             this.feedback = '✗ ACCESO DENEGADO';
             this.feedbackType = 'error';
-            // Error particles
+            // Error particles - only red on selected, NO green on correct
             for (let i = 0; i < 20; i++) {
                 this.particles.push({
                     x: 480 + (Math.random() - 0.5) * 200,
@@ -129,12 +129,12 @@ export class MathChallengeSystem {
 
         ctx.save();
 
-        // Background overlay with scanlines
-        ctx.fillStyle = `rgba(5, 15, 30, ${0.92 * progress})`;
+        // Subtle world-textured background
+        ctx.fillStyle = 'rgba(5, 15, 30, 0.8)';
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        // Scanlines
-        ctx.strokeStyle = `rgba(55, 196, 255, ${0.03 * progress})`;
+        // Subtle scanlines
+        ctx.strokeStyle = `rgba(55, 196, 255, 0.02)`;
         ctx.lineWidth = 1;
         for (let y = 0; y < 540; y += 4) {
             ctx.beginPath();
@@ -143,37 +143,69 @@ export class MathChallengeSystem {
             ctx.stroke();
         }
 
-        // Main holographic panel
+        // Main holographic panel with diffraction grating effect
         const panelW = 700;
         const panelH = 420;
         const panelX = centerX - panelW / 2;
         const panelY = centerY - panelH / 2;
 
-        // Panel glow
+        // Holographic diffraction background - subtle color fringe
+        for (let i = 0; i < 3; i++) {
+            const offset = i * 2;
+            const hue = i === 0 ? 195 : i === 1 ? 180 : 210;
+            const grad = ctx.createLinearGradient(panelX - 50 + offset, panelY - 50, panelX + panelW + 50 - offset, panelY - 50);
+            grad.addColorStop(0, `hsla(${hue}, 80%, 30%, 0.1)`);
+            grad.addColorStop(1, 'hsla(${hue}, 80%, 30%, 0)');
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(panelX - 50 + offset, panelY - 50);
+            ctx.lineTo(panelX + panelW + 50 - offset, panelY - 50);
+            ctx.stroke();
+        }
+
+        // Panel glow - dorado core with cian edge (progress-faded, stronger)
         const glowGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 400);
-        glowGrad.addColorStop(0, `rgba(55, 196, 255, ${0.15 * progress})`);
+        glowGrad.addColorStop(0, `rgba(255, 203, 106, ${0.15 * progress})`);
+        glowGrad.addColorStop(0.5, `rgba(55, 196, 255, ${0.12 * progress})`);
         glowGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
         ctx.fillStyle = glowGrad;
         ctx.fillRect(panelX - 50, panelY - 50, panelW + 100, panelH + 100);
 
-        // Panel background
+        // Panel background - navy tech base with subtle grid (progress-faded)
         const panelGrad = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
-        panelGrad.addColorStop(0, `rgba(8, 20, 40, ${0.95 * progress})`);
-        panelGrad.addColorStop(0.5, `rgba(6, 15, 35, ${0.9 * progress})`);
-        panelGrad.addColorStop(1, `rgba(4, 10, 25, ${0.95 * progress})`);
+        panelGrad.addColorStop(0, `rgba(8, 18, 30, ${0.98 * progress})`);
+        panelGrad.addColorStop(0.5, `rgba(6, 12, 22, ${0.95 * progress})`);
+        panelGrad.addColorStop(1, `rgba(4, 8, 15, ${0.97 * progress})`);
         ctx.fillStyle = panelGrad;
         ctx.beginPath();
         ctx.roundRect(panelX, panelY, panelW, panelH, 20);
         ctx.fill();
 
-        // Border
-        ctx.strokeStyle = `rgba(55, 196, 255, ${0.5 * progress})`;
-        ctx.lineWidth = 2;
+        // Subtle grid pattern on panel (holographic texture)
+        ctx.strokeStyle = `rgba(55, 196, 255, ${0.04 * progress})`;
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < panelW; i += 40) {
+            ctx.beginPath();
+            ctx.moveTo(panelX + i, panelY);
+            ctx.lineTo(panelX + i, panelY + panelH);
+            ctx.stroke();
+        }
+        for (let i = 0; i < panelH; i += 40) {
+            ctx.beginPath();
+            ctx.moveTo(panelX, panelY + i);
+            ctx.lineTo(panelX + panelW, panelY + i);
+            ctx.stroke();
+        }
+
+        // Border - cian controlled with accent (progress-faded, stronger)
+        ctx.strokeStyle = `rgba(55, 196, 255, ${0.4 * progress})`;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.roundRect(panelX, panelY, panelW, panelH, 20);
         ctx.stroke();
 
-        // Inner border glow
+        // Double border for depth
         ctx.strokeStyle = `rgba(55, 196, 255, ${0.2 * progress})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -182,7 +214,7 @@ export class MathChallengeSystem {
 
         // Header
         const headerY = panelY + 40;
-        ctx.fillStyle = `rgba(55, 196, 255, ${0.2 * progress})`;
+        ctx.fillStyle = 'rgba(255, 203, 106, ${0.2 * progress})';
         ctx.fillRect(panelX + 20, headerY - 10, panelW - 40, 2);
 
         // Title

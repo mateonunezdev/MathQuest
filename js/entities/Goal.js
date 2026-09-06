@@ -80,6 +80,25 @@ export class Goal {
         ctx.fillStyle = glowGrad;
         ctx.fillRect(-55, -55, 110, 110);
 
+        // Holographic ring overlay when activated - enhanced goal signposting
+        if (this.activated) {
+            const holograd = ctx.createRadialGradient(0, 0, 0, 0, 0, 60);
+            holograd.addColorStop(0, 'rgba(255, 215, 0, 0.15)');
+            holograd.addColorStop(0.5, 'rgba(55, 196, 255, 0.08)');
+            holograd.addColorStop(1, 'rgba(55, 196, 255, 0)');
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.strokeStyle = holograd;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const r = 12 + i * 7 + Math.sin(this.pulseTime * 3 + i) * 2;
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
         this.renderBase(ctx);
         this.renderCore(ctx);
         this.renderRings(ctx);

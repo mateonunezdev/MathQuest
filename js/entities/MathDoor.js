@@ -387,69 +387,69 @@ export class MathDoor {
         const cx = ts / 2;
         
         // Deep shadow behind frame (grounded feel)
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.fillRect(-8, h - 4, ts + 16, 8);
         
-        // Base platform (stone/metal threshold)
+        // Base platform (stone/metal threshold) - stronger mass
         const baseGrad = ctx.createLinearGradient(0, h - 12, 0, h);
         baseGrad.addColorStop(0, '#1a2a3a');
         baseGrad.addColorStop(1, '#0d1520');
         ctx.fillStyle = baseGrad;
-        ctx.fillRect(-12, h - 12, ts + 24, 12);
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.15)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-11.5, h - 11.5, ts + 23, 11);
+        ctx.fillRect(-14, h - 14, ts + 28, 14);
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.2)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-13.5, h - 13.5, ts + 25, 13);
         
-        // Side columns (architectural pillars)
-        this.renderColumn(ctx, -10, 0, h, -1); // Left column
+        // Side columns (architectural pillars) - with broader base
+        this.renderColumn(ctx, -12, 0, h, -1); // Left column
         this.renderColumn(ctx, ts, 0, h, 1);   // Right column
         
-        // Architrave (top beam)
-        const archGrad = ctx.createLinearGradient(0, 0, 0, 14);
+        // Architrave (top beam) - heavier presence
+        const archGrad = ctx.createLinearGradient(0, 0, 0, 16);
         archGrad.addColorStop(0, '#2a4a6a');
         archGrad.addColorStop(0.5, '#1a3a5a');
         archGrad.addColorStop(1, '#0d2035');
         ctx.fillStyle = archGrad;
-        ctx.fillRect(-16, 0, ts + 32, 14);
+        ctx.fillRect(-18, 0, ts + 36, 16);
         
         // Architrave details - engraved lines
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.1)';
-        ctx.lineWidth = 1;
-        for (let i = 1; i < 4; i++) {
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.12)';
+        ctx.lineWidth = 1.2;
+        for (let i = 1; i < 5; i++) {
             ctx.beginPath();
-            ctx.moveTo(-10, i * 3.5);
-            ctx.lineTo(ts + 10, i * 3.5);
+            ctx.moveTo(-8, i * 3.2);
+            ctx.lineTo(ts + 8, i * 3.2);
             ctx.stroke();
         }
         
-        // Central keystone on architrave
+        // Central keystone on architrave - prominent
         ctx.fillStyle = '#1a3a5a';
         ctx.beginPath();
-        ctx.roundRect(cx - 20, 2, 40, 10, 3);
+        ctx.roundRect(cx - 24, 0, 48, 16, 4);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.2)';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.3)';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         
-        // Keystone symbol
-        ctx.fillStyle = 'rgba(55, 196, 255, 0.4)';
-        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        // Keystone symbol - larger
+        ctx.fillStyle = 'rgba(55, 196, 255, 0.5)';
+        ctx.font = 'bold 14px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('∑', cx, 7);
+        ctx.fillText('∑', cx, 8);
         
-        // Door frame proper (inner)
+        // Door frame proper (inner) - deeper recess
         const frameGrad = ctx.createLinearGradient(0, 0, ts, 0);
-        frameGrad.addColorStop(0, '#153045');
+        frameGrad.addColorStop(0, '#0f2030');
         frameGrad.addColorStop(0.5, '#1a3a5a');
-        frameGrad.addColorStop(1, '#153045');
+        frameGrad.addColorStop(1, '#0f2030');
         ctx.fillStyle = frameGrad;
-        ctx.fillRect(-2, 14, ts + 4, h - 26);
+        ctx.fillRect(-3, 16, ts + 6, h - 34);
         
-        // Frame inner edge highlight
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.25)';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(-1.5, 14.5, ts + 3, h - 27);
+        // Frame inner edge highlight - cian accent
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.35)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-2, 16.5, ts + 5, h - 35);
     }
     
     renderColumn(ctx, x, y, h, side) {
@@ -500,25 +500,25 @@ export class MathDoor {
             const x = conduit.side === -1 ? 6 : ts - 6;
             const conduitGlow = conduit.glow;
             
-            // Conduit housing (recessed channel)
-            const housingGrad = ctx.createLinearGradient(x - 4, 0, x + 4, 0);
-            housingGrad.addColorStop(0, '#081520');
-            housingGrad.addColorStop(0.5, '#0a1a2a');
-            housingGrad.addColorStop(1, '#081520');
+            // Conduit housing (recessed channel) - deeper channel
+            const housingGrad = ctx.createLinearGradient(x - 6, 0, x + 6, 0);
+            housingGrad.addColorStop(0, '#050f18');
+            housingGrad.addColorStop(0.5, '#071520');
+            housingGrad.addColorStop(1, '#050f18');
             ctx.fillStyle = housingGrad;
-            ctx.fillRect(x - 4, 14, 8, h - 28);
+            ctx.fillRect(x - 6, 16, 12, h - 32);
             
-            // Housing edges
-            ctx.strokeStyle = 'rgba(55, 196, 255, 0.1)';
-            ctx.lineWidth = 0.5;
+            // Housing edges - cian accent line
+            ctx.strokeStyle = 'rgba(55, 196, 255, �.15)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(x - 4, 14);
-            ctx.lineTo(x - 4, h - 14);
-            ctx.moveTo(x + 4, 14);
-            ctx.lineTo(x + 4, h - 14);
+            ctx.moveTo(x - 6, 16);
+            ctx.lineTo(x - 6, h - 16);
+            ctx.moveTo(x + 6, 16);
+            ctx.lineTo(x + 6, h - 16);
             ctx.stroke();
             
-            // Conduit segments
+            // Conduit segments with dynamic charge
             conduit.segments.forEach((seg, si) => {
                 const charge = seg.charge;
                 const glow = conduit.glow;
@@ -526,43 +526,70 @@ export class MathDoor {
                 
                 if (intensity < 0.02) return;
                 
-                // Segment background
-                ctx.fillStyle = `rgba(10, 25, 40, ${0.5 + intensity * 0.3})`;
-                ctx.fillRect(x - 3, seg.y - 2, 6, 4);
+                // Segment background alcove
+                ctx.fillStyle = `rgba(5, 15, 30, ${0.6 + intensity * 0.3})`;
+                ctx.fillRect(x - 5, seg.y - 1, 10, 2);
                 
-                // Energy core
-                const coreGrad = ctx.createRadialGradient(x, seg.y, 0, x, seg.y, 5);
-                const color = this.state === DoorState.UNLOCKING && this.unlockStage >= 2 ? 
+                // Energy core - pulsating with stronger color
+                const coreIntensity = 0.8 + intensity * 0.4;
+                const coreColor = this.state === DoorState.UNLOCKING && this.unlockStage >= 2 ? 
                     'rgba(255, 215, 0, ' : 'rgba(55, 196, 255, ';
-                coreGrad.addColorStop(0, color + `${0.9 * intensity})`);
-                coreGrad.addColorStop(0.5, color + `${0.4 * intensity})`);
-                coreGrad.addColorStop(1, color + `0)`);
+                const coreGrad = ctx.createRadialGradient(x, seg.y, 0, x, seg.y, 6 * coreIntensity);
+                coreGrad.addColorStop(0, coreColor + `${0.7 * coreIntensity})`);
+                coreGrad.addColorStop(0.5, coreColor + `${0.3 * coreIntensity})`);
+                coreGrad.addColorStop(1, coreColor + `0)`);
                 ctx.fillStyle = coreGrad;
                 ctx.beginPath();
-                ctx.arc(x, seg.y, 3 + intensity * 2, 0, Math.PI * 2);
+                ctx.arc(x, seg.y, 4 + intensity * 3, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Flow indicator when active
+                // Flow indicator when active - cian trail
                 if (charge > 0.5) {
-                    const flowY = seg.y + Math.sin(this.pulseTime * 8 + si) * 1.5;
-                    ctx.fillStyle = `rgba(55, 196, 255, ${0.6 * charge})`;
+                    const flowY = seg.y + Math.sin(this.pulseTime * 6 + si) * 2;
+                    ctx.fillStyle = `rgba(55, 196, 255, ${0.4 * charge})`;
                     ctx.beginPath();
-                    ctx.arc(x, flowY, 1.5, 0, Math.PI * 2);
+                    ctx.arc(x, flowY, 2, 0, Math.PI * 2);
                     ctx.fill();
+                    // Flow connector line
+                    ctx.beginPath();
+                    ctx.moveTo(x, seg.y);
+                    ctx.lineTo(x, flowY);
+                    ctx.strokeStyle = `rgba(55, 196, 255, ${0.3 * charge})`;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
                 }
             });
             
-            // Conduit glow aura
+            // Conduit glow aura - layered, two auras
             if (conduitGlow > 0.1) {
                 ctx.save();
-                ctx.globalAlpha = conduitGlow * 0.3;
-                const auraGrad = ctx.createRadialGradient(x, h/2, 0, x, h/2, 20);
-                auraGrad.addColorStop(0, 'rgba(55, 196, 255, 0.4)');
+                ctx.globalAlpha = conduitGlow * 0.4;
+                // Outer aura - larger, softer
+                const auraGrad = ctx.createRadialGradient(x, h/2, 0, x, h/2, 35);
+                auraGrad.addColorStop(0, 'rgba(55, 196, 255, 0.3)');
                 auraGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
                 ctx.fillStyle = auraGrad;
-                ctx.fillRect(x - 20, 14, 40, h - 28);
+                ctx.fillRect(x - 25, 16, 50, h - 32);
+                
+                // Inner aura - smaller, brighter
+                ctx.globalAlpha = conduitGlow * 0.2;
+                const innerGrad = ctx.createRadialGradient(x, h/2, 0, x, h/2, 15);
+                innerGrad.addColorStop(0, 'rgba(55, 196, 255, 0.5)');
+                innerGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
+                ctx.fillStyle = innerGrad;
+                ctx.fillRect(x - 12, 16, 24, h - 32);
                 ctx.restore();
             }
+            
+            // Conduit cap at top - subtle accent
+            ctx.fillStyle = 'rgba(55, 196, 255, 0.08)';
+            ctx.beginPath();
+            if (conduit.side === -1) {
+                ctx.arc(x - 6, 12, 3, 0, Math.PI * 2);
+            } else {
+                ctx.arc(x + 6, 12, 3, 0, Math.PI * 2);
+            }
+            ctx.fill();
         });
     }
     
@@ -583,37 +610,72 @@ export class MathDoor {
             
             // Panel depth shadow (behind panel)
             if (separation > 0.1) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                 ctx.fillRect(8, y + offset + (isTop ? currentH : 0), ts - 16, 4);
             }
             
-            // Panel background with material
+            // Panel background with stronger state differentiation
             const panelGrad = ctx.createLinearGradient(0, y + offset, ts, y + offset + currentH);
-            if (this.locked || this.state === DoorState.UNLOCKING) {
-                panelGrad.addColorStop(0, '#0d1f33');
-                panelGrad.addColorStop(0.3, '#153045');
-                panelGrad.addColorStop(0.7, '#1a3a5a');
-                panelGrad.addColorStop(1, '#0d1f33');
+            if (this.locked) {
+                // LOCKED: dark sealed appearance - deep charcoal with cyan accent strip
+                panelGrad.addColorStop(0, '#0a1525');
+                panelGrad.addColorStop(0.3, '#152a40');
+                panelGrad.addColorStop(0.7, '#1a3a50');
+                panelGrad.addColorStop(1, '#0d1f38');
+                // Sealed accent stripe - horizontal band indicating closed state
+                ctx.fillStyle = 'rgba(55, 196, 255, 0.08)';
+                ctx.fillRect(8, y + currentH/2 - 1 + offset, ts - 16, 2);
+            } else if (this.state === DoorState.UNLOCKING) {
+                // UNLOCKING: transitioning from dark to activated - pulging bands
+                panelGrad.addColorStop(0, '#1a2a45');
+                panelGrad.addColorStop(0.5, '#2a4060');
+                panelGrad.addColorStop(1, '#153050');
+                // Unlocking accent pulse
+                const pulse = Math.sin(this.pulseTime * 6) * 0.3 + 0.7;
+                ctx.fillStyle = `rgba(55, 196, 255, ${0.2 * pulse})`;
+                ctx.fillRect(8, y + offset, ts - 16, currentH);
             } else {
-                panelGrad.addColorStop(0, '#0a2a1a');
-                panelGrad.addColorStop(0.5, '#1a3a2a');
-                panelGrad.addColorStop(1, '#0a2a1a');
+                // OPEN: bright activated state - lighter with green-cyan accents
+                panelGrad.addColorStop(0, '#0a251a');
+                panelGrad.addColorStop(0.5, '#1a3a2f');
+                panelGrad.addColorStop(1, '#0d3025');
+                // Open accent stripe - green indicating operable state
+                ctx.fillStyle = 'rgba(80, 255, 120, 0.2)';
+                ctx.fillRect(8, y + currentH/2 - 1 + offset, ts - 16, 2);
             }
             ctx.fillStyle = panelGrad;
             ctx.fillRect(8, y + offset, ts - 16, currentH);
             
-            // Panel frame/border
-            ctx.strokeStyle = this.locked ? 'rgba(55, 196, 255, 0.3)' : 'rgba(80, 255, 120, 0.5)';
-            ctx.lineWidth = 1.5;
+            // Panel frame/border - stronger differentiation by state
+            if (this.locked) {
+                ctx.strokeStyle = 'rgba(55, 196, 255, 0.2)';
+            } else if (this.state === DoorState.UNLOCKING) {
+                ctx.strokeStyle = `rgba(55, 196, 255, ${0.5 + Math.sin(this.pulseTime * 4) * 0.3})`;
+            } else {
+                ctx.strokeStyle = 'rgba(80, 255, 120, 0.8)';
+            }
+            ctx.lineWidth = 2;
             ctx.strokeRect(8.5, y + 0.5 + offset, ts - 17, currentH - 1);
             
             // Inner panel detail frame
-            ctx.strokeStyle = this.locked ? 'rgba(55, 196, 255, 0.12)' : 'rgba(80, 255, 120, 0.2)';
+            if (this.locked) {
+                ctx.strokeStyle = 'rgba(55, 196, 255, 0.15)';
+            } else if (this.state === DoorState.UNLOCKING) {
+                ctx.strokeStyle = `rgba(55, 196, 255, ${0.4 + Math.sin(this.pulseTime * 3) * 0.3})`;
+            } else {
+                ctx.strokeStyle = 'rgba(80, 255, 120, 0.4)';
+            }
             ctx.lineWidth = 1;
             ctx.strokeRect(12, y + 4 + offset, ts - 24, currentH - 8);
             
             // Mechanical details (horizontal ribs)
-            ctx.strokeStyle = this.locked ? 'rgba(55, 196, 255, 0.08)' : 'rgba(80, 255, 120, 0.15)';
+            if (this.locked) {
+                ctx.strokeStyle = 'rgba(55, 196, 255, 0.08)';
+            } else if (this.state === DoorState.UNLOCKING) {
+                ctx.strokeStyle = `rgba(55, 196, 255, ${0.2 + Math.sin(this.pulseTime * 3) * 0.3})`;
+            } else {
+                ctx.strokeStyle = 'rgba(80, 255, 120, 0.2)';
+            }
             ctx.lineWidth = 1;
             for (let r = 1; r < 4; r++) {
                 const ry = y + offset + currentH * r / 4;
@@ -624,6 +686,14 @@ export class MathDoor {
             }
             
             // Vertical reinforcement ribs
+            if (this.locked) {
+                ctx.strokeStyle = 'rgba(55, 196, 255, 0.1)';
+            } else if (this.state === DoorState.UNLOCKING) {
+                ctx.strokeStyle = `rgba(55, 196, 255, ${0.3 + Math.sin(this.pulseTime * 2) * 0.3})`;
+            } else {
+                ctx.strokeStyle = 'rgba(80, 255, 120, 0.25)';
+            }
+            ctx.lineWidth = 1;
             for (let r = 1; r < 3; r++) {
                 const rx = 8 + (ts - 16) * r / 3;
                 ctx.beginPath();
@@ -632,19 +702,15 @@ export class MathDoor {
                 ctx.stroke();
             }
             
-            // Panel bolts/rivets at corners
-            const boltPositions = [
-                { x: 12, y: y + 6 + offset },
-                { x: ts - 12, y: y + 6 + offset },
-                { x: 12, y: y + currentH - 6 + offset },
-                { x: ts - 12, y: y + currentH - 6 + offset }
-            ];
+            // Panel bolts/rivets at corners - state-dependent color
+            const boltColor = this.locked ? 'rgba(55, 196, 255, 0.2)' : 'rgba(80, 255, 120, 0.3)';
+            const boltActiveColor = this.state === DoorState.UNLOCKING ? 'rgba(55, 196, 255, 0.5)' : 'rgba(80, 255, 120, 0.5)';
             boltPositions.forEach(b => {
-                ctx.fillStyle = this.locked ? '#1a3a5a' : '#1a4a2a';
+                ctx.fillStyle = this.locked ? boltColor : boltActiveColor;
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, 2.5, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = 'rgba(55, 196, 255, 0.3)';
+                ctx.strokeStyle = this.locked ? 'rgba(55, 196, 255, 0.3)' : 'rgba(80, 255, 120, 0.5)';
                 ctx.lineWidth = 1;
                 ctx.stroke();
             });
@@ -676,79 +742,80 @@ export class MathDoor {
         const unlockPulse = this.state === DoorState.UNLOCKING ? 
             Math.sin(this.pulseTime * 15) * this.sealCharge * 0.5 + this.sealCharge * 0.5 : 0;
         
-        // Seal background ring (always visible when locked/unlocking)
-        const ringAlpha = this.locked ? 0.15 : (0.15 + this.sealCharge * 0.4);
+        // Seal background ring (always visible when locked/unlocking) - refined
+        const ringAlpha = this.locked ? 0.2 : (0.2 + this.sealCharge * 0.5);
         ctx.strokeStyle = `rgba(55, 196, 255, ${ringAlpha})`;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 30, 0, Math.PI * 2);
         ctx.stroke();
         
         // Inner ring
-        ctx.strokeStyle = `rgba(55, 196, 255, ${ringAlpha * 0.7})`;
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = `rgba(55, 196, 255, ${ringAlpha * 0.8})`;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 24, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Seal charge glow
+        // Seal charge glow - expanded area
         if (this.sealCharge > 0 || this.unlockFlash > 0) {
             const intensity = Math.max(this.sealCharge, this.unlockFlash);
-            const sealGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 35);
-            sealGrad.addColorStop(0, `rgba(255, 215, 0, ${0.3 * intensity})`);
-            sealGrad.addColorStop(0.5, `rgba(55, 196, 255, ${0.2 * intensity})`);
+            const sealGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 45);
+            sealGrad.addColorStop(0, `rgba(255, 215, 0, ${0.2 * intensity})`);
+            sealGrad.addColorStop(0.5, `rgba(55, 196, 255, ${0.25 * intensity})`);
             sealGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
             ctx.fillStyle = sealGrad;
-            ctx.fillRect(cx - 35, cy - 35, 70, 70);
+            ctx.fillRect(cx - 45, cy - 45, 90, 90);
         }
         
         // Lock symbol (when locked) OR charging seal (when unlocking)
         if (this.locked && this.sealCharge < 0.5) {
-            // Traditional lock
+            // Traditional lock - larger, more prominent
             const lockPulse = Math.sin(this.pulseTime * 2) * 0.3 + 0.7;
             ctx.fillStyle = `rgba(173, 107, 49, ${lockPulse})`;
             ctx.beginPath();
-            ctx.roundRect(cx - 14, cy - 10, 28, 20, 5);
+            ctx.roundRect(cx - 18, cy - 14, 36, 28, 6);
             ctx.fill();
             
             ctx.strokeStyle = '#8b5a2b';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             ctx.stroke();
             
-            // Keyhole
+            // Keyhole - larger
             ctx.fillStyle = `rgba(255, 200, 100, ${lockPulse})`;
             ctx.beginPath();
-            ctx.arc(cx, cy + 2, 7, 0, Math.PI);
+            ctx.arc(cx, cy + 4, 9, 0, Math.PI);
             ctx.fill();
             
             ctx.fillStyle = '#5a3515';
             ctx.beginPath();
-            ctx.arc(cx, cy + 2, 3.5, 0, Math.PI * 2);
+            ctx.arc(cx, cy + 4, 5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Shackle
-            const shackleY = cy - 10 + Math.sin(this.pulseTime * 3) * 1.5;
+            // Shackle - more dramatic
+            const shackleY = cy - 14 + Math.sin(this.pulseTime * 3) * 2;
             ctx.strokeStyle = `rgba(173, 107, 49, ${lockPulse})`;
-            ctx.lineWidth = 3.5;
+            ctx.lineWidth = 5;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(cx - 10, shackleY);
-            ctx.lineTo(cx - 10, cy - 6);
-            ctx.arc(cx, cy - 6, 10, Math.PI, 0);
-            ctx.lineTo(cx + 10, shackleY);
+            ctx.moveTo(cx - 14, shackleY);
+            ctx.lineTo(cx - 10, cy - 8);
+            ctx.arc(cx, cy - 8, 12, Math.PI, 0);
+            ctx.lineTo(cx + 14, shackleY);
             ctx.stroke();
             
         } else {
-            // Mathematical seal - animated symbols
+            // Mathematical seal - enhanced readable symbols
             const symbols = ['∑', '∫', '∂', '∞', 'π', 'φ', 'λ', 'Δ', '∇', '⊕'];
             const symbolCount = 8;
+            const baseRadius = 22 + this.sealCharge * 10;
             
             for (let i = 0; i < symbolCount; i++) {
                 const angle = (i / symbolCount) * Math.PI * 2 - Math.PI / 2;
-                const radius = 18 + this.sealCharge * 8 + Math.sin(this.pulseTime * 2 + i) * 3;
+                const radius = baseRadius + Math.sin(this.pulseTime * 2 + i) * 4;
                 const symbol = symbols[(i + Math.floor(this.pulseTime / 1.5)) % symbols.length];
-                const symbolAlpha = (0.4 + this.sealCharge * 0.6) * (0.7 + chargePulse * 0.3);
-                const symbolScale = 0.9 + chargePulse * 0.3;
+                const symbolAlpha = (0.5 + this.sealCharge * 0.5) * (0.8 + chargePulse * 0.3);
+                const symbolScale = 1.2 + chargePulse * 0.4;
                 
                 ctx.save();
                 ctx.translate(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
@@ -756,11 +823,11 @@ export class MathDoor {
                 ctx.scale(symbolScale, symbolScale);
                 ctx.globalAlpha = symbolAlpha;
                 
-                // Symbol glow
+                // Symbol glow - gold when charged, cian when building
                 ctx.fillStyle = this.sealCharge > 0.5 ? 
-                    `rgba(255, 215, 0, ${0.8 * symbolAlpha})` : 
-                    `rgba(55, 196, 255, ${0.9 * symbolAlpha})`;
-                ctx.font = 'bold 18px "JetBrains Mono", monospace';
+                    `rgba(255, 215, 0, ${0.6 * symbolAlpha})` : 
+                    `rgba(55, 196, 255, ${0.8 * symbolAlpha})`;
+                ctx.font = 'bold 22px "JetBrains Mono", monospace';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(symbol, 0, 0);
@@ -768,25 +835,25 @@ export class MathDoor {
                 ctx.restore();
             }
             
-            // Central core when charging
+            // Central core when charging - prominent golden core
             if (this.sealCharge > 0.3) {
-                const coreSize = 8 + this.sealCharge * 12 + unlockPulse * 6;
+                const coreSize = 14 + this.sealCharge * 20 + unlockPulse * 8;
                 const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreSize);
-                coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.9 * this.sealCharge})`);
-                coreGrad.addColorStop(0.3, `rgba(255, 215, 0, ${0.7 * this.sealCharge})`);
-                coreGrad.addColorStop(0.7, `rgba(55, 196, 255, ${0.5 * this.sealCharge})`);
+                coreGrad.addColorStop(0, `rgba(255, 255, 255, ${0.8 * this.sealCharge})`);
+                coreGrad.addColorStop(0.3, `rgba(255, 215, 0, ${0.6 * this.sealCharge})`);
+                coreGrad.addColorStop(0.7, `rgba(55, 196, 255, ${0.4 * this.sealCharge})`);
                 coreGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
                 ctx.fillStyle = coreGrad;
                 ctx.beginPath();
                 ctx.arc(cx, cy, coreSize, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Core pulse rings
+                // Core pulse rings - when sufficiently charged
                 if (this.sealCharge > 0.5) {
-                    for (let r = 0; r < 3; r++) {
-                        const ringR = coreSize + 5 + r * 8 + Math.sin(this.pulseTime * 4 + r * 2) * 3;
-                        ctx.strokeStyle = `rgba(255, 215, 0, ${0.3 * this.sealCharge * (1 - r * 0.2)})`;
-                        ctx.lineWidth = 2;
+                    for (let r = 0; r < 4; r++) {
+                        const ringR = coreSize + 8 + r * 6 + Math.sin(this.pulseTime * 4 + r * 2) * 4;
+                        ctx.strokeStyle = `rgba(255, 215, 0, ${0.2 * this.sealCharge * (1 - r * 0.15)})`;
+                        ctx.lineWidth = 3;
                         ctx.beginPath();
                         ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
                         ctx.stroke();
