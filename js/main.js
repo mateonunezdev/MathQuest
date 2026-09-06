@@ -249,11 +249,12 @@ update(dt) {
                 this.audio.play('doorHit');
             }
             
-            // Door collision feedback
-            if (collisionInfo.hitDoor) {
-                this.hitPauseTimer = 0.08;
-                this.camera.shake = 0.2;
-                this.camera.shakeIntensity = 6;
+            // Door collision feedback - only freeze world on LOCKED door.
+            // During UNLOCKING the door must keep opening (hitPause would stall it).
+            if (collisionInfo.hitDoor && this.door.state !== 'unlocking') {
+                this.hitPauseTimer = 0.06;
+                this.camera.shake = 0.15;
+                this.camera.shakeIntensity = 5;
                 this.audio.play('doorHit');
             }
 

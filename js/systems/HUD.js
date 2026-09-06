@@ -298,6 +298,7 @@ export class HUD {
     }
 
 renderVictoryButton(ctx) {
+        const canvas = ctx.canvas;
         // Contexto ya tiene translate/scale de renderVictoryScreen
         // Usar coordenadas LOCALES (relativas al origen traducido)
         ctx.fillStyle = 'rgba(55, 196, 255, 0.2)';
