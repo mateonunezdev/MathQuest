@@ -94,7 +94,7 @@ export class AudioSystem {
     createTone(frequency, duration, type = 'sine', gain = 0.3, freqEnd = null) {
         return (ctx, time) => {
             const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+            const gainNode = ctx.createGain();
             
             osc.type = type;
             osc.frequency.value = frequency;
@@ -104,11 +104,11 @@ export class AudioSystem {
                 osc.frequency.exponentialRampToValueAtTime(freqEnd, time + duration);
             }
             
-            gain.gain.setValueAtTime(gain, time);
-            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            gainNode.gain.setValueAtTime(gain, time);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
             
-            osc.connect(gain);
-            gain.connect(ctx.destination);
+            osc.connect(gainNode);
+            gainNode.connect(this.masterGain || ctx.destination);
             
             osc.start(time);
             osc.stop(time + duration);
@@ -144,7 +144,7 @@ export class AudioSystem {
 
     createNoise(duration, gain = 0.3) {
         return (ctx, time) => {
-            const bufferSize = ctx.sampleRate * duration;
+            const bufferSize = Math.floor(ctx.sampleRate * duration);
             const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
             const output = buffer.getChannelData(0);
             
@@ -155,12 +155,12 @@ export class AudioSystem {
             const noise = ctx.createBufferSource();
             noise.buffer = buffer;
             
-            const gain = ctx.createGain();
-            gain.gain.setValueAtTime(gain, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+            const gainNode = ctx.createGain();
+            gainNode.gain.setValueAtTime(gain, time);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
             
-            noise.connect(gain);
-            gain.connect(ctx.destination);
+            noise.connect(gainNode);
+            gainNode.connect(this.masterGain || ctx.destination);
             
             noise.start(time);
             noise.stop(time + duration);

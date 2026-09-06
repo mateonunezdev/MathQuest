@@ -141,19 +141,8 @@ export class Renderer {
         g.floorGlow.addColorStop(1, 'rgba(55, 196, 255, 0)');
     }
 
-    updateGradients() {
-        const g = this.gradients;
-        g.energy.addColorStop(0, 'rgba(55, 196, 255, 0.9)');
-        g.energy.addColorStop(0.5, 'rgba(55, 196, 255, 0.3)');
-        g.energy.addColorStop(1, 'rgba(55, 196, 255, 0)');
-
-        g.glow.addColorStop(0, 'rgba(55, 196, 255, 0.4)');
-        g.glow.addColorStop(1, 'rgba(55, 196, 255, 0)');
-    }
-
     renderBackground(level) {
         this.time += 0.016;
-        this.updateGradients();
 
         const ctx = this.ctx;
         const width = level.width * this.tileSize;
@@ -172,10 +161,10 @@ export class Renderer {
             width * 0.2, height * 0.15, 0,
             width * 0.2, height * 0.15, Math.max(width, height) * 0.8
         );
-        gradient.addColorStop(0, 'rgba(10, 35, 60, 0.35)');
-        gradient.addColorStop(0.5, 'rgba(8, 25, 45, 0.15)');
-        gradient.addColorStop(1, 'rgba(5, 15, 30, 0)');
-        ctx.fillStyle = gradient;
+        glow1.addColorStop(0, 'rgba(10, 35, 60, 0.35)');
+        glow1.addColorStop(0.5, 'rgba(8, 25, 45, 0.15)');
+        glow1.addColorStop(1, 'rgba(5, 15, 30, 0)');
+        ctx.fillStyle = glow1;
         ctx.fillRect(0, 0, width, height);
 
         const glow2 = ctx.createRadialGradient(
