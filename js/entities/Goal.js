@@ -11,6 +11,8 @@ export class Goal {
         this.particles = [];
         this.activated = false;
         this.activationProgress = 0;
+        this.approachGlow = 0;
+        this.activationFlash = 0;
     }
 
     update(dt, player) {
@@ -23,13 +25,19 @@ export class Goal {
             (player.y + player.height/2) - (this.y + this.height/2)
         );
 
-        if (dist < 50 && !this.activated) {
+        // Reactive approach - core glows stronger as player nears (before activation)
+        const proximity = 1 - Math.max(0, Math.min(1, (dist - 30) / 180));
+        this.approachGlow += ((proximity * proximity) - this.approachGlow) * dt * 4;
+
+        if (dist < 55 && !this.activated) {
             this.activated = true;
+            this.activationFlash = 1;
             window.game?.triggerVictory?.();
         }
 
         if (this.activated) {
-            this.activationProgress = Math.min(1, this.activationProgress + dt * 0.5);
+            this.activationProgress = Math.min(1, this.activationProgress + dt * 0.6);
+            this.activationFlash = Math.max(0, this.activationFlash - dt * 2.5);
         }
 
         this.spawnAmbientParticles(dt);
@@ -38,7 +46,8 @@ export class Goal {
     }
 
     spawnAmbientParticles(dt) {
-        if (Math.random() < dt * 2) {
+        const rate = this.approachGlow * 6;
+        if (Math.random() < dt * (2 + rate)) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 20 + Math.random() * 20;
             this.particles.push(new GoalParticle(
@@ -47,7 +56,7 @@ export class Goal {
                 '#37c4ff'
             ));
         }
-        if (this.activated && Math.random() < dt * 10) {
+        if (this.activated && Math.random() < dt * 12) {
             this.particles.push(new GoalParticle(
                 this.x + this.width/2 + (Math.random() - 0.5) * 40,
                 this.y + this.height/2 + this.floatOffset + (Math.random() - 0.5) * 40,

@@ -324,30 +324,58 @@ export class Renderer {
         const ctx = this.ctx;
         const ts = this.tileSize;
 
-        // Use floor pattern for textured look
+        // Large floor tiles instead of fine grid - break the 60px grid repetition
+        const large = 3;
+        const lx = Math.floor(x / large);
+        const ly = Math.floor(y / large);
+        const seed = (lx * 131 + ly * 997) % 100;
+
+        // Base floor pattern
         ctx.fillStyle = this.patterns.floor;
         ctx.fillRect(px, py, ts, ts);
 
-        // Subtle highlight on alternating tiles for depth
-        const isLight = (x + y) % 2 === 0;
-        if (isLight) {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.015)';
-        } else {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.008)';
-        }
+        // Very subtle large-format tile variation (not per-cell grid)
+        const tone = 0.006 + (seed % 5) * 0.003;
+        ctx.fillStyle = `rgba(55, 196, 255, ${tone})`;
         ctx.fillRect(px, py, ts, ts);
 
-        // Subtle grid lines
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.01)';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(px + 0.5, py + 0.5, ts - 1, ts - 1);
+        // Sub-panel seam only at large-tile boundaries - hides the 60px grid
+        const isTileEdgeX = x % large === 0;
+        const isTileEdgeY = y % large === 0;
+        if (isTileEdgeX || isTileEdgeY) {
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.02)';
+            ctx.lineWidth = 0.5;
+            if (isTileEdgeY) {
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px + ts, py);
+                ctx.stroke();
+            }
+            if (isTileEdgeX) {
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px, py + ts);
+                ctx.stroke();
+            }
+        }
 
-        // Occasional floor detail (terminal panels, etc.)
-        if ((x + y * 17) % 37 === 0) {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.04)';
+        // Occasional floor conduit detail (runs horizontally on some tiles)
+        if ((lx * 13 + ly * 7) % 5 === 0) {
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.05)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(px + ts/2, py + ts/2, 10, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.moveTo(px + 10, py + 20 + (ly % 3) * 10);
+            ctx.lineTo(px + ts - 10, py + 20 + (ly % 3) * 10);
+            ctx.stroke();
+        }
+
+        // Occasional inset floor panel (large, not per-tile spam)
+        if ((lx * 17 + ly * 29) % 11 === 0) {
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.05)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(px + 14, py + 14, ts - 28, ts - 28, 4);
+            ctx.stroke();
         }
     }
 
@@ -366,59 +394,80 @@ export class Renderer {
         ctx.fillStyle = this.patterns.wall;
         ctx.fillRect(px, py, ts, ts);
 
-        // Top face highlight (where wall meets ceiling/floor above)
+        // WALL TOP (2.5D visible top face) - lighter stone surface when wall
+        // has floor/void above it. This is the key depth cue.
         if (!neighbors.up) {
-            const highlight = ctx.createLinearGradient(px, py, px, py + 12);
-            highlight.addColorStop(0, 'rgba(55, 196, 255, 0.2)');
-            highlight.addColorStop(0.5, 'rgba(55, 196, 255, 0.08)');
-            highlight.addColorStop(1, 'rgba(55, 196, 255, 0)');
-            ctx.fillStyle = highlight;
-            ctx.fillRect(px, py, ts, 12);
+            const topH = 10;
+            const topGrad = ctx.createLinearGradient(px, py, px, py + topH);
+            topGrad.addColorStop(0, '#3a5a78');
+            topGrad.addColorStop(1, '#1a3a55');
+            ctx.fillStyle = topGrad;
+            ctx.fillRect(px, py, ts, topH);
+
+            // Top highlight edge line
+            ctx.fillStyle = 'rgba(200, 230, 255, 0.18)';
+            ctx.fillRect(px, py, ts, 1.5);
+
+            // Wall top engraving line
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(px + 6, py + topH * 0.5);
+            ctx.lineTo(px + ts - 6, py + topH * 0.5);
+            ctx.stroke();
+
             this.renderWallDetail(px, py, 'top');
         }
 
-        // Bottom shadow
+        // WALL FACE vertical gradient (shadowing toward base for height feel)
+        const faceGrad = ctx.createLinearGradient(px, py, px, py + ts);
+        faceGrad.addColorStop(0, 'rgba(255,255,255,0.04)');
+        faceGrad.addColorStop(0.3, 'rgba(255,255,255,0)');
+        faceGrad.addColorStop(1, 'rgba(0,0,0,0.12)');
+        ctx.fillStyle = faceGrad;
+        ctx.fillRect(px, py, ts, ts);
+
+        // Bottom contact shadow (where wall meets floor) - stronger for grounded feel
         if (!neighbors.down) {
-            const shadow = ctx.createLinearGradient(px, py + ts - 8, px, py + ts);
+            const shadow = ctx.createLinearGradient(px, py + ts - 12, px, py + ts);
             shadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-            shadow.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
+            shadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.35)');
+            shadow.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
             ctx.fillStyle = shadow;
-            ctx.fillRect(px, py + ts - 8, ts, 8);
+            ctx.fillRect(px, py + ts - 12, ts, 12);
         }
 
-        // Left face
+        // Side faces (left/right edges exposed to floor) - column shading
         if (!neighbors.left) {
-            const sideGrad = ctx.createLinearGradient(px, py, px + 8, py);
-            sideGrad.addColorStop(0, 'rgba(55, 196, 255, 0.15)');
-            sideGrad.addColorStop(1, 'rgba(55, 196, 255, 0.02)');
+            const sideGrad = ctx.createLinearGradient(px, py, px + 10, py);
+            sideGrad.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
+            sideGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = sideGrad;
-            ctx.fillRect(px, py, 8, ts);
+            ctx.fillRect(px, py, 10, ts);
         }
-
-        // Right face
         if (!neighbors.right) {
-            const sideGrad = ctx.createLinearGradient(px + ts - 8, py, px + ts, py);
-            sideGrad.addColorStop(0, 'rgba(55, 196, 255, 0.02)');
-            sideGrad.addColorStop(1, 'rgba(55, 196, 255, 0.15)');
+            const sideGrad = ctx.createLinearGradient(px + ts - 10, py, px + ts, py);
+            sideGrad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            sideGrad.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
             ctx.fillStyle = sideGrad;
-            ctx.fillRect(px + ts - 8, py, 8, ts);
+            ctx.fillRect(px + ts - 10, py, 10, ts);
         }
 
         // Wall corner highlights for depth
         if (!neighbors.up && !neighbors.left) {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.25)';
+            ctx.fillStyle = 'rgba(55, 196, 255, 0.28)';
             ctx.beginPath();
             ctx.moveTo(px, py);
-            ctx.lineTo(px + 10, py);
-            ctx.lineTo(px, py + 10);
+            ctx.lineTo(px + 12, py);
+            ctx.lineTo(px, py + 12);
             ctx.fill();
         }
         if (!neighbors.up && !neighbors.right) {
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.25)';
+            ctx.fillStyle = 'rgba(55, 196, 255, 0.28)';
             ctx.beginPath();
             ctx.moveTo(px + ts, py);
-            ctx.lineTo(px + ts - 10, py);
-            ctx.lineTo(px + ts, py + 10);
+            ctx.lineTo(px + ts - 12, py);
+            ctx.lineTo(px + ts, py + 12);
             ctx.fill();
         }
 

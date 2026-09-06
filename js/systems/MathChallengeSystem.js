@@ -7,6 +7,8 @@ export class MathChallengeSystem {
         this.feedback = '';
         this.feedbackType = '';
         this.animTime = 0;
+        this.resultTimer = 0;
+        this.closeDelay = 0;
         this.particles = [];
 
         this.challenges = {
@@ -56,6 +58,10 @@ export class MathChallengeSystem {
         });
         this.particles = this.particles.filter(p => p.life > 0);
 
+        if (this.selectedAnswer) {
+            this.resultTimer += dt;
+        }
+
         const answerKey = window.game?.input?.getAnswerKey?.();
         if (answerKey) this.submitAnswer(answerKey);
     }
@@ -65,6 +71,8 @@ export class MathChallengeSystem {
 
         this.selectedAnswer = letter;
         const correct = letter === this.challengeData.correct;
+        this.resultTimer = 0;
+        this.closeDelay = correct ? 1000 : 800;
 
         if (correct) {
             this.feedback = '✓ CORRECTO - ACCESO CONCEDIDO';
@@ -210,25 +218,37 @@ export class MathChallengeSystem {
             const isSelected = this.selectedAnswer === key;
             const isCorrect = key === this.challengeData?.correct;
             const showResult = this.selectedAnswer !== null;
+            const wasCorrect = this.selectedAnswer === this.challengeData?.correct;
 
             let bgColor, borderColor, textColor, glowColor;
 
             if (showResult) {
-                if (isCorrect) {
-                    bgColor = `rgba(80, 227, 160, ${0.3 * progress})`;
-                    borderColor = `rgba(80, 227, 160, ${0.8 * progress})`;
-                    textColor = '#50e3a0';
-                    glowColor = `rgba(80, 227, 160, ${0.4 * progress})`;
-                } else if (isSelected) {
-                    bgColor = `rgba(255, 107, 107, ${0.3 * progress})`;
-                    borderColor = `rgba(255, 107, 107, ${0.8 * progress})`;
-                    textColor = '#ff6b6b';
-                    glowColor = `rgba(255, 107, 107, ${0.4 * progress})`;
+                if (wasCorrect) {
+                    // Correct: reveal green on the correct/selected option, neutral on others
+                    if (isCorrect) {
+                        bgColor = `rgba(80, 227, 160, ${0.3 * progress})`;
+                        borderColor = `rgba(80, 227, 160, ${0.8 * progress})`;
+                        textColor = '#50e3a0';
+                        glowColor = `rgba(80, 227, 160, ${0.4 * progress})`;
+                    } else {
+                        bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
+                        borderColor = `rgba(55, 196, 255, ${0.3 * progress})`;
+                        textColor = '#92a9c0';
+                        glowColor = 'transparent';
+                    }
                 } else {
-                    bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
-                    borderColor = `rgba(55, 196, 255, ${0.3 * progress})`;
-                    textColor = '#92a9c0';
-                    glowColor = 'transparent';
+                    // Wrong: mark ONLY the selected option red, do NOT reveal the correct one
+                    if (isSelected) {
+                        bgColor = `rgba(255, 107, 107, ${0.3 * progress})`;
+                        borderColor = `rgba(255, 107, 107, ${0.8 * progress})`;
+                        textColor = '#ff6b6b';
+                        glowColor = `rgba(255, 107, 107, ${0.4 * progress})`;
+                    } else {
+                        bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
+                        borderColor = `rgba(55, 196, 255, ${0.3 * progress})`;
+                        textColor = '#92a9c0';
+                        glowColor = 'transparent';
+                    }
                 }
             } else {
                 bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
@@ -299,7 +319,7 @@ export class MathChallengeSystem {
 
             // Progress bar for auto-close
             const barW = 300;
-            const elapsed = this.selectedAnswer ? Math.min(1, (Date.now() - this.animTime * 1000) / 800) : 0;
+            const elapsed = this.selectedAnswer ? Math.min(1, this.resultTimer / this.closeDelay) : 0;
             ctx.fillStyle = `rgba(55, 196, 255, ${0.3 * progress})`;
             ctx.fillRect(centerX - barW/2, fbY + 25, barW, 4);
             ctx.fillStyle = `rgba(55, 196, 255, ${0.8 * progress})`;
@@ -326,5 +346,3 @@ export class MathChallengeSystem {
         ctx.restore();
     }
 }
-
-(End of file - total 353 lines)
