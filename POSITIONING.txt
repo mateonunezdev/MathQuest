@@ -1,0 +1,9 @@
+MathQuest Positioning Statement:
+
+"An open-source educational game framework for turning mathematics
+practice into interactive game experiences, designed to run offline
+on modest hardware and extensible toward physical arcade/Arduino controls."
+
+NOT "un juego escolar de matemáticas" — presente como framework extensible,
+no solo un juego escolar. Lenguaje realista, sin afirmaciones de impacto
+no demostrado. Offline-first, modest hardware, Arduino extensibility.
