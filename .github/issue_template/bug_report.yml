@@ -1,0 +1,63 @@
+name: Bug Report
+description: File a bug report for MathQuest
+title: "Bug: <short description>"
+labels: [bug]
+body:
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step reproduction path
+      placeholder: |
+        1. Start the server
+        2. Move right 5 times
+        3. Press Up near the door
+        4. Observe incorrect behavior
+    validations:
+      required: true
+  - type: textarea
+    id: console-errors
+    attributes:
+      label: Console Errors
+      description: Run F12 DevTools → Console and paste errors
+      placeholder: |
+        [error] ReferenceError: Cannot access...
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Attach screenshots or screen recording
+      placeholder: Upload PNG/JPG or drag-and-drop
+    validations:
+      required: false
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      description: Browser and version used
+      choices:
+        - Chrome latest
+        - Firefox latest
+        - Edge latest
+        - Safari latest
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: The door should open after correct answer
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: The door doesn't respond or the game crashes
+    validations:
+      required: true
