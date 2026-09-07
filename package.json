@@ -5,8 +5,8 @@
   "scripts": {
     "test": "node tools/validate-level.js",
     "test:level": "node tools/validate-level.js",
-    "test:flow": "echo \"Flow checks (manual)\"",
-    "test:browser": "echo \"Browser QA: run node tools/browser-qa.js\"",
+    "test:flow": "node tools/flow-qa.js",
+    "test:browser": "node tools/browser-qa.js",
     "serve": "python3 -m http.server 8080"
   }
 }
