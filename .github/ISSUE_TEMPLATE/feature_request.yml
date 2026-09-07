@@ -1,0 +1,57 @@
+name: Feature Request
+description: Request a new feature for MathQuest
+title: "Feature: <short description>"
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem-description
+    attributes:
+      label: Problem Description
+      description: What problem does this solve?
+      placeholder: |
+        For example: I want to add multiplication challenges to Level 2
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How should it work?
+      placeholder: |
+        For example: Add a 'door2' challenge with 5 × (4 + 1) = ? options A/B/C
+    validations:
+      required: true
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity
+      description: Estimated implementation effort
+      choices:
+        - Low (UI/text only)
+        - Medium (new entity/rendering)
+        - High (new system/architecture)
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots-mockup
+    attributes:
+      label: Mockup / Screenshots
+      description: optional: attach sketches or mockups
+      placeholder: Drag-and-drop or upload images
+    validations:
+      required: false
+  - type: dropdown
+    id: affected-components
+    attributes:
+      label: Affected Components
+      choices:
+        - Renderer (visual effects)
+        - MathChallengeSystem (questions)
+        - MathDoor (gate logic)
+        - HUD (UI elements)
+        - LevelData (tilemaps)
+        - AudioSystem (sound)
+        - InputSystem (controls)
+        - Other
+    validations:
+      required: true
