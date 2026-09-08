@@ -94,7 +94,7 @@ python3 -m http.server 8080
 
 ## Licencia
 
-Véase la sección de Licencia a continuación o el archivo LICENSE en desarrollo.
+This project is licensed under the MIT License — see the LICENSE file for details.
 
 ---
 
@@ -106,10 +106,10 @@ CONTRIBUTING.md — Reglas para branches, commits, pruebas y Pull Requests.
 
 ## Estado actual
 
-**v0.1.0** — Nivel 1 vertical slice funcional. BFS pass, browser QA pass, segunda partida pass, 0 errores de consola.
+**v0.1.0 release candidate** — Level 1 vertical slice complete. BFS validated, browser QA pass (12/12 screenshots), 0 console errors, second-run state preservation verified.
 
 ---
 
 ## Agradecimientos
 
-Desarrollado con OpenCode y Canvas 2D. Sin dependencias externas.
+Desarrollado con Canvas 2D y JavaScript, cero dependencias externas.
