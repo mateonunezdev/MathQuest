@@ -14,7 +14,7 @@ measurable or observable.
 | **contributors** | ⚠️ Pending | 0 external contributors yet (only internal development); onboarding process ready |
 | **stars** | ⚠️ Pending | Not yet counted (will track after public readiness) |
 | **forks** | ⚠️ Pending | Not yet counted (will track after public readiness) |
-| **releases** | ✅ Completed | v0.1.0 release candidate documented; LICENSE pending confirmation |
+| **releases** | ✅ Completed | v0.1.0 release candidate documented; LICENSE created — MIT |
 | **issue activity** | ✅ Prepared | 2 issue templates created; 0 issues opened yet (ready for community) |
 | **PR activity** | ✅ Prepared | 1 PR template created; 0 PRs yet (ready for community) |
 | **school/teacher usage** | ⚠️ Observed | Game played in local testing; no classroom deployment yet (Phase 7 planned) |
