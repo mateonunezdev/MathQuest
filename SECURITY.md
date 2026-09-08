@@ -34,7 +34,7 @@ If you discover a security vulnerability in MathQuest, please report it responsi
 
 MathQuest is an offline educational game with the following security considerations:
 
-- **No network communication** — the game runs entirely client-side without external API calls (except OmniRoute provider configs, which are user-configured separately)
+- **No network communication** — the game runs entirely client-side without external API calls
 - **No user accounts** — no registration or login system
 - **No persistent storage** of personal data — local storage is used only for game progress (optional)
 - **No code execution from external sources** — all game logic is embedded in the HTML/JS bundle
