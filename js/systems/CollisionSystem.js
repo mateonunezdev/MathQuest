@@ -22,10 +22,10 @@ export class CollisionSystem {
             hitAny: hitX || hitY || hitDoor
         };
 
-        if (!hitX) entity.x = nextX;
+        if (!hitX && !hitDoor) entity.x = nextX;
         else entity.vx = 0;
 
-        if (!hitY) entity.y = nextY;
+        if (!hitY && !hitDoor) entity.y = nextY;
         else entity.vy = 0;
 
         entity.x = Math.max(0, Math.min(entity.x, level.width * this.tileSize - entity.width));
