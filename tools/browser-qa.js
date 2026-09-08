@@ -15,11 +15,10 @@ async function sleep(ms) {
   
   const errors = [];
   page.on('console', msg => {
-    if (msg.type() === 'error') errors.push(`[console.error] ${msg.text()}`);
+    if (msg.type() === 'error') errors.push('[console.error] ' + msg.text());
   });
-  page.on('pageerror', err => errors.push(`[pageerror] ${err.message}`));
+  page.on('pageerror', err => errors.push('[pageerror] ' + err.message));
   
-  console.log('Navigating to http://localhost:8080...');
   await page.goto('http://localhost:8080', { waitUntil: 'networkidle' });
   await sleep(1000);
   
@@ -136,23 +135,23 @@ async function sleep(ms) {
   
   // Check second run
   const secondRunOk = await page.evaluate(() => window.game?.lives === 3 && window.game?.score === 100);
-  console.log('Second run state OK:', secondRunOk);
+  if(!secondRunOk){console.error('FAIL: second run: lives=3 score=100'); process.exit(1);}
+  console.log('Second run: PASS');
   
-  await browser.close();
-  
-  // Summary
   console.log('\n=== SCREENSHOTS CAPTURED ===');
-  fs.readdirSync(SCREENSHOT_DIR).forEach(f => console.log(`  ${f}`));
+  fs.readdirSync(SCREENSHOT_DIR).forEach(f => console.log('  ' + f));
   
   console.log('\n=== CONSOLE ERRORS ===');
-  if (errors.length === 0) {
+  if(errors.length === 0){
     console.log('  (none)');
   } else {
     errors.forEach(e => console.log('  ERROR:', e));
+    process.exit(1);
   }
   
   // Write error log
   fs.writeFileSync(path.join(SCREENSHOT_DIR, 'errors.txt'), errors.join('\n') || '(none)');
   
-  process.exit(errors.length > 0 ? 1 : 0);
+  console.log('\n=== ALL BROWSER QA CHECKS PASSED ===');
+  await browser.close();
 })();
