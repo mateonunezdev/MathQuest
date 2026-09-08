@@ -10,7 +10,7 @@ no server-side code, and no external API calls (all assets are client-side).
 1. Push this repository to GitHub
 2. Go to repository Settings → Pages
 3. Source: `main` branch / `/ (root)`
-4. The site will be published at `https://<username>.github.io/mathquest-starter/` (or your custom domain)
+4. The site will be published at `https://mateonunezdev.github.io/MathQuest/` (or your custom domain)
 
 ### Netlify
 
