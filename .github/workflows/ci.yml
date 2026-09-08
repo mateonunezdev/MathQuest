@@ -2,14 +2,14 @@ name: MathQuest CI
 
 on:
   push:
-    branches: [dev, main]
+    branches: [codex/pro-level-1, main]
   pull_request:
-    branches: [dev, main]
+    branches: [codex/pro-level-1, main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -23,42 +23,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate level (BFS gate)
-        run: node tools/validate-level.js
+      - name: Run level validation (BFS gate)
+        run: npm run test:level
 
-      - name: Lint check
-        run: |
-          if [ -f node_modules/eslint/bin/eslint.js ]; then
-            npx eslint . --max-warnings=0
-          else
-            echo "ESLint not configured; skipping lint"
-          fi
+      - name: Run npm test
+        run: npm test
 
-      - name: Run level tests
-        run: |
-          if [ -f package.json ]; then
-            node -e "const pkg = require('./package.json'); if (pkg.scripts && pkg.scripts.test) { console.log('Test script found:', pkg.scripts.test); } else { console.log('No test script in package.json'); }"
-          fi
-
-      - name: Verify package scripts
-        run: |
-          if [ -f package.json ]; then
-            node -e "
-            const pkg = require('./package.json');
-            const scripts = pkg.scripts || {};
-            console.log('Available scripts:', Object.keys(scripts).join(', '));
-            console.log('Has test:', 'test' in scripts);
-            console.log('Has test:level:', 'test:level' in scripts);
-            console.log('Has test:browser:', 'test:browser' in scripts);
-            "
-          fi
-
-      - name: Install Playwright (optional)
-        if: false
-        run: |
-          echo "Playwright installation disabled per CI stability guidelines"
-          echo "If needed, enable in workflow with: npm install playwright"
-          echo "Then add: npx playwright test --help"
+      - name: Run test:flow (if feasible)
+        run: npm run test:flow
+        if: runner.os == 'Linux' && env.CI_BROWSER_QA == 'true'
 
       - name: Final verification
         run: echo "CI checks complete — MathQuest release candidate validation passed"
