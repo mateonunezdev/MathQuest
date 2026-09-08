@@ -509,7 +509,7 @@ export class MathDoor {
             ctx.fillRect(x - 6, 16, 12, h - 32);
             
             // Housing edges - cian accent line
-            ctx.strokeStyle = 'rgba(55, 196, 255, �.15)';
+            ctx.strokeStyle = 'rgba(55, 196, 255, 0.15)';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(x - 6, 16);
@@ -616,7 +616,7 @@ export class MathDoor {
             
             // Panel background with stronger state differentiation
             const panelGrad = ctx.createLinearGradient(0, y + offset, ts, y + offset + currentH);
-            if (this.locked) {
+            if (this.state === DoorState.LOCKED) {
                 // LOCKED: dark sealed appearance - deep charcoal with cyan accent strip
                 panelGrad.addColorStop(0, '#0a1525');
                 panelGrad.addColorStop(0.3, '#152a40');
@@ -647,7 +647,7 @@ export class MathDoor {
             ctx.fillRect(8, y + offset, ts - 16, currentH);
             
             // Panel frame/border - stronger differentiation by state
-            if (this.locked) {
+            if (this.state === DoorState.LOCKED) {
                 ctx.strokeStyle = 'rgba(55, 196, 255, 0.2)';
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.5 + Math.sin(this.pulseTime * 4) * 0.3})`;
@@ -658,7 +658,7 @@ export class MathDoor {
             ctx.strokeRect(8.5, y + 0.5 + offset, ts - 17, currentH - 1);
             
             // Inner panel detail frame
-            if (this.locked) {
+            if (this.state === DoorState.LOCKED) {
                 ctx.strokeStyle = 'rgba(55, 196, 255, 0.15)';
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.4 + Math.sin(this.pulseTime * 3) * 0.3})`;
@@ -669,7 +669,7 @@ export class MathDoor {
             ctx.strokeRect(12, y + 4 + offset, ts - 24, currentH - 8);
             
             // Mechanical details (horizontal ribs)
-            if (this.locked) {
+            if (this.state === DoorState.LOCKED) {
                 ctx.strokeStyle = 'rgba(55, 196, 255, 0.08)';
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.2 + Math.sin(this.pulseTime * 3) * 0.3})`;
@@ -686,7 +686,7 @@ export class MathDoor {
             }
             
             // Vertical reinforcement ribs
-            if (this.locked) {
+            if (this.state === DoorState.LOCKED) {
                 ctx.strokeStyle = 'rgba(55, 196, 255, 0.1)';
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.3 + Math.sin(this.pulseTime * 2) * 0.3})`;
@@ -702,15 +702,21 @@ export class MathDoor {
                 ctx.stroke();
             }
             
-            // Panel bolts/rivets at corners - state-dependent color
-            const boltColor = this.locked ? 'rgba(55, 196, 255, 0.2)' : 'rgba(80, 255, 120, 0.3)';
+            // Panel bolts/rivets at corners
+            const boltPositions = [
+                { x: 12, y: y + 6 + offset },
+                { x: ts - 12, y: y + 6 + offset },
+                { x: 12, y: y + currentH - 6 + offset },
+                { x: ts - 12, y: y + currentH - 6 + offset }
+            ];
+            const boltColor = this.state === DoorState.LOCKED ? 'rgba(55, 196, 255, 0.2)' : 'rgba(80, 255, 120, 0.3)';
             const boltActiveColor = this.state === DoorState.UNLOCKING ? 'rgba(55, 196, 255, 0.5)' : 'rgba(80, 255, 120, 0.5)';
             boltPositions.forEach(b => {
-                ctx.fillStyle = this.locked ? boltColor : boltActiveColor;
+                ctx.fillStyle = this.state === DoorState.LOCKED ? boltColor : boltActiveColor;
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, 2.5, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = this.locked ? 'rgba(55, 196, 255, 0.3)' : 'rgba(80, 255, 120, 0.5)';
+                ctx.strokeStyle = this.state === DoorState.LOCKED ? 'rgba(55, 196, 255, 0.3)' : 'rgba(80, 255, 120, 0.5)';
                 ctx.lineWidth = 1;
                 ctx.stroke();
             });
@@ -743,7 +749,7 @@ export class MathDoor {
             Math.sin(this.pulseTime * 15) * this.sealCharge * 0.5 + this.sealCharge * 0.5 : 0;
         
         // Seal background ring (always visible when locked/unlocking) - refined
-        const ringAlpha = this.locked ? 0.2 : (0.2 + this.sealCharge * 0.5);
+        const ringAlpha = this.state === DoorState.LOCKED ? 0.2 : (0.2 + this.sealCharge * 0.5);
         ctx.strokeStyle = `rgba(55, 196, 255, ${ringAlpha})`;
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -769,7 +775,7 @@ export class MathDoor {
         }
         
         // Lock symbol (when locked) OR charging seal (when unlocking)
-        if (this.locked && this.sealCharge < 0.5) {
+        if (this.state === DoorState.LOCKED && this.sealCharge < 0.5) {
             // Traditional lock - larger, more prominent
             const lockPulse = Math.sin(this.pulseTime * 2) * 0.3 + 0.7;
             ctx.fillStyle = `rgba(173, 107, 49, ${lockPulse})`;
