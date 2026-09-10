@@ -6,8 +6,8 @@ Thank you for wanting to contribute to MathQuest! This guide explains how you ca
 
 ```bash
 # Clone the repository
-git clone https://github.com/mateonunezdev/mathquest-starter.git
-cd mathquest-starter
+git clone https://github.com/mateonunezdev/MathQuest.git
+cd MathQuest
 
 # Install dependencies
 npm install
@@ -21,9 +21,10 @@ python3 -m http.server 8080
 ## Branches
 
 - **`main`** — stable releases only. Merged PRs that pass all checks.
-- **`dev`** — integration branch for ongoing development. Feature branches merge into `dev`.
-- **Feature branches** — create from `dev`: `git checkout dev -b feat/xyz`
-- **Hotfix branches** — create from `main`: `git checkout main -b fix/xyz`
+
+**Feature branches** — create from `main`: `git checkout main -b feat/xyz`
+**Fix branches** — create from `main`: `git checkout main -b fix/xyz`
+**Docs branches** — create from `main`: `git checkout main -b docs/xyz`
 
 **Never commit directly to `main`.**
 
@@ -69,7 +70,7 @@ All contributions must:
 
 ## Pull Requests
 
-1. Ensure your branch is up to date: `git pull upstream dev`
+1. Ensure your branch is up to date: `git pull origin main`
 2. Run local QA: `node tools/browser-qa.js` (checks 12 screenshots, no console errors)
 3. Run level validation: `npm run test:level`
 4. Fill the PR template completely

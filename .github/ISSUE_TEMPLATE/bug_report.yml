@@ -37,7 +37,7 @@ body:
     attributes:
       label: Browser
       description: Browser and version used
-      choices:
+      options:
         - Chrome latest
         - Firefox latest
         - Edge latest

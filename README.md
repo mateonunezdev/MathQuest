@@ -2,7 +2,7 @@
 
 **Educational adventure game — turn math practice into interactive maze experiences.**
 
-![MathQuest Screenshot](screenshots/01-start-screen.png)
+<img src="docs/assets/mathquest-hero.png" alt="MathQuest hero gate" width="400"/>
 
 ---
 
@@ -44,8 +44,8 @@ Convierte ejercicios matemáticos aislados en desafíos significativos dentro de
 
 ```bash
 # 1. Clonar
-git clone https://github.com/mateonunezdev/mathquest-starter.git
-cd mathquest-starter
+git clone https://github.com/mateonunezdev/MathQuest.git
+cd MathQuest
 
 # 2. Instalar dependencias
 npm install
@@ -112,4 +112,4 @@ CONTRIBUTING.md — Reglas para branches, commits, pruebas y Pull Requests.
 
 ## Agradecimientos
 
-Desarrollado con Canvas 2D y JavaScript, cero dependencias externas.
+"Zero runtime dependencies. Playwright is used only for development QA." Arduino support is PLANNED for Phase 6. "clean reset" (lives=3, score=0), not "state preservation".

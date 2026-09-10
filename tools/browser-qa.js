@@ -5,9 +5,7 @@ const path = require('path');
 const SCREENSHOT_DIR = path.join(__dirname, '../screenshots');
 if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+async function sleep(ms){return new Promise(resolve => setTimeout(resolve, ms));}
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -117,13 +115,15 @@ async function sleep(ms) {
   await page.screenshot({ path: path.join(SCREENSHOT_DIR, '12-victory.png'), fullPage: true });
   console.log('Screenshot: 12-victory.png');
   
-  // Play again
-  await page.keyboard.press('Enter');
+  // Play again - click in the game area to dismiss victory, then start
+  await sleep(500);
+  const box = await page.evaluate(()=>{const r=document.querySelector('#game').getBoundingClientRect();return{x:r.x,y:r.y,w:r.h}});
+  await page.mouse.click(box.x + box.w * 0.5, box.y + box.h * 0.75);
   await sleep(1000);
   await page.click('#start-btn');
   await sleep(1000);
   
-  // Second playthrough quick check
+  // Second playthrough quick check - move to door and challenge
   for (let i = 0; i < 50; i++) {
     await page.keyboard.press('ArrowRight');
     await sleep(30);
@@ -133,7 +133,7 @@ async function sleep(ms) {
   await page.keyboard.press('b');
   await sleep(2000);
   
-  // Check second run
+  // Check second run state - CLEAN RESET
   const secondRunOk = await page.evaluate(() => window.game?.lives === 3 && window.game?.score === 100);
   if(!secondRunOk){console.error('FAIL: second run: lives=3 score=100'); process.exit(1);}
   console.log('Second run: PASS');
@@ -142,7 +142,7 @@ async function sleep(ms) {
   fs.readdirSync(SCREENSHOT_DIR).forEach(f => console.log('  ' + f));
   
   console.log('\n=== CONSOLE ERRORS ===');
-  if(errors.length === 0){
+  if(errors.length===0){
     console.log('  (none)');
   } else {
     errors.forEach(e => console.log('  ERROR:', e));

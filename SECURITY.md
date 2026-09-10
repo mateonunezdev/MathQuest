@@ -36,7 +36,7 @@ MathQuest is an offline educational game with the following security considerati
 
 - **No network communication** — the game runs entirely client-side without external API calls
 - **No user accounts** — no registration or login system
-- **No persistent storage** of personal data — local storage is used only for game progress (optional)
+- **No persistent storage** of personal data — local storage is used only for optional game progress; any claims of persistent storage must be verified against the source code
 - **No code execution from external sources** — all game logic is embedded in the HTML/JS bundle
 - **Canvas 2D only** — no WebGL shader exploits or external binary dependencies
 
@@ -45,7 +45,6 @@ MathQuest is an offline educational game with the following security considerati
 Report issues related to:
 - Potential XSS or code injection vectors
 - Credential exposure in the repo
-- Security of any embedded provider configurations
 - Issues that could affect the integrity of the game state
 
 Do not report:
