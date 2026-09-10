@@ -3,6 +3,7 @@ import { CollisionSystem } from './systems/CollisionSystem.js';
 import { Renderer } from './systems/Renderer.js';
 import { MathChallengeSystem } from './systems/MathChallengeSystem.js';
 import { HUD } from './systems/HUD.js';
+import { AudioSystem } from './systems/AudioSystem.js';
 import { Player } from './entities/Player.js';
 import { MathDoor } from './entities/MathDoor.js';
 import { Goal } from './entities/Goal.js';
@@ -35,12 +36,18 @@ class Game {
         this.renderer = new Renderer(this.ctx, this.camera);
         this.mathChallenge = new MathChallengeSystem();
         this.hud = new HUD();
+        this.audio = new AudioSystem();
         this.level = null;
 
         this.score = 0;
         this.lives = 3;
         this.maxLives = 3;
         this.levelNumber = 1;
+
+        // Game feel
+        this.hitPauseTimer = 0;
+        this.hitPauseDuration = 0;
+        this.lastFootstepTime = 0;
 
         this.lastTime = 0;
         this.accumulator = 0;
@@ -51,6 +58,51 @@ class Game {
         window.addEventListener('resize', () => this.resize());
 
         this.initStartScreen();
+        
+        // Initialize audio on first user interaction
+        this.audioInitialized = false;
+        const initAudio = () => {
+            if (!this.audioInitialized) {
+                this.audio.init();
+                this.audioInitialized = true;
+            }
+        };
+        window.addEventListener('click', initAudio, { once: true });
+        window.addEventListener('keydown', initAudio, { once: true });
+
+        // Canvas click handler for mute button and victory restart
+        this.canvas.addEventListener('pointerdown', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const canvasX = (e.clientX - rect.left) * (this.canvas.width / rect.width);
+            const canvasY = (e.clientY - rect.top) * (this.canvas.height / rect.height);
+            
+            // Mute button click
+            if (this.hud.checkMuteClick(canvasX, canvasY)) {
+                const muted = this.audio.toggleMute();
+                const startMuteIcon = document.querySelector('#mute-icon');
+                if (startMuteIcon) {
+                    startMuteIcon.textContent = this.audio.muted ? '🔇' : '🔊';
+                }
+                return;
+            }
+            
+            // Victory restart
+            if (this.state === GameState.VICTORY) {
+                if (this.hud.checkVictoryClick(canvasX, canvasY)) {
+                    this.restartGame();
+                }
+            }
+        });
+        
+        // Keyboard for restart
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                if (this.state === GameState.VICTORY) {
+                    this.restartGame();
+                }
+            }
+        });
+
         requestAnimationFrame((time) => this.gameLoop(time));
     }
 
@@ -87,11 +139,24 @@ class Game {
                     <span class="key"><kbd>A</kbd> / <kbd>B</kbd> / <kbd>C</kbd></span> Responder
                 </div>
                 <button id="start-btn" class="btn-primary">INICIAR MISIÓN</button>
+                <button id="mute-btn" class="btn-secondary" title="Silenciar audio">
+                    <span id="mute-icon">🔊</span>
+                </button>
+            </div>
+            <!-- Holographic accent strip -->
+            <div class="start-hologram">
+                <div class="hologram-left"></div>
+                <div class="hologram-right"></div>
             </div>
         `;
         document.querySelector('.game-shell').appendChild(this.startScreen);
 
         document.querySelector('#start-btn').addEventListener('click', () => this.startGame());
+        document.querySelector('#mute-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const muted = this.audio.toggleMute();
+            document.querySelector('#mute-icon').textContent = muted ? '🔇' : '🔊';
+        });
         this.input.onStartPressed = () => this.startGame();
     }
 
@@ -108,6 +173,7 @@ class Game {
                 this.loadLevel(1);
                 this.state = GameState.PLAYING;
                 this.transitionDirection = -1;
+                this.audio.play('uiClick');
             }, 300);
         }, 400);
     }
@@ -144,11 +210,13 @@ class Game {
             this.camera.shakeIntensity = 8;
             this.spawnParticles(this.door.x + 30, this.door.y + 30, '#37c4ff', 20);
             this.door.unlock();
+            this.audio.play('doorUnlock');
         } else {
             this.lives = Math.max(0, this.lives - 1);
             this.camera.shake = 0.2;
             this.camera.shakeIntensity = 5;
             this.spawnParticles(this.player.x, this.player.y, '#ff4444', 10);
+            this.audio.play('incorrect');
         }
         this.hud.update(this.score, this.lives, this.maxLives);
     }
@@ -166,15 +234,46 @@ class Game {
             ));
         }
     }
+update(dt) {
+        // Handle hit pause - freeze everything except camera shake
+        if (this.hitPauseTimer > 0) {
+            this.hitPauseTimer -= dt;
+            if (this.hitPauseTimer < 0) this.hitPauseTimer = 0;
+            dt = 0; // Freeze game logic during hit pause
+        }
 
-    update(dt) {
         if (this.state === GameState.PLAYING) {
-            this.input.update();
             this.player.update(dt, this.input);
-            this.collision.resolve(this.player, this.level);
+            const collisionInfo = this.collision.resolve(this.player, this.level, this.door, dt);
+
+            // Hit pause on wall collision for game feel
+            if (collisionInfo.hitWall && (this.player.vx !== 0 || this.player.vy !== 0)) {
+                this.hitPauseTimer = 0.05; // 50ms hit pause
+                this.camera.shake = 0.15;
+                this.camera.shakeIntensity = 4;
+                this.audio.play('doorHit');
+            }
+            
+            // Door collision feedback - only freeze world on LOCKED door.
+            // During UNLOCKING the door must keep opening (hitPause would stall it).
+            if (collisionInfo.hitDoor && this.door.state !== 'unlocking') {
+                this.hitPauseTimer = 0.06;
+                this.camera.shake = 0.15;
+                this.camera.shakeIntensity = 5;
+                this.audio.play('doorHit');
+            }
 
             this.door.update(dt, this.player);
             this.goal.update(dt, this.player);
+
+            // Footstep sounds
+            if (this.player.walkSpeed > 0.3) {
+                this.lastFootstepTime -= dt;
+                if (this.lastFootstepTime <= 0) {
+                    this.audio.playFootstep();
+                    this.lastFootstepTime = 0.35; // Footstep interval
+                }
+            }
 
             this.updateCamera(dt);
             this.updateParticles(dt);
@@ -189,6 +288,9 @@ class Game {
             if (this.transitionAlpha >= 1) this.transitionAlpha = 1;
             if (this.transitionAlpha <= 0) this.transitionAlpha = 0;
         }
+
+        // Limpiar estados temporales del input al FINAL del frame, en cualquier estado
+        this.input.update();
     }
 
     updateCamera(dt) {
@@ -220,6 +322,11 @@ class Game {
         }
     }
 
+    requestScreenShake(duration, intensity) {
+        this.camera.shake = duration;
+        this.camera.shakeIntensity = intensity;
+    }
+
     render() {
         const renderWorld = this.level && (this.state === GameState.PLAYING || this.state === GameState.CHALLENGE || this.state === GameState.VICTORY);
 
@@ -238,10 +345,31 @@ class Game {
 
         this.hud.render(this.ctx);
 
+        if (this.state === GameState.CHALLENGE) {
+            this.mathChallenge.render(this.ctx);
+        }
+
         if (this.state === GameState.TRANSITION && this.transitionAlpha > 0) {
             this.ctx.fillStyle = `rgba(7, 17, 31, ${this.transitionAlpha})`;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
+    }
+
+    restartGame() {
+        // Limpiar estado de victoria y volver a START una sola vez
+        this.state = GameState.START;
+        this.level = null;
+        this.entities = [];
+        this.particles = [];
+        this.score = 0;
+        this.lives = this.maxLives;
+        this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
+        this.hud.victoryVisible = false;
+
+        // No duplicar start screens
+        const existing = document.querySelector('#start-screen');
+        if (existing) existing.remove();
+        this.initStartScreen();
     }
 
     gameLoop(time) {
@@ -261,6 +389,7 @@ class Game {
 
     triggerChallenge(challengeId) {
         this.state = GameState.CHALLENGE;
+        this.audio.play('doorCharge');
         this.mathChallenge.open(challengeId, (correct) => {
             this.handleChallengeResult(correct);
             this.state = GameState.PLAYING;
@@ -271,6 +400,7 @@ class Game {
         this.state = GameState.VICTORY;
         this.spawnParticles(this.goal.x, this.goal.y, '#37c4ff', 40);
         this.spawnParticles(this.goal.x, this.goal.y, '#ffd700', 20);
+        this.audio.play('victory');
         this.hud.showVictory(this.score, this.lives, () => {
             this.startScreen = null;
             this.initStartScreen();

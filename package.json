@@ -1,0 +1,15 @@
+{
+  "name": "mathquest",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  },
+  "scripts": {
+    "test": "node tools/validate-level.js",
+    "test:level": "node tools/validate-level.js",
+    "test:flow": "node tools/flow-qa.js",
+    "test:browser": "node tools/browser-qa.js",
+    "serve": "python3 -m http.server 8080"
+  }
+}

@@ -9,19 +9,25 @@ export class LevelData {
         const height = 9;
         const tileSize = 60;
 
+        // Layout: ZONA IZQUIERDA → corredor → [PUERTA ÚNICA 2 TILES] → corredor → ZONA DERECHA → GOAL
+        // Muro vertical sólido en x=11 desde fila 1 a 7, salvo HUECO en filas 3-4 (puerta)
+        // Puerta en (11, 3) con altura 2 tiles = 120px, cubre exactamente filas 3 y 4
+        // Mientras puerta CERRADA: start → goal = IMPOSIBLE
+        // Mientras puerta ABIERTA: start → goal = POSIBLE
+        //
+        // Leyenda: 1 = muro, 0 = suelo
+        
         const tilemap = [
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
-            [1,0,1,1,1,0,0,1,0,1,1,1,1,1,0,1],
-            [1,0,0,0,1,0,0,1,0,0,0,0,0,1,0,1],
-            [1,1,1,0,1,0,0,1,1,1,1,1,0,1,0,1],
-            [1,0,0,0,1,0,0,0,0,0,0,0,0,1,0,1],
-            [1,0,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],  // row 0 - borde superior
+            [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],  // row 1 - muro en x=11
+            [1,0,1,0,1,0,0,1,0,0,0,1,0,0,0,1],  // row 2 - muro en x=11 + pilares decorativos
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],  // row 3 - HUECO puerta (x=11=0)
+            [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],  // row 4 - HUECO puerta (x=11=0)
+            [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1],  // row 5 - muro en x=11
+            [1,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1],  // row 6 - muro en x=11
+            [1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1],  // row 7 - muro en x=11, zona goal
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]   // row 8 - borde inferior
         ];
-
-        const decorations = [];
 
         return {
             width,
@@ -29,7 +35,7 @@ export class LevelData {
             tileSize,
             tilemap,
             playerStart: { x: 1 * tileSize + 12, y: 1 * tileSize + 8 },
-            door: { x: 11, y: 4, challengeId: 'door1' },
+            door: { x: 11, y: 3, challengeId: 'door1' },
             goal: { x: 14, y: 7 },
             decorations: this.generateDecorations({ width, height, tilemap })
         };

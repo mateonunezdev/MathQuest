@@ -3,24 +3,38 @@ export class CollisionSystem {
         this.tileSize = 60;
     }
 
-    resolve(entity, level) {
-        const nextX = entity.x + entity.vx;
-        const nextY = entity.y + entity.vy;
+    resolve(entity, level, door, dt) {
+        const dx = entity.vx * dt;
+        const dy = entity.vy * dt;
 
-        const hitX = this.checkCollision(nextX, entity.y, entity.width, entity.height, level);
-        const hitY = this.checkCollision(entity.x, nextY, entity.width, entity.height, level);
+        const nextX = entity.x + dx;
+        const nextY = entity.y + dy;
 
-        if (!hitX) entity.x = nextX;
+        const hitX = this.checkCollision(entity.x + dx, entity.y, entity.width, entity.height, level, door);
+        const hitY = this.checkCollision(entity.x, entity.y + dy, entity.width, entity.height, level, door);
+        const hitDoor = this.checkDoorCollision(entity.x + dx, entity.y + dy, entity.width, entity.height, door);
+
+        const collisionInfo = {
+            hitX,
+            hitY,
+            hitDoor,
+            hitWall: hitX || hitY,
+            hitAny: hitX || hitY || hitDoor
+        };
+
+        if (!hitX && !hitDoor) entity.x = nextX;
         else entity.vx = 0;
 
-        if (!hitY) entity.y = nextY;
+        if (!hitY && !hitDoor) entity.y = nextY;
         else entity.vy = 0;
 
         entity.x = Math.max(0, Math.min(entity.x, level.width * this.tileSize - entity.width));
         entity.y = Math.max(0, Math.min(entity.y, level.height * this.tileSize - entity.height));
+
+        return collisionInfo;
     }
 
-    checkCollision(x, y, width, height, level) {
+    checkCollision(x, y, width, height, level, door) {
         const tileSize = this.tileSize;
         const left = Math.floor(x / tileSize);
         const right = Math.floor((x + width - 1) / tileSize);
@@ -33,6 +47,21 @@ export class CollisionSystem {
                 const tile = level.tilemap[ty]?.[tx];
                 if (tile === 1) return true;
             }
+        }
+
+        return false;
+    }
+
+    checkDoorCollision(x, y, width, height, door) {
+        if (!door || !door.isBlocking()) return false;
+        
+        const doorLeft = door.x;
+        const doorRight = door.x + door.width;
+        const doorTop = door.y;
+        const doorBottom = door.y + door.height;
+
+        if (x < doorRight && x + width > doorLeft && y < doorBottom && y + height > doorTop) {
+            return true;
         }
         return false;
     }

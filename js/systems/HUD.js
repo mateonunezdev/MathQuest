@@ -66,9 +66,50 @@ export class HUD {
 
         this.renderLevelBadge(ctx, padding, 12);
         this.renderLives(ctx, canvas.width / 2, 18);
-        this.renderScore(ctx, canvas.width - padding, 18);
+        this.renderScore(ctx, canvas.width - padding - 60, 18);
+        this.renderMuteButton(ctx, canvas.width - padding, 18);
 
         ctx.restore();
+    }
+
+    renderMuteButton(ctx, rightX, y) {
+        const isMuted = window.game?.audio?.muted || false;
+        const centerX = rightX - 20;
+        
+        ctx.save();
+        ctx.translate(centerX, y);
+        
+        // Button background
+        ctx.fillStyle = 'rgba(10, 21, 35, 0.8)';
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Icon
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(isMuted ? '🔇' : '🔊', 0, 2);
+        
+        ctx.restore();
+        
+        // Store rect for click detection
+        this.muteButtonRect = {
+            x: rightX - 42,
+            y: y - 22,
+            w: 44,
+            h: 44
+        };
+    }
+
+    checkMuteClick(x, y) {
+        if (!this.muteButtonRect) return false;
+        const rect = this.muteButtonRect;
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
     }
 
     renderLevelBadge(ctx, x, y) {
@@ -227,59 +268,112 @@ export class HUD {
         ctx.fillText('ESCAPE MATEMÁTICO', 0, 60);
     }
 
-    renderVictoryStats(ctx) {
-        const stats = [
-            { label: 'PUNTUACIÓN', value: this.finalScore.toLocaleString(), color: '#37c4ff' },
-            { label: 'VIDAS RESTANTES', value: '❤️'.repeat(this.finalLives) + '🖤'.repeat(3 - this.finalLives), color: '#ff6b9d' }
-        ];
+    renderVictoryScreen(ctx) {
+        const canvas = ctx.canvas;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const w = canvas.width;
+        const h = canvas.height;
 
-        stats.forEach((stat, i) => {
-            const y = 100 + i * 50;
+        ctx.save();
+        ctx.fillStyle = 'rgba(5, 15, 30, 0.9)';
+        ctx.fillRect(0, 0, w, h);
 
-            ctx.fillStyle = 'rgba(55, 196, 255, 0.1)';
-            ctx.strokeStyle = `rgba(55, 196, 255, ${0.3 * this.victoryAnim})`;
-            ctx.lineWidth = 1;
+        // Victory backdrop - soft gradient
+        const backdropGrad = ctx.createRadialGradient(centerX, centerY * 0.3, 0, centerX, centerY * 0.3, Math.max(w, h));
+        backdropGrad.addColorStop(0, 'rgba(10, 25, 50, 0.8)');
+        backdropGrad.addColorStop(0.5, 'rgba(5, 15, 30, 0.9)');
+        backdropGrad.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
+        ctx.fillStyle = backdropGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Victory glow - dorado core with cian aura
+        const glowGrad = ctx.createRadialGradient(centerX, centerY * 0.5, 0, centerX, centerY * 0.5, Math.min(w, h) * 0.6);
+        glowGrad.addColorStop(0, 'rgba(255, 215, 0, 0.3)');
+        glowGrad.addColorStop(0.3, 'rgba(55, 196, 255, 0.15)');
+        glowGrad.addColorStop(0.6, 'rgba(55, 196, 255, 0.05)');
+        glowGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Celebratory particles - few golden cian mix
+        for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2 + this.victoryAnim * 2;
+            const distance = 80 + Math.sin(this.victoryAnim * 3 + i) * 20;
+            ctx.globalAlpha = 0.6;
+            ctx.fillStyle = i % 2 === 0 ? '#ffd700' : '#50e3a0';
             ctx.beginPath();
-            ctx.roundRect(-120, y - 20, 240, 40, 8);
+            ctx.arc(centerX + Math.cos(angle) * distance, centerY * 0.5 + Math.sin(angle) * distance, 3, 0, Math.PI * 2);
             ctx.fill();
-            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
 
-            ctx.fillStyle = '#92a9c0';
-            ctx.font = '12px "JetBrains Mono", monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(stat.label, 0, y - 8);
+        // Title composition - dorado with cian accent
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 42px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = '#37c4ff';
+        ctx.shadowBlur = 10;
+        ctx.fillText('VICTORIA', centerX, centerY * 0.4 - 20);
 
-            ctx.fillStyle = stat.color;
-            ctx.font = 'bold 20px "JetBrains Mono", monospace';
-            ctx.fillText(stat.value, 0, y + 14);
-        });
-    }
+        // Cian accent line under title
+        ctx.strokeStyle = 'rgba(55, 196, 255, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(centerX - 150, centerY * 0.4 + 10);
+        ctx.lineTo(centerX + 150, centerY * 0.4 + 10);
+        ctx.stroke();
 
-    renderVictoryButton(ctx) {
-        const y = 220;
-        const pulse = Math.sin(this.time * 3) * 0.1 + 1;
+        // Score presentation - large dorado
+        const scoreString = this.finalScore.toLocaleString();
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 64px "JetBrains Mono", monospace';
+        ctx.shadowBlur = 0;
+        ctx.fillText('SCORE', centerX, centerY * 0.5 + 20);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 96px "JetBrains Mono", monospace';
+        ctx.fillText(scoreString, centerX, centerY * 0.5 + 55);
 
-        ctx.fillStyle = 'rgba(55, 196, 255, 0.2)';
-        ctx.strokeStyle = `rgba(55, 196, 255, ${0.6 * pulse})`;
+        // Lives remaining - subtle
+        ctx.fillStyle = '#a0a8b8';
+        ctx.font = '14px "JetBrains Mono", monospace';
+        ctx.fillText(`VIDAS: ${this.finalLives}/3`, centerX, centerY * 0.7 - 20);
+
+        // JUGAR DE NUEVO button with stronger design
+        const buttonY = centerY * 0.75;
+        const buttonW = 280;
+        const buttonH = 50;
+        const borderAlpha = 0.5 + Math.sin(this.victoryAnim * 3) * 0.3;
+
+        // Button background with dorado gradient
+        const buttonGrad = ctx.createLinearGradient(-buttonW/2, 0, buttonW/2, 0);
+        buttonGrad.addColorStop(0, 'rgba(255, 203, 106, 0.2)');
+        buttonGrad.addColorStop(0.5, 'rgba(255, 203, 106, 0.1)');
+        buttonGrad.addColorStop(1, 'rgba(255, 203, 106, 0.2)');
+
+        ctx.fillStyle = buttonGrad;
+        ctx.strokeStyle = `rgba(255, 203, 106, ${borderAlpha})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-100, y - 20, 200, 45, 10);
+        ctx.roundRect(-buttonW/2, buttonY, buttonW, buttonH, 12);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 16px "JetBrains Mono", monospace';
+        // Button inner glow
+        ctx.fillStyle = 'rgba(255, 203, 106, ${borderAlpha * 0.4})';
+        ctx.beginPath();
+        ctx.roundRect(-buttonW/2 + 4, buttonY + 4, buttonW - 8, buttonH - 8, 8);
+        ctx.fill();
+
+        // Button text - cian
+        ctx.fillStyle = '#37c4ff';
+        ctx.font = 'bold 20px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('JUGAR DE NUEVO', 0, y + 2);
+        ctx.fillText('JUGAR DE NUEVO', 0, buttonY + buttonH/2 + 4);
 
-        this.victoryButtonRect = {
-            x: centerX - 100,
-            y: centerY + y - 20,
-            w: 200,
-            h: 45
-        };
+        ctx.restore();
     }
 
     easeOutBack(t) {

@@ -11,6 +11,8 @@ export class Goal {
         this.particles = [];
         this.activated = false;
         this.activationProgress = 0;
+        this.approachGlow = 0;
+        this.activationFlash = 0;
     }
 
     update(dt, player) {
@@ -23,13 +25,19 @@ export class Goal {
             (player.y + player.height/2) - (this.y + this.height/2)
         );
 
-        if (dist < 50 && !this.activated) {
+        // Reactive approach - core glows stronger as player nears (before activation)
+        const proximity = 1 - Math.max(0, Math.min(1, (dist - 30) / 180));
+        this.approachGlow += ((proximity * proximity) - this.approachGlow) * dt * 4;
+
+        if (dist < 55 && !this.activated) {
             this.activated = true;
+            this.activationFlash = 1;
             window.game?.triggerVictory?.();
         }
 
         if (this.activated) {
-            this.activationProgress = Math.min(1, this.activationProgress + dt * 0.5);
+            this.activationProgress = Math.min(1, this.activationProgress + dt * 0.6);
+            this.activationFlash = Math.max(0, this.activationFlash - dt * 2.5);
         }
 
         this.spawnAmbientParticles(dt);
@@ -38,7 +46,8 @@ export class Goal {
     }
 
     spawnAmbientParticles(dt) {
-        if (Math.random() < dt * 2) {
+        const rate = this.approachGlow * 6;
+        if (Math.random() < dt * (2 + rate)) {
             const angle = Math.random() * Math.PI * 2;
             const radius = 20 + Math.random() * 20;
             this.particles.push(new GoalParticle(
@@ -47,7 +56,7 @@ export class Goal {
                 '#37c4ff'
             ));
         }
-        if (this.activated && Math.random() < dt * 10) {
+        if (this.activated && Math.random() < dt * 12) {
             this.particles.push(new GoalParticle(
                 this.x + this.width/2 + (Math.random() - 0.5) * 40,
                 this.y + this.height/2 + this.floatOffset + (Math.random() - 0.5) * 40,
@@ -62,6 +71,34 @@ export class Goal {
         ctx.save();
         ctx.translate(this.x + this.width/2, this.y + this.height/2 + this.floatOffset);
 
+        // Localized glow that reacts to proximity / activation
+        const glowBase = this.activated ? 1 : this.approachGlow;
+        const glowAlpha = 0.15 + glowBase * 0.35 + this.activationFlash * 0.4;
+        const glowGrad = ctx.createRadialGradient(0, 0, 5, 0, 0, 55);
+        glowGrad.addColorStop(0, `rgba(${this.activated ? '255, 215, 0' : '55, 196, 255'}, ${glowAlpha})`);
+        glowGrad.addColorStop(1, 'rgba(55, 196, 255, 0)');
+        ctx.fillStyle = glowGrad;
+        ctx.fillRect(-55, -55, 110, 110);
+
+        // Holographic ring overlay when activated - enhanced goal signposting
+        if (this.activated) {
+            const holograd = ctx.createRadialGradient(0, 0, 0, 0, 0, 60);
+            holograd.addColorStop(0, 'rgba(255, 215, 0, 0.15)');
+            holograd.addColorStop(0.5, 'rgba(55, 196, 255, 0.08)');
+            holograd.addColorStop(1, 'rgba(55, 196, 255, 0)');
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.strokeStyle = holograd;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const r = 12 + i * 7 + Math.sin(this.pulseTime * 3 + i) * 2;
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
         this.renderBase(ctx);
         this.renderCore(ctx);
         this.renderRings(ctx);
@@ -73,31 +110,39 @@ export class Goal {
 
     renderBase(ctx) {
         const pulse = Math.sin(this.pulseTime * 3) * 0.15 + 0.85;
+        const approach = this.activated ? 1 : this.approachGlow;
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        // Contact shadow on floor
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
         ctx.beginPath();
-        ctx.ellipse(0, 15, 22 * pulse, 8, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 16, 24 * pulse, 9, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        const baseGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 28);
-        baseGrad.addColorStop(0, '#0d1f33');
-        baseGrad.addColorStop(0.5, '#153045');
-        baseGrad.addColorStop(1, '#0a1520');
-        ctx.fillStyle = baseGrad;
+        // Pedestal base ring
+        const baseRing = 28 + approach * 4;
+        ctx.fillStyle = '#0a1828';
         ctx.beginPath();
-        ctx.arc(0, 0, 26 * pulse, 0, Math.PI * 2);
+        ctx.arc(0, 2, baseRing, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.4)';
+        ctx.strokeStyle = `rgba(55, 196, 255, ${0.35 + approach * 0.3})`;
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, 26 * pulse, 0, Math.PI * 2);
         ctx.stroke();
 
+        // Inner pedestal tier
+        ctx.fillStyle = '#0d1f33';
+        ctx.beginPath();
+        ctx.arc(0, 0, baseRing * 0.82, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(55, 196, 255, ${0.25 + approach * 0.3})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Pedestal energy nodes (brighter near player)
         for (let i = 0; i < 6; i++) {
             const angle = this.rotation + i * Math.PI / 3;
-            const r = 18 * pulse;
-            ctx.fillStyle = `rgba(55, 196, 255, ${0.3 + Math.sin(this.pulseTime * 4 + i) * 0.2})`;
+            const r = (baseRing - 8) * pulse;
+            const nodeBright = 0.3 + approach * 0.5 + Math.sin(this.pulseTime * 4 + i) * 0.2;
+            ctx.fillStyle = `rgba(${this.activated ? '255, 215, 0' : '55, 196, 255'}, ${nodeBright})`;
             ctx.beginPath();
             ctx.arc(Math.cos(angle) * r, Math.sin(angle) * r, 4, 0, Math.PI * 2);
             ctx.fill();

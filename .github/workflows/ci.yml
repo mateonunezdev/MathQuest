@@ -1,0 +1,37 @@
+name: MathQuest CI
+
+on:
+  push:
+    branches: [codex/pro-level-1, main]
+  pull_request:
+    branches: [codex/pro-level-1, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run level validation (BFS gate)
+        run: npm run test:level
+
+      - name: Run npm test
+        run: npm test
+
+      - name: Run test:flow (if feasible)
+        run: npm run test:flow
+        if: runner.os == 'Linux' && env.CI_BROWSER_QA == 'true'
+
+      - name: Final verification
+        run: echo "CI checks complete — MathQuest release candidate validation passed"

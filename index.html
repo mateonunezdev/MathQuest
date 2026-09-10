@@ -4,40 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MathQuest</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <main class="app">
     <section class="game-shell">
       <canvas id="game" width="960" height="540"></canvas>
-
-      <div id="challenge" class="modal hidden"><div class="card">
-        <small>PUERTA MATEMÁTICA</small>
-        <h2 id="challenge-question">¿Cuánto es 7 × (3 + 2) = ?</h2>
-        <div class="answers">
-          <button data-answer="A"><span>A · 28</span></button>
-          <button data-answer="B"><span>B · 35</span></button>
-          <button data-answer="C"><span>C · 42</span></button>
-        </div>
-        <p class="keyboard-hint">También puedes usar las teclas <kbd>A</kbd>, <kbd>B</kbd> o <kbd>C</kbd>.</p>
-        <div id="feedback"></div>
-      </div></div>
     </section>
   </main>
 
   <script type="module" src="js/main.js"></script>
-  <script type="module" src="js/systems/InputSystem.js"></script>
-  <script type="module" src="js/systems/CollisionSystem.js"></script>
-  <script type="module" src="js/systems/Renderer.js"></script>
-  <script type="module" src="js/systems/MathChallengeSystem.js"></script>
-  <script type="module" src="js/systems/HUD.js"></script>
-  <script type="module" src="js/entities/Player.js"></script>
-  <script type="module" src="js/entities/MathDoor.js"></script>
-  <script type="module" src="js/entities/Goal.js"></script>
-  <script type="module" src="js/entities/Particle.js"></script>
-  <script type="module" src="js/levels/LevelData.js"></script>
 </body>
 </html>
