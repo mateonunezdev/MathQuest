@@ -73,13 +73,15 @@ seeks contributors.**
 
 ## WHY Codex (Not OpenAI Runtime)
 
-The **Codex** system provides capabilities that support open-source maintenance
-for this project (without embedding API keys in the runtime). **OpenCode** is the
-name of the interactive CLI tool used to make these edits; **Codex** refers to
-the broader AI maintainer support capabilities described here. The game runtime
-remains zero-dependency and offline-only.
+The **Codex** system provides potential capabilities that could support open-source
+maintenance for this project (without embedding API keys in the runtime). **OpenCode**
+is the interactive CLI tool used to author these edits and is a separate tool from
+**Codex**. Neither has been used to provide automated maintenance yet; the capabilities
+below describe what such tooling *could* support. The game runtime remains
+zero-dependency and offline-only.
 
-Codex capabilities that benefit MathQuest (maintainer tools, no runtime impact):
+Potential Codex capabilities that could benefit MathQuest (maintainer tools, no runtime
+impact):
 - PR review automation — Codex can help triage incoming PRs against the contributing
   guidelines, flagging style violations, dependency issues, or gameplay breakage.
 - Issue triage — Codex can label issues (bug/enhancement/good first question) based on
@@ -97,28 +99,6 @@ Codex capabilities that benefit MathQuest (maintainer tools, no runtime impact):
 - Contributor assistance — Codex can answer "how do I add a level?" by pointing to
   CONTRIBUTING.md, adding-levels.md, and the BFS validator.
 - Documentation maintenance — Codex can flag docs that are out of sync with code
-  changes, ensuring the project doesn't accumulate documentation drift.
-
-**These Codex capabilities are documented for fund-readiness; they do not require
-embedding API keys in the game runtime. They are external tooling supports.**
-
-- **PR review automation** — Codex can help triage incoming PRs against the contributing
-  guidelines, flagging style violations, dependency issues, or gameplay breakage.
-- **Issue triage** — Codex can label issues (bug/enhancement/good first question)
-  based on keyword analysis and template completion.
-- **Test generation** — Codex can help write level validation scripts or test cases
-  for new challenge types, reducing maintainer burden.
-- **Maintenance automation** — Codex can track CHANGELOG entries, validate that
-  `npm run test:level` passes after changes, and summarize diffs for release notes.
-- **Accessibility** — Codex can audit docs/accessibility.md compliance and suggest
-  improvements for new features.
-- **Translations** — Codex can assist with message catalog generation for i18n
-  (planned Phase 5), though runtime i18n is not implemented in v0.1.0.
-- **Release workflows** — Codex can help draft CHANGELOG entries, version summaries,
-  and release candidate notes (as documented in open-source-fund.md).
-- **Contributor assistance** — Codex can answer "how do I add a level?" by pointing
-  to CONTRIBUTING.md, adding-levels.md, and the BFS validator.
-- **Documentation maintenance** — Codex can flag docs that are out of sync with code
   changes, ensuring the project doesn't accumulate documentation drift.
 
 **These Codex capabilities are documented for fund-readiness; they do not require
@@ -157,6 +137,9 @@ and documentation tools for the project maintainers.**
 
 ## MEASURABLE OUTCOMES
 
+The following are **INTERNAL PROJECT TARGETS** (not eligibility criteria). None of these
+metrics are currently measured; they represent the project's own goals for the first year.
+
 | Metric | Target (12 months) | How Measured |
 |--------|-------------------|--------------|
 | **Stars** | ≥ 25 | GitHub stars count |
@@ -164,16 +147,15 @@ and documentation tools for the project maintainers.**
 | **Contributors** | ≥ 3 | `git log --format='%an' | sort -u | wc -l` |
 | **Levels** | ≥ 3 (beyond Level 1) | Levels in LevelData.js |
 | **Issues** | ≥ 15 opened | GitHub Issues count |
-| **PRs merged** | ≥ 5 | Pull requests merged to dev |
+| **PRs merged** | ≥ 5 | Pull requests merged to main |
 | **BFS validation** | 100% of new levels | `npm run test:level` pass rate |
 | **Console errors** | 0 per session | Browser QA run |
 | **Second-run stability** | 100% | Lives=3, score=0 after restart |
 
 ## CURRENT LIMITATIONS (v0.1.0)
 
-- No license file yet (pending user confirmation)
+- v0.1.0 remains a RELEASE CANDIDATE (not yet tagged or released)
 - No contributors onboarded yet
-- No release tag (v0.1.0 not yet git-tag ed)
 - No measured user adoption
 - No i18n infrastructure (Phase 5 planned)
 - No hardware Arduino integration (Phase 6 planned)
@@ -187,7 +169,7 @@ and documentation tools for the project maintainers.**
 This project aligns with open-source education fund goals because:
 
 - **Low barrier to entry:** No internet required, runs on classroom hardware
-- **High educational impact:** Math practice wrapped in interactive adventure
+- **Intended educational use case:** Math practice wrapped in interactive adventure (impact not yet measured)
 - **Sustainable model:** Documentation-first; contributors can onboard without
   reverse-engineering gameplay
 - **No vendor lock-in:** MIT license; all assets are text/tilemap editable

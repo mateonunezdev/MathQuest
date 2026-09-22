@@ -49,17 +49,18 @@ python3 -m http.server 8080
 
 All contributions must:
 
-- Pass `npm run test:level` (level validation)
+- Pass `npm test` (level validation)
+- Pass `npm run test:flow` (gameplay flow assertions)
+- Pass `npm run test:browser` (12-screenshot browser QA)
 - Not break existing gameplay (START → PLAYING → CHALLENGE → VICTORY)
 - Not introduce new console errors
-- Include screenshots for UI changes (run `node tools/browser-qa.js`)
 - Follow the existing code style (no framework changes, no Arduino unless on roadmap)
 - Maintain the "no unnecessary dependencies" principle
 
 ## Issues
 
-- Use the `.github/issue_template/bug_report.yml` template for bug reports
-- Use the `.github/issue_template/feature_request.yml` template for feature requests
+- Use the `.github/ISSUE_TEMPLATE/bug_report.yml` template for bug reports
+- Use the `.github/ISSUE_TEMPLATE/feature_request.yml` template for feature requests
 - Include:
   - Steps to reproduce (for bugs)
   - Browser and version
@@ -71,8 +72,8 @@ All contributions must:
 ## Pull Requests
 
 1. Ensure your branch is up to date: `git pull origin main`
-2. Run local QA: `node tools/browser-qa.js` (checks 12 screenshots, no console errors)
-3. Run level validation: `npm run test:level`
+2. Run local QA: `npm run test:browser` (checks 12 screenshots, no console errors)
+3. Run level validation: `npm test`
 4. Fill the PR template completely
 5. Respond to reviewer feedback promptly
 6. Keep the PR focused — one issue per PR

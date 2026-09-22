@@ -2,7 +2,8 @@
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in MathQuest, please report it responsibly by opening an issue with the `security` label or contacting the project maintainers directly.
+Do not disclose sensitive vulnerability details in a public issue. Use GitHub Private
+Vulnerability Reporting if enabled, or contact the maintainer privately.
 
 **What to include:**
 - Description of the vulnerability and its potential impact
@@ -36,7 +37,6 @@ MathQuest is an offline educational game with the following security considerati
 
 - **No network communication** — the game runs entirely client-side without external API calls
 - **No user accounts** — no registration or login system
-- **No persistent storage** of personal data — local storage is used only for optional game progress; any claims of persistent storage must be verified against the source code
 - **No code execution from external sources** — all game logic is embedded in the HTML/JS bundle
 - **Canvas 2D only** — no WebGL shader exploits or external binary dependencies
 

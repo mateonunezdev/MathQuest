@@ -8,7 +8,7 @@
 
 ## ¿Qué es MathQuest?
 
-MathQuest es un juego de aventura educativo de código abierto que transforma la práctica de matemáticas en una experiencia interactiva de laberinto y puertas. Los jugadores navegan por zonas temáticas, desbloquean puertas resolviendo desafíos matemáticos y avanzan hacia la meta. Diseñado para funcionar sin conexión en hardware modesto y extensible hacia controles de arcade/Arduino físicos.
+MathQuest es un juego de aventura educativo de código abierto que transforma la práctica de matemáticas en una experiencia interactiva de laberinto y puertas. Los jugadores navegan por zonas temáticas, desbloquean puertas resolviendo desafíos matemáticos y avanzan hacia la meta. Diseñado para funcionar sin conexión en hardware modesto. Arduino/arcade input support is planned for a future phase.
 
 ---
 
@@ -23,9 +23,10 @@ Convierte ejercicios matemáticos aislados en desafíos significativos dentro de
 - **Gameplay vertical slice completa** — Nivel 1 con puzzles de puerta matemática, sistema de desafío y victoria
 - **Controles intuitivos** — WASD/Flechas para mover, A/B/C para responder
 - **Sistema de puertas matemáticas** — Desbloquea progresando a través de desafíos de orden de operaciones y álgebra básica
-- **Diseño 2.5D con canvas 2D** — Renderizado atmosférico sin dependencias externas
+- **Diseño 2.5D con canvas 2D** — Renderizado atmosférico
 - **Audio system integrado** — Efectos de sonido para acciones y retroalimentación
-- **Preparado para hardware** — Abstracción de entrada lista para Arduino y controles de arcade
+- **Preparado para hardware** — Arduino/arcade input support is planned for a future phase.
+- **Zero runtime dependencies** — Playwright is used only for development QA.
 - **Diseño educativo cuidadoso** — Feedback constructivo, sin revelar respuestas incorrectas
 
 ---
@@ -94,22 +95,22 @@ python3 -m http.server 8080
 
 ## Licencia
 
-This project is licensed under the MIT License — see the LICENSE file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Cómo contribuir
 
-CONTRIBUTING.md — Reglas para branches, commits, pruebas y Pull Requests.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch, commit, test, and Pull Request rules.
 
 ---
 
 ## Estado actual
 
-**v0.1.0 release candidate** — Level 1 vertical slice complete. BFS validated, browser QA pass (12/12 screenshots), 0 console errors, second-run state preservation verified.
+**v0.1.0 release candidate** — Level 1 vertical slice complete. BFS validated, browser QA pass (12/12 screenshots), 0 console errors, clean restart verified (lives=3, score=0).
 
 ---
 
 ## Agradecimientos
 
-"Zero runtime dependencies. Playwright is used only for development QA." Arduino support is PLANNED for Phase 6. "clean reset" (lives=3, score=0), not "state preservation".
+Desarrollado con Canvas 2D y JavaScript. Roadmap en [ROADMAP.md](ROADMAP.md).
