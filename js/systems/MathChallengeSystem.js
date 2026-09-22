@@ -155,7 +155,7 @@ export class MathChallengeSystem {
             const hue = i === 0 ? 195 : i === 1 ? 180 : 210;
             const grad = ctx.createLinearGradient(panelX - 50 + offset, panelY - 50, panelX + panelW + 50 - offset, panelY - 50);
             grad.addColorStop(0, `hsla(${hue}, 80%, 30%, 0.1)`);
-            grad.addColorStop(1, 'hsla(${hue}, 80%, 30%, 0)');
+            grad.addColorStop(1, `hsla(${hue}, 80%, 30%, 0)`);
             ctx.strokeStyle = grad;
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -214,7 +214,7 @@ export class MathChallengeSystem {
 
         // Header
         const headerY = panelY + 40;
-        ctx.fillStyle = 'rgba(255, 203, 106, ${0.2 * progress})';
+        ctx.fillStyle = `rgba(255, 203, 106, ${0.2 * progress})`;
         ctx.fillRect(panelX + 20, headerY - 10, panelW - 40, 2);
 
         // Title

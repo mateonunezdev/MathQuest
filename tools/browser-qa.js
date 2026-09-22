@@ -5,153 +5,166 @@ const path = require('path');
 const SCREENSHOT_DIR = path.join(__dirname, '../screenshots');
 if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
-async function sleep(ms){return new Promise(resolve => setTimeout(resolve, ms));}
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function hold(page, key, ms) {
+    await page.keyboard.down(key);
+    await sleep(ms);
+    await page.keyboard.up(key);
+}
+
+function assert(cond, msg) {
+    if (!cond) throw new Error('ASSERTION FAILED: ' + msg);
+}
+
+async function clickCanvasRect(page, rectName) {
+    const point = await page.evaluate((name) => {
+        const canvas = document.querySelector('#game');
+        const rect = canvas.getBoundingClientRect();
+        const hitbox = window.game?.hud?.[name];
+        if (!hitbox) throw new Error(`Missing HUD hitbox: ${name}`);
+        return {
+            x: rect.left + (hitbox.x + hitbox.w / 2) * rect.width / canvas.width,
+            y: rect.top + (hitbox.y + hitbox.h / 2) * rect.height / canvas.height
+        };
+    }, rectName);
+    await page.mouse.click(point.x, point.y);
+}
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
-  
-  const errors = [];
-  page.on('console', msg => {
-    if (msg.type() === 'error') errors.push('[console.error] ' + msg.text());
-  });
-  page.on('pageerror', err => errors.push('[pageerror] ' + err.message));
-  
-  await page.goto('http://localhost:8080', { waitUntil: 'networkidle' });
-  await sleep(1000);
-  
-  // Wait for start screen to be visible
-  await page.waitForSelector('#start-btn', { state: 'visible', timeout: 10000 });
-  
-  // 1. Start screen
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '01-start-screen.png'), fullPage: true });
-  console.log('Screenshot: 01-start-screen.png');
-  
-  // Click start
-  await page.click('#start-btn');
-  await sleep(1000);
-  
-  // 2. Start zone / gameplay entry
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '02-start-zone.png'), fullPage: true });
-  console.log('Screenshot: 02-start-zone.png');
-  
-  // 3. Normal gameplay - move right a bit
-  for (let i = 0; i < 10; i++) {
-    await page.keyboard.press('ArrowRight');
-    await sleep(40);
-  }
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '03-gameplay-normal.png'), fullPage: true });
-  console.log('Screenshot: 03-gameplay-normal.png');
-  
-  // 4. Math Explorer closeup
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '04-math-explorer.png'), fullPage: true });
-  console.log('Screenshot: 04-math-explorer.png');
-  
-  // Move to door
-  for (let i = 0; i < 25; i++) {
-    await page.keyboard.press('ArrowRight');
-    await sleep(40);
-  }
-  await sleep(300);
-  
-  // 5. Door LOCKED
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '05-door-locked.png'), fullPage: true });
-  console.log('Screenshot: 05-door-locked.png');
-  
-  // Try to interact with door (Up)
-  await page.keyboard.press('ArrowUp');
-  await sleep(600);
-  
-  // 6. Challenge open
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '06-challenge.png'), fullPage: true });
-  console.log('Screenshot: 06-challenge.png');
-  
-  // 7. Incorrect answer (A)
-  await page.keyboard.press('a');
-  await sleep(1200);
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '07-incorrect.png'), fullPage: true });
-  console.log('Screenshot: 07-incorrect.png');
-  
-  // Wait for challenge to close and return to playing
-  await sleep(500);
-  
-  // Go back to door
-  for (let i = 0; i < 10; i++) {
-    await page.keyboard.press('ArrowRight');
-    await sleep(40);
-  }
-  await page.keyboard.press('ArrowUp');
-  await sleep(600);
-  
-  // 8. Challenge again - correct answer (B)
-  await page.keyboard.press('b');
-  await sleep(1500);
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '08-correct.png'), fullPage: true });
-  console.log('Screenshot: 08-correct.png');
-  
-  // 9. UNLOCKING
-  await sleep(500);
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '09-unlocking.png'), fullPage: true });
-  console.log('Screenshot: 09-unlocking.png');
-  
-  // 10. Door OPEN
-  await sleep(1000);
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '10-door-open.png'), fullPage: true });
-  console.log('Screenshot: 10-door-open.png');
-  
-  // Move through door to goal
-  for (let i = 0; i < 15; i++) {
-    await page.keyboard.press('ArrowRight');
-    await sleep(40);
-  }
-  await sleep(500);
-  
-  // 11. Goal zone
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '11-goal-zone.png'), fullPage: true });
-  console.log('Screenshot: 11-goal-zone.png');
-  
-  // 12. Victory
-  await sleep(1000);
-  await page.screenshot({ path: path.join(SCREENSHOT_DIR, '12-victory.png'), fullPage: true });
-  console.log('Screenshot: 12-victory.png');
-  
-  // Play again - click in the game area to dismiss victory, then start
-  await sleep(500);
-  const box = await page.evaluate(()=>{const r=document.querySelector('#game').getBoundingClientRect();return{x:r.x,y:r.y,w:r.h}});
-  await page.mouse.click(box.x + box.w * 0.5, box.y + box.h * 0.75);
-  await sleep(1000);
-  await page.click('#start-btn');
-  await sleep(1000);
-  
-  // Second playthrough quick check - move to door and challenge
-  for (let i = 0; i < 50; i++) {
-    await page.keyboard.press('ArrowRight');
-    await sleep(30);
-  }
-  await page.keyboard.press('ArrowUp');
-  await sleep(600);
-  await page.keyboard.press('b');
-  await sleep(2000);
-  
-  // Check second run state - CLEAN RESET
-  const secondRunOk = await page.evaluate(() => window.game?.lives === 3 && window.game?.score === 100);
-  if(!secondRunOk){console.error('FAIL: second run: lives=3 score=100'); process.exit(1);}
-  console.log('Second run: PASS');
-  
-  console.log('\n=== SCREENSHOTS CAPTURED ===');
-  fs.readdirSync(SCREENSHOT_DIR).forEach(f => console.log('  ' + f));
-  
-  console.log('\n=== CONSOLE ERRORS ===');
-  if(errors.length===0){
-    console.log('  (none)');
-  } else {
-    errors.forEach(e => console.log('  ERROR:', e));
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+    const errors = [];
+    page.on('console', m => { if (m.type() === 'error') errors.push('[console.error] ' + m.text()); });
+    page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
+
+    try {
+        await page.goto('http://localhost:8080', { waitUntil: 'networkidle' });
+        await sleep(800);
+        await page.waitForSelector('#start-btn', { state: 'visible', timeout: 10000 });
+
+        // 1. Start screen
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '01-start-screen.png') });
+        console.log('Screenshot: 01-start-screen.png');
+
+        await page.click('#start-btn');
+        await sleep(1600);
+        assert((await page.evaluate(() => window.game.state)) === 'playing', 'start -> playing');
+
+        // 2. Start zone
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '02-start-zone.png') });
+        console.log('Screenshot: 02-start-zone.png');
+
+        // 3. Normal gameplay (move right a bit)
+        await hold(page, 'ArrowRight', 500);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '03-gameplay-normal.png') });
+        console.log('Screenshot: 03-gameplay-normal.png');
+
+        // 4. Math explorer closeup (near door approach)
+        await page.evaluate(() => { window.game.player.x = 540; window.game.player.y = 230; });
+        await sleep(200);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '04-math-explorer.png') });
+        console.log('Screenshot: 04-math-explorer.png');
+
+        // 5. Door LOCKED (before challenge)
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '05-door-locked.png') });
+        console.log('Screenshot: 05-door-locked.png');
+
+        // 6. Challenge open (teleport into range, press ArrowUp)
+        await page.evaluate(() => { window.game.player.x = 624; window.game.player.y = 230; });
+        await sleep(200);
+        await page.keyboard.press('ArrowUp');
+        await sleep(400);
+        assert((await page.evaluate(() => window.game.state)) === 'challenge', 'challenge should open');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '06-challenge.png') });
+        console.log('Screenshot: 06-challenge.png');
+
+        // 7. Incorrect answer (A)
+        await hold(page, 'a', 80);
+        await sleep(1300);
+        const wrong = await page.evaluate(() => ({
+            lives: window.game.lives, score: window.game.score, doorState: window.game.door.state
+        }));
+        assert(wrong.lives === 2, 'wrong -> lives=2, got ' + wrong.lives);
+        assert(wrong.score === 0, 'wrong -> score=0, got ' + wrong.score);
+        assert(wrong.doorState === 'locked', 'wrong -> door locked, got ' + wrong.doorState);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '07-incorrect.png') });
+        console.log('Screenshot: 07-incorrect.png');
+
+        // 8. Correct answer (B) - challenge again
+        await page.keyboard.press('ArrowUp');
+        await sleep(400);
+        await hold(page, 'b', 80);
+        await sleep(2600);
+        const correct = await page.evaluate(() => ({
+            score: window.game.score,
+            doorState: window.game.door.state,
+            blocking: window.game.door.isBlocking()
+        }));
+        assert(correct.score === 100, 'correct -> score=100, got ' + correct.score);
+        assert(correct.doorState === 'open', 'correct -> door open, got ' + correct.doorState);
+        assert(correct.blocking === false, 'correct -> door stops blocking');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '08-correct.png') });
+        console.log('Screenshot: 08-correct.png');
+
+        // 9. Unlocking / open transition already captured; capture post-open state
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '09-unlocking.png') });
+        console.log('Screenshot: 09-unlocking.png');
+
+        // 10. Door OPEN (player moved through)
+        await page.evaluate(() => { window.game.player.x = 632; window.game.player.y = 230; });
+        await sleep(200);
+        await hold(page, 'ArrowRight', 1500);
+        await sleep(200);
+        const crossed = await page.evaluate(() => window.game.player.x);
+        assert(crossed > 720, 'player should cross open gate, x=' + crossed);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '10-door-open.png') });
+        console.log('Screenshot: 10-door-open.png');
+
+        // 11. Goal zone
+        await hold(page, 'ArrowRight', 700);
+        await hold(page, 'ArrowDown', 1200);
+        await hold(page, 'ArrowRight', 500);
+        await sleep(500);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '11-goal-zone.png') });
+        console.log('Screenshot: 11-goal-zone.png');
+
+        // 12. Victory
+        await sleep(600);
+        const vic = await page.evaluate(() => ({ activated: window.game.goal.activated, state: window.game.state }));
+        assert(vic.activated === true, 'goal should be activated');
+        assert(vic.state === 'victory', 'should be victory, got ' + vic.state);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '12-victory.png') });
+        console.log('Screenshot: 12-victory.png');
+
+        // Clean reset check (canvas restart click then start again)
+        await clickCanvasRect(page, 'victoryButtonRect');
+        await sleep(700);
+        assert((await page.evaluate(() => window.game.state)) === 'start', 'restart -> start');
+        await page.click('#start-btn');
+        await sleep(1600);
+        const clean = await page.evaluate(() => ({
+            lives: window.game.lives,
+            score: window.game.score,
+            doorState: window.game.door.state,
+            blocking: window.game.door.isBlocking()
+        }));
+        assert(clean.lives === 3, 'clean reset -> lives=3, got ' + clean.lives);
+        assert(clean.score === 0, 'clean reset -> score=0, got ' + clean.score);
+        assert(clean.doorState === 'locked', 'clean reset -> door locked, got ' + clean.doorState);
+        assert(clean.blocking === true, 'clean reset -> door blocking');
+        console.log('Clean reset: lives=3 score=0 door=locked: PASS');
+
+        // Console errors
+        assert(errors.length === 0, 'console/page errors: ' + JSON.stringify(errors));
+        fs.writeFileSync(path.join(SCREENSHOT_DIR, 'errors.txt'), errors.join('\n') || '(none)');
+        console.log('Zero console/page errors: PASS');
+
+        console.log('\n=== ALL BROWSER QA CHECKS PASSED ===');
+    } finally {
+        await browser.close();
+    }
+})().catch(e => {
+    console.error('BROWSER QA FAILED:', e.message);
     process.exit(1);
-  }
-  
-  // Write error log
-  fs.writeFileSync(path.join(SCREENSHOT_DIR, 'errors.txt'), errors.join('\n') || '(none)');
-  
-  console.log('\n=== ALL BROWSER QA CHECKS PASSED ===');
-  await browser.close();
-})();
+});

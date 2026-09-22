@@ -6,6 +6,7 @@ export class HUD {
         this.level = 1;
         this.victoryCallback = null;
         this.victoryVisible = false;
+        this.gameOverVisible = false;
         this.victoryAnim = 0;
         this.time = 0;
     }
@@ -16,7 +17,10 @@ export class HUD {
         this.maxLives = maxLives;
         this.level = level;
         this.victoryVisible = false;
+        this.gameOverVisible = false;
         this.victoryAnim = 0;
+        this.victoryButtonRect = null;
+        this.gameOverButtonRect = null;
     }
 
     update(score, lives, maxLives) {
@@ -27,10 +31,18 @@ export class HUD {
 
     showVictory(score, lives, callback) {
         this.victoryVisible = true;
+        this.gameOverVisible = false;
         this.victoryCallback = callback;
         this.victoryAnim = 0;
         this.finalScore = score;
         this.finalLives = lives;
+    }
+
+    showGameOver(score) {
+        this.gameOverVisible = true;
+        this.victoryVisible = false;
+        this.finalScore = score;
+        this.gameOverButtonRect = null;
     }
 
     render(ctx) {
@@ -38,6 +50,11 @@ export class HUD {
 
         if (this.victoryVisible) {
             this.renderVictoryScreen(ctx);
+            return;
+        }
+
+        if (this.gameOverVisible) {
+            this.renderGameOverScreen(ctx);
             return;
         }
 
@@ -201,75 +218,6 @@ export class HUD {
     renderVictoryScreen(ctx) {
         const canvas = ctx.canvas;
         this.victoryAnim = Math.min(1, this.victoryAnim + 0.02);
-
-        ctx.save();
-
-        ctx.fillStyle = `rgba(7, 18, 28, ${0.9 * this.victoryAnim})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const progress = this.easeOutBack(this.victoryAnim);
-
-        ctx.translate(centerX, centerY);
-        ctx.scale(progress, progress);
-
-        this.renderVictoryCore(ctx);
-        this.renderVictoryText(ctx);
-        this.renderVictoryStats(ctx);
-        this.renderVictoryButton(ctx);
-
-        ctx.restore();
-    }
-
-    renderVictoryCore(ctx) {
-        const pulse = Math.sin(this.time * 4) * 0.2 + 1;
-
-        for (let i = 3; i >= 0; i--) {
-            const r = 60 + i * 20 + Math.sin(this.time * 2 + i) * 5;
-            ctx.strokeStyle = `rgba(${i === 0 ? '255, 215, 0' : '55, 196, 255'}, ${0.3 - i * 0.05})`;
-            ctx.lineWidth = i === 0 ? 3 : 1;
-            ctx.setLineDash([15, 10]);
-            ctx.lineDashOffset = -this.time * 30;
-            ctx.beginPath();
-            ctx.arc(0, -60, r, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-        ctx.setLineDash([]);
-
-        const coreGrad = ctx.createRadialGradient(0, -60, 0, 0, -60, 50);
-        coreGrad.addColorStop(0, '#ffffff');
-        coreGrad.addColorStop(0.5, '#ffd700');
-        coreGrad.addColorStop(1, '#ff8800');
-        ctx.fillStyle = coreGrad;
-        ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 30;
-        ctx.beginPath();
-        ctx.arc(0, -60, 40 * pulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        ctx.fillStyle = '#0a1520';
-        ctx.font = 'bold 32px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('∑', 0, -58);
-    }
-
-    renderVictoryText(ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 36px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('NIVEL 1 COMPLETADO', 0, 30);
-
-        ctx.fillStyle = '#37c4ff';
-        ctx.font = '16px "JetBrains Mono", monospace';
-        ctx.fillText('ESCAPE MATEMÁTICO', 0, 60);
-    }
-
-    renderVictoryScreen(ctx) {
-        const canvas = ctx.canvas;
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         const w = canvas.width;
@@ -344,10 +292,11 @@ export class HUD {
         const buttonY = centerY * 0.75;
         const buttonW = 280;
         const buttonH = 50;
+        const buttonX = centerX - buttonW / 2;
         const borderAlpha = 0.5 + Math.sin(this.victoryAnim * 3) * 0.3;
 
         // Button background with dorado gradient
-        const buttonGrad = ctx.createLinearGradient(-buttonW/2, 0, buttonW/2, 0);
+        const buttonGrad = ctx.createLinearGradient(buttonX, 0, buttonX + buttonW, 0);
         buttonGrad.addColorStop(0, 'rgba(255, 203, 106, 0.2)');
         buttonGrad.addColorStop(0.5, 'rgba(255, 203, 106, 0.1)');
         buttonGrad.addColorStop(1, 'rgba(255, 203, 106, 0.2)');
@@ -356,14 +305,14 @@ export class HUD {
         ctx.strokeStyle = `rgba(255, 203, 106, ${borderAlpha})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-buttonW/2, buttonY, buttonW, buttonH, 12);
+        ctx.roundRect(buttonX, buttonY, buttonW, buttonH, 12);
         ctx.fill();
         ctx.stroke();
 
         // Button inner glow
-        ctx.fillStyle = 'rgba(255, 203, 106, ${borderAlpha * 0.4})';
+        ctx.fillStyle = `rgba(255, 203, 106, ${borderAlpha * 0.4})`;
         ctx.beginPath();
-        ctx.roundRect(-buttonW/2 + 4, buttonY + 4, buttonW - 8, buttonH - 8, 8);
+        ctx.roundRect(buttonX + 4, buttonY + 4, buttonW - 8, buttonH - 8, 8);
         ctx.fill();
 
         // Button text - cian
@@ -371,9 +320,59 @@ export class HUD {
         ctx.font = 'bold 20px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('JUGAR DE NUEVO', 0, buttonY + buttonH/2 + 4);
+        ctx.fillText('JUGAR DE NUEVO', centerX, buttonY + buttonH/2 + 4);
+
+        this.victoryButtonRect = { x: buttonX, y: buttonY, w: buttonW, h: buttonH };
 
         ctx.restore();
+    }
+
+    renderGameOverScreen(ctx) {
+        const { width, height } = ctx.canvas;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const buttonW = 280;
+        const buttonH = 50;
+        const buttonX = centerX - buttonW / 2;
+        const buttonY = centerY + 90;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(5, 10, 18, 0.94)';
+        ctx.fillRect(0, 0, width, height);
+
+        const glow = ctx.createRadialGradient(centerX, centerY - 50, 0, centerX, centerY - 50, 260);
+        glow.addColorStop(0, 'rgba(255, 107, 107, 0.18)');
+        glow.addColorStop(1, 'rgba(255, 107, 107, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ff6b6b';
+        ctx.font = 'bold 52px "JetBrains Mono", monospace';
+        ctx.fillText('GAME OVER', centerX, centerY - 70);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 38px "JetBrains Mono", monospace';
+        ctx.fillText(this.finalScore.toLocaleString(), centerX, centerY + 5);
+        ctx.fillStyle = '#92a9c0';
+        ctx.font = '14px "JetBrains Mono", monospace';
+        ctx.fillText('PUNTOS', centerX, centerY + 38);
+
+        ctx.fillStyle = 'rgba(255, 107, 107, 0.12)';
+        ctx.strokeStyle = 'rgba(255, 107, 107, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(buttonX, buttonY, buttonW, buttonH, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px "JetBrains Mono", monospace';
+        ctx.fillText('JUGAR DE NUEVO', centerX, buttonY + buttonH / 2 + 2);
+        ctx.restore();
+
+        this.gameOverButtonRect = { x: buttonX, y: buttonY, w: buttonW, h: buttonH };
     }
 
     easeOutBack(t) {
@@ -385,6 +384,12 @@ export class HUD {
     checkVictoryClick(x, y) {
         if (!this.victoryVisible || !this.victoryButtonRect) return false;
         const rect = this.victoryButtonRect;
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+    }
+
+    checkGameOverClick(x, y) {
+        if (!this.gameOverVisible || !this.gameOverButtonRect) return false;
+        const rect = this.gameOverButtonRect;
         return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
     }
 }

@@ -15,6 +15,7 @@ const GameState = {
     PLAYING: 'playing',
     CHALLENGE: 'challenge',
     VICTORY: 'victory',
+    GAME_OVER: 'game_over',
     TRANSITION: 'transition'
 };
 
@@ -86,18 +87,17 @@ class Game {
                 return;
             }
             
-            // Victory restart
-            if (this.state === GameState.VICTORY) {
-                if (this.hud.checkVictoryClick(canvasX, canvasY)) {
-                    this.restartGame();
-                }
+            if (this.state === GameState.VICTORY && this.hud.checkVictoryClick(canvasX, canvasY)) {
+                this.restartGame();
+            } else if (this.state === GameState.GAME_OVER && this.hud.checkGameOverClick(canvasX, canvasY)) {
+                this.restartGame();
             }
         });
         
         // Keyboard for restart
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
-                if (this.state === GameState.VICTORY) {
+                if (this.state === GameState.VICTORY || this.state === GameState.GAME_OVER) {
                     this.restartGame();
                 }
             }
@@ -219,6 +219,9 @@ class Game {
             this.audio.play('incorrect');
         }
         this.hud.update(this.score, this.lives, this.maxLives);
+        if (!correct && this.lives === 0) {
+            this.triggerGameOver();
+        }
     }
 
     spawnParticles(x, y, color, count) {
@@ -279,7 +282,7 @@ update(dt) {
             this.updateParticles(dt);
         } else if (this.state === GameState.CHALLENGE) {
             this.mathChallenge.update(dt);
-        } else if (this.state === GameState.VICTORY) {
+        } else if (this.state === GameState.VICTORY || this.state === GameState.GAME_OVER) {
             this.updateParticles(dt);
         }
 
@@ -328,7 +331,12 @@ update(dt) {
     }
 
     render() {
-        const renderWorld = this.level && (this.state === GameState.PLAYING || this.state === GameState.CHALLENGE || this.state === GameState.VICTORY);
+        const renderWorld = this.level && (
+            this.state === GameState.PLAYING ||
+            this.state === GameState.CHALLENGE ||
+            this.state === GameState.VICTORY ||
+            this.state === GameState.GAME_OVER
+        );
 
         if (renderWorld) {
             this.ctx.save();
@@ -364,7 +372,6 @@ update(dt) {
         this.score = 0;
         this.lives = this.maxLives;
         this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
-        this.hud.victoryVisible = false;
 
         // No duplicar start screens
         const existing = document.querySelector('#start-screen');
@@ -392,8 +399,15 @@ update(dt) {
         this.audio.play('doorCharge');
         this.mathChallenge.open(challengeId, (correct) => {
             this.handleChallengeResult(correct);
-            this.state = GameState.PLAYING;
+            if (this.state !== GameState.GAME_OVER) {
+                this.state = GameState.PLAYING;
+            }
         });
+    }
+
+    triggerGameOver() {
+        this.state = GameState.GAME_OVER;
+        this.hud.showGameOver(this.score);
     }
 
     triggerVictory() {
