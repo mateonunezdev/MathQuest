@@ -63,8 +63,25 @@ async function reachGoal(page) {
     try {
         await page.goto('http://localhost:8080', { waitUntil: 'networkidle' });
         await page.waitForSelector('#start-btn', { state: 'visible', timeout: 10000 });
-        await page.click('#start-btn');
-        await sleep(1600);
+        assert((await page.evaluate(() => window.game.state)) === 'start', 'game did not open in attract state');
+        assert((await page.locator('#start-screen').count()) === 1, 'start screen duplicated on boot');
+        await page.keyboard.press('Enter');
+        await sleep(250);
+        assert((await page.evaluate(() => window.game.state)) === 'difficulty', 'START did not open difficulty selection');
+        assert((await page.locator('.difficulty-card').count()) === 3, 'difficulty selector must show three choices');
+
+        await page.keyboard.press('ArrowLeft');
+        await sleep(100);
+        assert((await page.locator('.difficulty-card.is-selected').getAttribute('data-difficulty')) === 'explorador', 'left did not select explorador');
+        await page.keyboard.press('ArrowRight');
+        await sleep(100);
+        assert((await page.locator('.difficulty-card.is-selected').getAttribute('data-difficulty')) === 'aventurero', 'right did not select aventurero');
+        await page.keyboard.press('c');
+        await sleep(250);
+        assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'direct C did not confirm maestro');
+        assert((await page.locator('#level-intro').textContent()).includes('TEMPLO DE LOS NÚMEROS'), 'level 1 intro is missing');
+        await page.keyboard.press('Enter');
+        await sleep(350);
 
         const initial = await page.evaluate(() => ({
             state: window.game.state,
@@ -75,9 +92,9 @@ async function reachGoal(page) {
         }));
         assert(initial.state === 'playing', 'campaign did not start');
         assert(initial.level === 1, 'campaign did not start at level 1');
-        assert(initial.difficulty === 'aventurero', 'default difficulty must be aventurero');
+        assert(initial.difficulty === 'maestro', 'direct C selection did not reach gameplay');
         assert(initial.lives === 3 && initial.score === 0, 'campaign initial state is dirty');
-        console.log('1. campaign starts clean on aventurero: PASS');
+        console.log('1. attract -> selector -> level intro -> campaign: PASS');
 
         // Level 1 closed door physically blocks crossing.
         await page.evaluate(() => { window.game.player.x = 540; window.game.player.y = 230; });
@@ -113,7 +130,11 @@ async function reachGoal(page) {
         console.log('3. level 1 challenge and door: PASS');
 
         await reachGoal(page);
-        await sleep(1400);
+        await sleep(750);
+        assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'level 2 intro did not appear');
+        assert((await page.locator('#level-intro').textContent()).includes('OBSERVATORIO DE LAS PROPORCIONES'), 'level 2 title is missing');
+        await page.keyboard.press('Enter');
+        await sleep(350);
         const level2 = await page.evaluate(() => ({
             state: window.game.state,
             level: window.game.levelNumber,
@@ -123,7 +144,7 @@ async function reachGoal(page) {
             doorState: window.game.door.state
         }));
         assert(level2.state === 'playing' && level2.level === 2, 'level 1 did not advance to level 2');
-        assert(level2.difficulty === 'aventurero', 'difficulty did not persist to level 2');
+        assert(level2.difficulty === 'maestro', 'difficulty did not persist to level 2');
         assert(level2.lives === 2 && level2.score === 100, 'campaign state reset at level 2');
         assert(level2.doorState === 'locked', 'level 2 door did not start locked');
         console.log('4. level 1 -> level 2 preserves campaign state: PASS');
@@ -131,7 +152,11 @@ async function reachGoal(page) {
         await openChallenge(page);
         await answer(page, 'b');
         await reachGoal(page);
-        await sleep(1400);
+        await sleep(750);
+        assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'level 3 intro did not appear');
+        assert((await page.locator('#level-intro').textContent()).includes('NÚCLEO DE LA LÓGICA'), 'level 3 title is missing');
+        await page.keyboard.press('Enter');
+        await sleep(350);
         const level3 = await page.evaluate(() => ({
             state: window.game.state,
             level: window.game.levelNumber,
@@ -141,7 +166,7 @@ async function reachGoal(page) {
             doorState: window.game.door.state
         }));
         assert(level3.state === 'playing' && level3.level === 3, 'level 2 did not advance to level 3');
-        assert(level3.difficulty === 'aventurero', 'difficulty did not persist to level 3');
+        assert(level3.difficulty === 'maestro', 'difficulty did not persist to level 3');
         assert(level3.lives === 2 && level3.score === 200, 'campaign state reset at level 3');
         assert(level3.doorState === 'locked', 'level 3 door did not start locked');
         console.log('5. level 2 -> level 3 preserves campaign state: PASS');
@@ -158,14 +183,21 @@ async function reachGoal(page) {
             score: window.game.score
         }));
         assert(victory.state === 'victory' && victory.level === 3, 'level 3 did not trigger campaign victory');
-        assert(victory.difficulty === 'aventurero', 'difficulty changed before victory');
+        assert(victory.difficulty === 'maestro', 'difficulty changed before victory');
         assert(victory.lives === 2 && victory.score === 300, 'final campaign state is invalid');
         console.log('6. level 3 -> campaign victory: PASS');
 
         await clickCanvasRect(page, 'victoryButtonRect');
         await sleep(700);
-        await page.click('#start-btn');
-        await sleep(1600);
+        assert((await page.locator('#start-screen').count()) === 1, 'restart duplicated the start screen');
+        await page.keyboard.press('Enter');
+        await sleep(200);
+        assert((await page.evaluate(() => window.game.state)) === 'difficulty', 'restart did not return through selector');
+        await page.keyboard.press('b');
+        await sleep(200);
+        assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'direct B did not confirm aventurero');
+        await page.keyboard.press('Enter');
+        await sleep(350);
         const restarted = await page.evaluate(() => ({
             state: window.game.state,
             level: window.game.levelNumber,
@@ -196,7 +228,14 @@ async function reachGoal(page) {
         await page.keyboard.press('Enter');
         await sleep(700);
         assert((await page.evaluate(() => window.game.state)) === 'start', 'keyboard restart failed after game over');
-        console.log('8. game over and keyboard restart: PASS');
+        assert((await page.locator('#start-screen').count()) === 1, 'game over restart duplicated start screen');
+        await page.keyboard.press('Enter');
+        await sleep(200);
+        await page.keyboard.press('a');
+        await sleep(200);
+        assert((await page.evaluate(() => ({ state: window.game.state, difficulty: window.game.difficulty }))).difficulty === 'explorador', 'direct A did not confirm explorador');
+        assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'explorador did not reach level intro');
+        console.log('8. restart flow and all direct difficulty keys: PASS');
 
         assert(errors.length === 0, 'console/page errors: ' + JSON.stringify(errors));
         console.log('9. zero console/page errors: PASS');

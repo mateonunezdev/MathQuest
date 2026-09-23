@@ -13,6 +13,8 @@ import { DIFFICULTIES } from './levels/ChallengeBank.js';
 
 const GameState = {
     START: 'start',
+    DIFFICULTY: 'difficulty',
+    LEVEL_INTRO: 'level_intro',
     PLAYING: 'playing',
     CHALLENGE: 'challenge',
     VICTORY: 'victory',
@@ -34,6 +36,7 @@ class Game {
         this.particles = [];
         this.camera = { x: 0, y: 0, shake: 0, shakeIntensity: 0 };
         this.input = new InputSystem();
+        this.input.onMenuInput = key => this.handleMenuInput(key);
         this.collision = new CollisionSystem();
         this.renderer = new Renderer(this.ctx, this.camera);
         this.mathChallenge = new MathChallengeSystem();
@@ -46,8 +49,13 @@ class Game {
         this.maxLives = 3;
         this.levelNumber = 1;
         this.difficulty = DIFFICULTIES.aventurero.id;
+        this.difficultyOrder = Object.keys(DIFFICULTIES);
+        this.selectedDifficultyIndex = this.difficultyOrder.indexOf(this.difficulty);
         this.activeDoor = null;
         this.completedLevel = null;
+        this.levelIntroTimer = null;
+        this.levelTransitionTimer = null;
+        this.introLevelNumber = null;
 
         // Game feel
         this.hitPauseTimer = 0;
@@ -98,15 +106,6 @@ class Game {
             }
         });
         
-        // Keyboard for restart
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                if (this.state === GameState.VICTORY || this.state === GameState.GAME_OVER) {
-                    this.restartGame();
-                }
-            }
-        });
-
         requestAnimationFrame((time) => this.gameLoop(time));
     }
 
@@ -130,57 +129,189 @@ class Game {
     }
 
     initStartScreen() {
+        document.querySelector('#start-screen')?.remove();
         this.startScreen = document.createElement('div');
         this.startScreen.id = 'start-screen';
         this.startScreen.innerHTML = `
-            <div class="start-content">
-                <div class="title-container">
-                    <h1 class="title-main">MATHQUEST</h1>
-                    <p class="title-sub">ESCAPE MATEMÁTICO</p>
+            <section class="entry-panel attract-panel" data-entry-panel="attract">
+                <div class="entry-stars" aria-hidden="true"></div>
+                <div class="brand-lockup">
+                    <svg class="brand-crown" viewBox="0 0 120 72" aria-hidden="true">
+                        <path d="M11 55 4 17l29 18L59 5l27 30 30-18-9 38z" />
+                        <path d="M14 61h92" />
+                        <circle cx="4" cy="14" r="4"/><circle cx="59" cy="5" r="4"/><circle cx="116" cy="14" r="4"/>
+                    </svg>
+                    <p class="edition-kicker">FAIR EDITION</p>
+                    <h1 class="title-main">MATH<span>QUEST</span></h1>
+                    <p class="title-sub">RESUELVE <i>•</i> AVANZA <i>•</i> CONQUISTA</p>
                 </div>
-                <div class="controls-hint">
-                    <span class="key"><kbd>WASD</kbd> / <kbd>Flechas</kbd></span> Movimiento
-                    <span class="key"><kbd>A</kbd> / <kbd>B</kbd> / <kbd>C</kbd></span> Responder
+                <div class="portal-stage" aria-hidden="true">
+                    <div class="portal-glow"></div>
+                    <div class="portal-ring portal-ring-outer"></div>
+                    <div class="portal-ring portal-ring-mid"></div>
+                    <div class="portal-ring portal-ring-inner"></div>
+                    <div class="portal-glyphs"><span>π</span><span>Σ</span><span>∞</span><span>√</span><span>÷</span><span>×</span></div>
+                    <div class="portal-core"><span>+</span></div>
+                    <div class="portal-particles">${Array.from({ length: 12 }, (_, i) => `<i style="--particle:${i}"></i>`).join('')}</div>
                 </div>
-                <button id="start-btn" class="btn-primary">INICIAR MISIÓN</button>
-                <button id="mute-btn" class="btn-secondary" title="Silenciar audio">
-                    <span id="mute-icon">🔊</span>
-                </button>
-            </div>
-            <!-- Holographic accent strip -->
-            <div class="start-hologram">
-                <div class="hologram-left"></div>
-                <div class="hologram-right"></div>
-            </div>
+                <div class="entry-actions">
+                    <button id="start-btn" class="start-prompt"><span>PULSA START</span><small>ENTER / ESPACIO</small></button>
+                    <div class="arcade-controls">
+                        <span><kbd>WASD</kbd> / <kbd>FLECHAS</kbd> MOVERSE</span>
+                        <span><kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd> RESPONDER</span>
+                    </div>
+                </div>
+                <button id="mute-btn" class="sound-toggle" title="Silenciar audio"><span id="mute-icon">◖</span> SONIDO</button>
+            </section>
+            <section class="entry-panel difficulty-panel hidden" data-entry-panel="difficulty">
+                <div class="difficulty-header">
+                    <p class="edition-kicker">ELIGE TU RETO</p>
+                    <h2>DIFICULTAD</h2>
+                    <p>Tu elección ajusta todos los desafíos de la campaña.</p>
+                </div>
+                <div class="difficulty-cards" role="listbox" aria-label="Dificultad">
+                    <button class="difficulty-card" data-difficulty="explorador" role="option">
+                        <span class="choice-key">A</span><span class="difficulty-emblem">◇</span>
+                        <strong>EXPLORADOR</strong><small>Primeros pasos</small>
+                        <p>Operaciones claras para avanzar con confianza.</p>
+                    </button>
+                    <button class="difficulty-card" data-difficulty="aventurero" role="option">
+                        <span class="choice-key">B</span><span class="difficulty-emblem">◈</span>
+                        <strong>AVENTURERO</strong><small>Reto equilibrado</small>
+                        <p>Decisiones ágiles para una expedición completa.</p>
+                    </button>
+                    <button class="difficulty-card" data-difficulty="maestro" role="option">
+                        <span class="choice-key">C</span><span class="difficulty-emblem">✦</span>
+                        <strong>MAESTRO</strong><small>Máximo desafío</small>
+                        <p>Cálculo exigente para auténticos conquistadores.</p>
+                    </button>
+                </div>
+                <div class="difficulty-footer">
+                    <span><kbd>←</kbd><kbd>→</kbd> ELEGIR</span>
+                    <button id="difficulty-confirm" class="confirm-choice">CONFIRMAR <small>ENTER</small></button>
+                    <span><kbd>A</kbd><kbd>B</kbd><kbd>C</kbd> ACCESO DIRECTO</span>
+                </div>
+            </section>
         `;
         document.querySelector('.game-shell').appendChild(this.startScreen);
 
-        document.querySelector('#start-btn').addEventListener('click', () => this.startGame());
+        this.startScreen.querySelector('#start-btn').addEventListener('click', () => this.showDifficultySelection());
         document.querySelector('#mute-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             const muted = this.audio.toggleMute();
-            document.querySelector('#mute-icon').textContent = muted ? '🔇' : '🔊';
+            document.querySelector('#mute-icon').textContent = muted ? '×' : '◖';
         });
-        this.input.onStartPressed = () => this.startGame();
+        this.startScreen.querySelectorAll('.difficulty-card').forEach((card, index) => {
+            card.addEventListener('click', () => this.setDifficultySelection(index));
+            card.addEventListener('dblclick', () => this.confirmDifficulty(card.dataset.difficulty));
+        });
+        this.startScreen.querySelector('#difficulty-confirm').addEventListener('click', () => this.confirmDifficulty());
     }
 
     startGame() {
-        if (this.state !== GameState.START) return;
-        this.state = GameState.TRANSITION;
-        this.transitionDirection = 1;
-        this.transitionAlpha = 0;
+        this.showDifficultySelection();
+    }
 
-        setTimeout(() => {
-            this.startScreen.classList.add('hidden');
-            setTimeout(() => {
-                this.startScreen.remove();
-                this.resetCampaignState();
-                this.loadLevel(1);
-                this.state = GameState.PLAYING;
-                this.transitionDirection = -1;
-                this.audio.play('uiClick');
-            }, 300);
-        }, 400);
+    showDifficultySelection() {
+        if (this.state !== GameState.START) return;
+        this.audio.init();
+        this.audio.play('uiClick');
+        this.input.clear();
+        this.state = GameState.DIFFICULTY;
+        this.startScreen.querySelector('[data-entry-panel="attract"]').classList.add('hidden');
+        this.startScreen.querySelector('[data-entry-panel="difficulty"]').classList.remove('hidden');
+        this.selectedDifficultyIndex = Math.max(0, this.difficultyOrder.indexOf(this.difficulty));
+        this.setDifficultySelection(this.selectedDifficultyIndex, false);
+    }
+
+    setDifficultySelection(index, playSound = true) {
+        if (this.state !== GameState.DIFFICULTY) return;
+        const count = this.difficultyOrder.length;
+        this.selectedDifficultyIndex = (index + count) % count;
+        const selectedId = this.difficultyOrder[this.selectedDifficultyIndex];
+        this.startScreen.querySelectorAll('.difficulty-card').forEach(card => {
+            const selected = card.dataset.difficulty === selectedId;
+            card.classList.toggle('is-selected', selected);
+            card.setAttribute('aria-selected', String(selected));
+        });
+        if (playSound) this.audio.play('uiMove');
+    }
+
+    confirmDifficulty(difficultyId = this.difficultyOrder[this.selectedDifficultyIndex]) {
+        if (this.state !== GameState.DIFFICULTY || !DIFFICULTIES[difficultyId]) return;
+        this.difficulty = difficultyId;
+        this.selectedDifficultyIndex = this.difficultyOrder.indexOf(difficultyId);
+        this.audio.play('uiClick');
+        this.input.clear();
+        this.resetCampaignState();
+        this.transitionAlpha = 0;
+        const departingScreen = this.startScreen;
+        departingScreen?.classList.add('is-exiting');
+        window.setTimeout(() => {
+            departingScreen?.remove();
+            if (this.startScreen === departingScreen) this.startScreen = null;
+        }, 180);
+        this.showLevelIntro(1);
+    }
+
+    handleMenuInput(key) {
+        if (this.state === GameState.START && (key === 'enter' || key === ' ')) {
+            this.showDifficultySelection();
+            return;
+        }
+
+        if (this.state === GameState.DIFFICULTY) {
+            if (key === 'arrowleft') this.setDifficultySelection(this.selectedDifficultyIndex - 1);
+            else if (key === 'arrowright' || key === 'd') this.setDifficultySelection(this.selectedDifficultyIndex + 1);
+            else if (['a', 'b', 'c'].includes(key)) this.confirmDifficulty(this.difficultyOrder['abc'.indexOf(key)]);
+            else if (key === 'enter' || key === ' ') this.confirmDifficulty();
+            return;
+        }
+
+        if (this.state === GameState.LEVEL_INTRO && (key === 'enter' || key === ' ')) {
+            this.finishLevelIntro();
+            return;
+        }
+
+        if ((this.state === GameState.VICTORY || this.state === GameState.GAME_OVER) &&
+            (key === 'enter' || key === ' ')) {
+            this.restartGame();
+        }
+    }
+
+    showLevelIntro(levelNumber) {
+        window.clearTimeout(this.levelIntroTimer);
+        document.querySelector('#level-intro')?.remove();
+        this.introLevelNumber = levelNumber;
+        this.state = GameState.LEVEL_INTRO;
+        this.input.clear();
+
+        const data = LevelData.getLevel(levelNumber);
+        const intro = document.createElement('div');
+        intro.id = 'level-intro';
+        intro.innerHTML = `
+            <div class="level-intro-content">
+                <div class="level-intro-mark" aria-hidden="true"><span>${levelNumber}</span></div>
+                <p>NIVEL ${levelNumber} / ${LevelData.getLevelCount()}</p>
+                <h2>${data.name}</h2>
+                <div class="level-intro-line"></div>
+                <small>ENTER PARA CONTINUAR</small>
+            </div>
+        `;
+        document.querySelector('.game-shell').appendChild(intro);
+        requestAnimationFrame(() => intro.classList.add('is-visible'));
+        this.levelIntroTimer = window.setTimeout(() => this.finishLevelIntro(), 1350);
+    }
+
+    finishLevelIntro() {
+        if (this.state !== GameState.LEVEL_INTRO) return;
+        window.clearTimeout(this.levelIntroTimer);
+        const levelNumber = this.introLevelNumber;
+        document.querySelector('#level-intro')?.remove();
+        this.loadLevel(levelNumber);
+        this.introLevelNumber = null;
+        this.state = GameState.PLAYING;
+        this.input.clear();
     }
 
     loadLevel(levelNum) {
@@ -382,16 +513,20 @@ update(dt) {
     }
 
     restartGame() {
+        window.clearTimeout(this.levelIntroTimer);
+        window.clearTimeout(this.levelTransitionTimer);
+        document.querySelector('#level-intro')?.remove();
+        document.querySelector('#start-screen')?.remove();
         this.state = GameState.START;
         this.level = null;
         this.entities = [];
         this.particles = [];
         this.resetCampaignState();
+        this.transitionAlpha = 0;
+        this.transitionDirection = 0;
+        this.introLevelNumber = null;
+        this.input.clear();
         this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
-
-        // No duplicar start screens
-        const existing = document.querySelector('#start-screen');
-        if (existing) existing.remove();
         this.initStartScreen();
     }
 
@@ -436,11 +571,7 @@ update(dt) {
         this.spawnParticles(this.goal.x, this.goal.y, '#37c4ff', 40);
         this.spawnParticles(this.goal.x, this.goal.y, '#ffd700', 20);
         this.audio.play('victory');
-        this.hud.showVictory(this.score, this.lives, () => {
-            this.startScreen = null;
-            this.initStartScreen();
-            this.state = GameState.START;
-        });
+        this.hud.showVictory(this.score, this.lives, () => this.restartGame());
     }
 
     triggerLevelTransition() {
@@ -448,13 +579,14 @@ update(dt) {
         this.state = GameState.TRANSITION;
         this.transitionAlpha = 0.92;
         this.transitionDirection = 0;
-        setTimeout(() => {
+        window.clearTimeout(this.levelTransitionTimer);
+        this.levelTransitionTimer = window.setTimeout(() => {
             if (this.state !== GameState.TRANSITION) return;
-            this.loadLevel(this.completedLevel + 1);
+            const nextLevel = this.completedLevel + 1;
             this.completedLevel = null;
             this.transitionAlpha = 0;
-            this.state = GameState.PLAYING;
-        }, 900);
+            this.showLevelIntro(nextLevel);
+        }, 560);
     }
 
     resetCampaignState() {

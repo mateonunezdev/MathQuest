@@ -3,7 +3,7 @@ export class InputSystem {
         this.keys = new Set();
         this.keysPressed = new Set();
         this.keysReleased = new Set();
-        this.onStartPressed = null;
+        this.onMenuInput = null;
 
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
@@ -11,13 +11,14 @@ export class InputSystem {
 
     onKeyDown(e) {
         const key = e.key.toLowerCase();
+        const isFirstPress = !this.keys.has(key);
         if (!this.keys.has(key)) {
             this.keysPressed.add(key);
         }
         this.keys.add(key);
 
-        if (key === 'enter' || key === ' ') {
-            if (this.onStartPressed) this.onStartPressed();
+        if (isFirstPress && !e.repeat && this.onMenuInput) {
+            this.onMenuInput(key);
         }
 
         if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
@@ -32,6 +33,12 @@ export class InputSystem {
     }
 
     update() {
+        this.keysPressed.clear();
+        this.keysReleased.clear();
+    }
+
+    clear() {
+        this.keys.clear();
         this.keysPressed.clear();
         this.keysReleased.clear();
     }
