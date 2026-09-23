@@ -483,10 +483,18 @@ update(dt) {
             this.ctx.translate(-this.camera.x + (this.camera.offsetX || 0), -this.camera.y + (this.camera.offsetY || 0));
 
             this.renderer.renderBackground(this.level);
-            this.renderer.renderDecorations(this.decorations);
-            this.renderer.renderTilemap(this.level);
+            if (this.levelNumber === 1) {
+                this.renderer.renderTilemap(this.level);
+                this.renderer.renderLevelGuidance(this.level, this.door?.state === 'open');
+                this.renderer.renderDecorations(this.decorations);
+            } else {
+                this.renderer.renderDecorations(this.decorations);
+                this.renderer.renderTilemap(this.level);
+            }
             this.entities.forEach(e => e.render(this.renderer));
             this.particles.forEach(p => p.render(this.ctx));
+            this.renderer.renderForeground(this.level);
+            this.renderer.renderAtmosphere(this.level);
 
             this.ctx.restore();
         }

@@ -78,44 +78,31 @@ async function continueIntoLevel(page, expectedLevel) {
         await sleep(800);
         await page.waitForSelector('#start-btn', { state: 'visible', timeout: 10000 });
 
-        // Responsive attract-screen evidence, then restore the gameplay viewport.
-        await page.setViewportSize({ width: 390, height: 740 });
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '01-start-mobile.png') });
-        await page.setViewportSize({ width: 768, height: 700 });
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '02-start-tablet.png') });
-        await page.setViewportSize({ width: 1100, height: 700 });
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '03-start-screen.png') });
-        console.log('Screenshots: responsive attract screen');
-
         await page.click('#start-btn');
         await sleep(250);
         assert((await page.evaluate(() => window.game.state)) === 'difficulty', 'start -> difficulty');
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '04-difficulty.png') });
-        console.log('Screenshot: 04-difficulty.png');
 
         await page.click('#difficulty-confirm');
         await sleep(220);
         assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'difficulty -> level intro');
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '05-level-intro.png') });
-        console.log('Screenshot: 05-level-intro.png');
         await page.keyboard.press('Enter');
         await sleep(350);
         assert((await page.evaluate(() => window.game.state)) === 'playing', 'level intro -> playing');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'phase3-01-level1-start.png') });
+        console.log('Screenshot: phase3-01-level1-start.png');
 
         // Normal gameplay (move right a bit)
         await hold(page, 'ArrowRight', 500);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '06-gameplay-normal.png') });
-        console.log('Screenshot: 06-gameplay-normal.png');
+        await page.evaluate(() => { window.game.player.x = 330; window.game.player.y = 270; });
+        await sleep(180);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'phase3-02-level1-exploration.png') });
+        console.log('Screenshot: phase3-02-level1-exploration.png');
 
         // 4. Math explorer closeup (near door approach)
         await page.evaluate(() => { window.game.player.x = 540; window.game.player.y = 230; });
         await sleep(200);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '07-math-explorer.png') });
-        console.log('Screenshot: 07-math-explorer.png');
-
-        // 5. Door LOCKED (before challenge)
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '08-door-locked.png') });
-        console.log('Screenshot: 08-door-locked.png');
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'phase3-03-level1-door.png') });
+        console.log('Screenshot: phase3-03-level1-door.png');
 
         // 6. Challenge open (teleport into range, press ArrowUp)
         await page.evaluate(() => { window.game.player.x = 624; window.game.player.y = 230; });
@@ -123,8 +110,6 @@ async function continueIntoLevel(page, expectedLevel) {
         await page.keyboard.press('ArrowUp');
         await sleep(400);
         assert((await page.evaluate(() => window.game.state)) === 'challenge', 'challenge should open');
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '09-challenge.png') });
-        console.log('Screenshot: 09-challenge.png');
 
         // 7. Incorrect answer (A)
         await hold(page, 'a', 80);
@@ -135,8 +120,6 @@ async function continueIntoLevel(page, expectedLevel) {
         assert(wrong.lives === 2, 'wrong -> lives=2, got ' + wrong.lives);
         assert(wrong.score === 0, 'wrong -> score=0, got ' + wrong.score);
         assert(wrong.doorState === 'locked', 'wrong -> door locked, got ' + wrong.doorState);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '10-incorrect.png') });
-        console.log('Screenshot: 10-incorrect.png');
 
         // 8. Correct answer (B) - challenge again
         await page.keyboard.press('ArrowUp');
@@ -151,8 +134,6 @@ async function continueIntoLevel(page, expectedLevel) {
         assert(correct.score === 100, 'correct -> score=100, got ' + correct.score);
         assert(correct.doorState === 'open', 'correct -> door open, got ' + correct.doorState);
         assert(correct.blocking === false, 'correct -> door stops blocking');
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '11-correct.png') });
-        console.log('Screenshot: 11-correct.png');
 
         // 10. Door OPEN (player moved through)
         await page.evaluate(() => { window.game.player.x = 632; window.game.player.y = 230; });
@@ -161,16 +142,13 @@ async function continueIntoLevel(page, expectedLevel) {
         await sleep(200);
         const crossed = await page.evaluate(() => window.game.player.x);
         assert(crossed > 720, 'player should cross open gate, x=' + crossed);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '12-door-open.png') });
-        console.log('Screenshot: 12-door-open.png');
 
-        // 11. Goal zone
-        await hold(page, 'ArrowRight', 700);
-        await hold(page, 'ArrowDown', 1200);
-        await hold(page, 'ArrowRight', 500);
-        await sleep(500);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '13-goal-zone.png') });
-        console.log('Screenshot: 13-goal-zone.png');
+        // Goal zone, captured before activation.
+        await page.evaluate(() => { window.game.player.x = 785; window.game.player.y = 430; });
+        await sleep(250);
+        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'phase3-04-level1-goal.png') });
+        console.log('Screenshot: phase3-04-level1-goal.png');
+        await activateCurrentGoal(page);
 
         // Complete levels 2 and 3 without adding extra visual captures.
         await continueIntoLevel(page, 2);
@@ -191,8 +169,6 @@ async function continueIntoLevel(page, expectedLevel) {
         assert(vic.activated === true, 'final goal should be activated');
         assert(vic.state === 'victory' && vic.level === 3, 'campaign should end in level 3 victory');
         assert(vic.score === 300, 'campaign score should be 300, got ' + vic.score);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, '14-victory.png') });
-        console.log('Screenshot: 14-victory.png');
 
         // Clean reset check (canvas restart click then start again)
         await clickCanvasRect(page, 'victoryButtonRect');
