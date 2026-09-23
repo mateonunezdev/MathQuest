@@ -1,145 +1,92 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const assert = require('assert/strict');
 
-const levelPath = path.join(__dirname, '../js/levels/LevelData.js');
-const levelCode = fs.readFileSync(levelPath, 'utf-8');
+const EXPECTED_LEVELS = [
+    'TEMPLO DE LOS NÚMEROS',
+    'OBSERVATORIO DE LAS PROPORCIONES',
+    'NÚCLEO DE LA LÓGICA'
+];
 
-function extractTilemap(code) {
-    const match = code.match(/const tilemap\s*=\s*(\[[\s\S]*?\]);/);
-    if (!match) throw new Error('No se encontró tilemap en LevelData.js');
-    return eval(match[1]);
-}
-
-function extractDoor(code) {
-    const match = code.match(/door:\s*\{\s*x:\s*(\d+),\s*y:\s*(\d+)/);
-    if (!match) throw new Error('No se encontró door en LevelData.js');
-    return { x: parseInt(match[1]), y: parseInt(match[2]) };
-}
-
-function extractGoal(code) {
-    const match = code.match(/goal:\s*\{\s*x:\s*(\d+),\s*y:\s*(\d+)/);
-    if (!match) throw new Error('No se encontró goal en LevelData.js');
-    return { x: parseInt(match[1]), y: parseInt(match[2]) };
-}
-
-function extractPlayerStart(code, tileSize) {
-    const match = code.match(/playerStart:\s*\{\s*x:\s*([^,\}]+),\s*y:\s*([^,\}]+)/);
-    if (!match) throw new Error('No se encontró playerStart en LevelData.js');
-    return { 
-        x: Math.floor(eval(match[1].replace('tileSize', tileSize)) / tileSize), 
-        y: Math.floor(eval(match[2].replace('tileSize', tileSize)) / tileSize) 
+function tileOf(position, tileSize) {
+    return {
+        x: Math.floor(position.x / tileSize),
+        y: Math.floor(position.y / tileSize)
     };
 }
 
-function extractDimensions(code) {
-    const wMatch = code.match(/const width\s*=\s*(\d+)/);
-    const hMatch = code.match(/const height\s*=\s*(\d+)/);
-    const tsMatch = code.match(/const tileSize\s*=\s*(\d+)/);
-    if (!wMatch || !hMatch || !tsMatch) throw new Error('No se encontraron dimensiones');
-    return { width: parseInt(wMatch[1]), height: parseInt(hMatch[1]), tileSize: parseInt(tsMatch[1]) };
+function isWalkable(level, x, y, doorsBlock) {
+    if (x < 0 || y < 0 || x >= level.width || y >= level.height) return false;
+    if (level.tilemap[y][x] === 1) return false;
+    if (!doorsBlock) return true;
+    return !level.doors.some(door => (
+        x === door.x && y >= door.y && y < door.y + (door.height || 2)
+    ));
 }
 
-const { width, height, tileSize } = extractDimensions(levelCode);
-const tilemap = extractTilemap(levelCode);
-const door = extractDoor(levelCode);
-const goal = extractGoal(levelCode);
-const start = extractPlayerStart(levelCode, tileSize);
+function canReachGoal(level, doorsBlock) {
+    const start = tileOf(level.playerStart, level.tileSize);
+    const goal = level.goal;
+    const visited = new Set([`${start.x},${start.y}`]);
+    const queue = [start];
+    const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-console.log('=== LEVEL 1 VALIDATION ===');
-console.log(`Map: ${width}x${height} tiles (${width * tileSize}x${height * tileSize}px)`);
-console.log(`Tile size: ${tileSize}px`);
-console.log(`Start tile: (${start.x}, ${start.y})`);
-console.log(`Door tile: (${door.x}, ${door.y})`);
-console.log(`Goal tile: (${goal.x}, ${goal.y})`);
-
-function isWalkable(tilemap, x, y, doorBlocks) {
-    if (x < 0 || y < 0 || x >= width || y >= height) return false;
-    if (tilemap[y][x] === 1) return false;
-    if (doorBlocks && x === door.x && (y === door.y || y === door.y + 1)) return false;
-    return true;
-}
-
-function bfs(tilemap, start, goal, doorBlocks) {
-    const visited = new Set();
-    const queue = [{ x: start.x, y: start.y, path: [] }];
-    visited.add(`${start.x},${start.y}`);
-    
-    const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-    
     while (queue.length > 0) {
-        const { x, y, path } = queue.shift();
-        
-        if (x === goal.x && y === goal.y) {
-            return { reachable: true, path: [...path, {x,y}] };
-        }
-        
-        for (const d of dirs) {
-            const nx = x + d.x;
-            const ny = y + d.y;
-            const key = `${nx},${ny}`;
-            
-            if (!visited.has(key) && isWalkable(tilemap, nx, ny, doorBlocks)) {
+        const current = queue.shift();
+        if (current.x === goal.x && current.y === goal.y) return true;
+        for (const [dx, dy] of directions) {
+            const next = { x: current.x + dx, y: current.y + dy };
+            const key = `${next.x},${next.y}`;
+            if (!visited.has(key) && isWalkable(level, next.x, next.y, doorsBlock)) {
                 visited.add(key);
-                queue.push({ x: nx, y: ny, path: [...path, {x,y}] });
+                queue.push(next);
             }
         }
     }
-    
-    return { reachable: false, path: [] };
+    return false;
 }
 
-function validateStartGoal() {
-    const errors = [];
-    
-    if (tilemap[start.y][start.x] === 1) {
-        errors.push(`Start (${start.x},${start.y}) está DENTRO de un muro`);
+(async () => {
+    const { LevelData } = await import('../js/levels/LevelData.js');
+    const { ChallengeBank, DIFFICULTIES } = await import('../js/levels/ChallengeBank.js');
+
+    const levels = LevelData.getAllLevels();
+    const difficultyIds = Object.keys(DIFFICULTIES);
+
+    assert.equal(levels.length, 3, 'campaign must expose exactly 3 levels');
+    assert.deepEqual(levels.map(level => level.name), EXPECTED_LEVELS, 'campaign level names differ');
+    assert.equal(new Set(levels.map(level => level.id)).size, 3, 'level ids must be unique');
+    assert.equal(new Set(levels.map(level => JSON.stringify(level.tilemap))).size, 3, 'levels must use independent layouts');
+    assert.deepEqual(difficultyIds, ['explorador', 'aventurero', 'maestro'], 'difficulty ids differ');
+
+    for (const level of levels) {
+        assert.ok(level.playerStart && level.goal, `level ${level.id} needs start and goal`);
+        assert.ok(Array.isArray(level.doors) && level.doors.length > 0, `level ${level.id} needs doors`);
+        assert.equal(level.tilemap.length, level.height, `level ${level.id} height mismatch`);
+        assert.ok(level.tilemap.every(row => row.length === level.width), `level ${level.id} width mismatch`);
+        assert.equal(canReachGoal(level, true), false, `level ${level.id} bypasses closed door`);
+        assert.equal(canReachGoal(level, false), true, `level ${level.id} goal is blocked after opening`);
+
+        for (const difficulty of difficultyIds) {
+            for (const door of level.doors) {
+                const challenge = ChallengeBank.resolve(level.number, difficulty, door.challengeRef);
+                assert.ok(challenge, `missing challenge for level ${level.number}/${difficulty}/${door.challengeRef}`);
+                assert.equal(challenge.level, level.number, `challenge ${challenge.id} level mismatch`);
+                assert.equal(challenge.difficulty, difficulty, `challenge ${challenge.id} difficulty mismatch`);
+                assert.ok(challenge.skill && challenge.question, `challenge ${challenge.id} lacks content`);
+                assert.deepEqual(Object.keys(challenge.options), ['A', 'B', 'C'], `challenge ${challenge.id} needs A/B/C`);
+                assert.ok(Object.hasOwn(challenge.options, challenge.correct), `challenge ${challenge.id} has invalid answer`);
+            }
+        }
     }
-    if (tilemap[goal.y][goal.x] === 1) {
-        errors.push(`Goal (${goal.x},${goal.y}) está DENTRO de un muro`);
-    }
-    if (door.x < 0 || door.x >= width || door.y < 0 || door.y >= height) {
-        errors.push(`Door (${door.x},${door.y}) fuera de límites`);
-    }
-    
-    return errors;
-}
 
-console.log('\n--- Validaciones básicas ---');
-const basicErrors = validateStartGoal();
-if (basicErrors.length === 0) {
-    console.log('PASS: Start en tile válido');
-    console.log('PASS: Goal en tile válido');
-    console.log('PASS: Door en posición válida');
-} else {
-    basicErrors.forEach(e => console.log('FAIL:', e));
-}
-
-console.log('\n--- TEST 1: Puerta CERRADA (doorBlocks=true) ---');
-const closedResult = bfs(tilemap, start, goal, true);
-if (closedResult.reachable) {
-    console.log('FAIL: Goal REACHABLE con puerta cerrada (bypass existe)');
-    console.log(`  Ruta encontrada (${closedResult.path.length} pasos):`, closedResult.path.map(p=>`(${p.x},${p.y})`).join(' → '));
-} else {
-    console.log('PASS: Goal UNREACHABLE con puerta cerrada');
-}
-
-console.log('\n--- TEST 2: Puerta ABIERTA (doorBlocks=false) ---');
-const openResult = bfs(tilemap, start, goal, false);
-if (openResult.reachable) {
-    console.log('PASS: Goal REACHABLE con puerta abierta');
-    console.log(`  Ruta (${openResult.path.length} pasos):`, openResult.path.map(p=>`(${p.x},${p.y})`).join(' → '));
-} else {
-    console.log('FAIL: Goal UNREACHABLE con puerta abierta');
-}
-
-console.log('\n=== RESUMEN ===');
-const allPass = basicErrors.length === 0 && !closedResult.reachable && openResult.reachable;
-if (allPass) {
-    console.log('✓ TODOS LOS TESTS PASAN');
-    process.exit(0);
-} else {
-    console.log('✗ ALGUNOS TESTS FALLAN');
+    const challenges = ChallengeBank.getAll();
+    assert.equal(new Set(challenges.map(challenge => challenge.id)).size, challenges.length, 'challenge ids must be unique');
+    console.log(`PASS: ${levels.length} independent levels validated`);
+    console.log(`PASS: ${difficultyIds.length} difficulties validated`);
+    console.log(`PASS: ${challenges.length} challenges validated across every level+difficulty`);
+    console.log('PASS: closed doors block and open doors allow every goal');
+})().catch(error => {
+    console.error('FAIR EDITION VALIDATION FAILED:', error.message);
     process.exit(1);
-}
+});

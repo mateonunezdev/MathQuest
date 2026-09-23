@@ -1,3 +1,5 @@
+import { ChallengeBank } from '../levels/ChallengeBank.js';
+
 export class MathChallengeSystem {
     constructor() {
         this.active = false;
@@ -9,20 +11,15 @@ export class MathChallengeSystem {
         this.animTime = 0;
         this.resultTimer = 0;
         this.closeDelay = 0;
+        this.closeTimer = null;
         this.particles = [];
-
-        this.challenges = {
-            'door1': {
-                question: '7 × (3 + 2) = ?',
-                options: { A: '28', B: '35', C: '42' },
-                correct: 'B',
-                skill: 'Orden de operaciones'
-            }
-        };
     }
 
-    open(challengeId, callback) {
-        this.challengeData = this.challenges[challengeId];
+    open(level, difficulty, challengeRef, callback) {
+        this.challengeData = ChallengeBank.resolve(level, difficulty, challengeRef);
+        if (!this.challengeData) {
+            throw new Error(`No challenge for level=${level}, difficulty=${difficulty}, ref=${challengeRef}`);
+        }
         this.callback = callback;
         this.active = true;
         this.selectedAnswer = null;
@@ -108,15 +105,28 @@ export class MathChallengeSystem {
             }
         }
 
-        setTimeout(() => {
+        this.closeTimer = setTimeout(() => {
             this.close(correct);
         }, correct ? 1000 : 800);
     }
 
     close(correct) {
+        this.closeTimer = null;
         this.active = false;
         if (this.callback) this.callback(correct);
         this.callback = null;
+    }
+
+    reset() {
+        if (this.closeTimer) clearTimeout(this.closeTimer);
+        this.closeTimer = null;
+        this.active = false;
+        this.callback = null;
+        this.challengeData = null;
+        this.selectedAnswer = null;
+        this.feedback = '';
+        this.feedbackType = '';
+        this.particles = [];
     }
 
     render(ctx) {

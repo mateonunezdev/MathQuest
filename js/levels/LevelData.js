@@ -1,7 +1,19 @@
 export class LevelData {
     static getLevel(levelNum) {
-        if (levelNum === 1) return this.level1();
-        return this.level1();
+        const factories = {
+            1: () => this.level1(),
+            2: () => this.level2(),
+            3: () => this.level3()
+        };
+        return factories[levelNum]?.() || null;
+    }
+
+    static getAllLevels() {
+        return [this.level1(), this.level2(), this.level3()];
+    }
+
+    static getLevelCount() {
+        return 3;
     }
 
     static level1() {
@@ -9,14 +21,6 @@ export class LevelData {
         const height = 9;
         const tileSize = 60;
 
-        // Layout: ZONA IZQUIERDA → corredor → [PUERTA ÚNICA 2 TILES] → corredor → ZONA DERECHA → GOAL
-        // Muro vertical sólido en x=11 desde fila 1 a 7, salvo HUECO en filas 3-4 (puerta)
-        // Puerta en (11, 3) con altura 2 tiles = 120px, cubre exactamente filas 3 y 4
-        // Mientras puerta CERRADA: start → goal = IMPOSIBLE
-        // Mientras puerta ABIERTA: start → goal = POSIBLE
-        //
-        // Leyenda: 1 = muro, 0 = suelo
-        
         const tilemap = [
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],  // row 0 - borde superior
             [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],  // row 1 - muro en x=11
@@ -29,14 +33,83 @@ export class LevelData {
             [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]   // row 8 - borde inferior
         ];
 
+        const doors = [{ id: 'l1-main', x: 11, y: 3, height: 2, challengeRef: 'main' }];
         return {
+            id: 'templo-numeros',
+            number: 1,
+            name: 'TEMPLO DE LOS NÚMEROS',
+            displayName: 'TEMPLO DE LOS NÚMEROS',
             width,
             height,
             tileSize,
             tilemap,
             playerStart: { x: 1 * tileSize + 12, y: 1 * tileSize + 8 },
-            door: { x: 11, y: 3, challengeId: 'door1' },
+            doors,
             goal: { x: 14, y: 7 },
+            decorations: this.generateDecorations({ width, height, tilemap })
+        };
+    }
+
+    static level2() {
+        const width = 16;
+        const height = 9;
+        const tileSize = 60;
+        const tilemap = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,1,0,0,1,0,0,1,0,0,0,1,0,0,1],
+            [1,0,0,0,0,0,0,0,1,0,1,0,0,0,0,1],
+            [1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+            [1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+            [1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1],
+            [1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        const doors = [{ id: 'l2-main', x: 8, y: 4, height: 2, challengeRef: 'main' }];
+        return {
+            id: 'observatorio-proporciones',
+            number: 2,
+            name: 'OBSERVATORIO DE LAS PROPORCIONES',
+            displayName: 'OBSERVATORIO DE LAS PROPORCIONES',
+            width,
+            height,
+            tileSize,
+            tilemap,
+            playerStart: { x: 1 * tileSize + 12, y: 7 * tileSize + 8 },
+            doors,
+            goal: { x: 14, y: 1 },
+            decorations: this.generateDecorations({ width, height, tilemap })
+        };
+    }
+
+    static level3() {
+        const width = 16;
+        const height = 9;
+        const tileSize = 60;
+        const tilemap = [
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+            [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+            [1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1],
+            [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+            [1,0,0,1,0,1,0,0,0,1,0,0,0,0,0,1],
+            [1,0,0,0,0,1,0,0,1,0,0,1,0,0,0,1],
+            [1,0,1,0,0,1,0,0,0,0,0,0,0,1,0,1],
+            [1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        ];
+        const doors = [{ id: 'l3-main', x: 5, y: 2, height: 2, challengeRef: 'main' }];
+        return {
+            id: 'nucleo-logica',
+            number: 3,
+            name: 'NÚCLEO DE LA LÓGICA',
+            displayName: 'NÚCLEO DE LA LÓGICA',
+            width,
+            height,
+            tileSize,
+            tilemap,
+            playerStart: { x: 14 * tileSize + 12, y: 7 * tileSize + 8 },
+            doors,
+            goal: { x: 1, y: 1 },
             decorations: this.generateDecorations({ width, height, tilemap })
         };
     }

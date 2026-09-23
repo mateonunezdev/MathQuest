@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 
-async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
 async function hold(page, key, ms) {
     await page.keyboard.down(key);
@@ -8,213 +8,203 @@ async function hold(page, key, ms) {
     await page.keyboard.up(key);
 }
 
-function assert(cond, msg) {
-    if (!cond) throw new Error('ASSERTION FAILED: ' + msg);
+function assert(condition, message) {
+    if (!condition) throw new Error('ASSERTION FAILED: ' + message);
 }
 
 async function clickCanvasRect(page, rectName) {
     const point = await page.evaluate((name) => {
         const canvas = document.querySelector('#game');
-        const rect = canvas.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
         const hitbox = window.game?.hud?.[name];
         if (!hitbox) throw new Error(`Missing HUD hitbox: ${name}`);
         return {
-            x: rect.left + (hitbox.x + hitbox.w / 2) * rect.width / canvas.width,
-            y: rect.top + (hitbox.y + hitbox.h / 2) * rect.height / canvas.height
+            x: canvasRect.left + (hitbox.x + hitbox.w / 2) * canvasRect.width / canvas.width,
+            y: canvasRect.top + (hitbox.y + hitbox.h / 2) * canvasRect.height / canvas.height
         };
     }, rectName);
     await page.mouse.click(point.x, point.y);
+}
+
+async function openChallenge(page) {
+    await page.evaluate(() => {
+        const door = window.game.door;
+        window.game.player.x = door.x - 36;
+        window.game.player.y = door.y + 50;
+    });
+    await sleep(250);
+    await page.keyboard.press('ArrowUp');
+    await sleep(350);
+    assert((await page.evaluate(() => window.game.state)) === 'challenge', 'challenge did not open');
+}
+
+async function answer(page, letter) {
+    await hold(page, letter, 80);
+    await sleep(2600);
+}
+
+async function reachGoal(page) {
+    await page.evaluate(() => {
+        window.game.player.x = window.game.goal.x;
+        window.game.player.y = window.game.goal.y;
+    });
+    await sleep(250);
 }
 
 (async () => {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
     const errors = [];
-    page.on('console', m => { if (m.type() === 'error') errors.push('[console.error] ' + m.text()); });
-    page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
+    page.on('console', message => {
+        if (message.type() === 'error') errors.push('[console.error] ' + message.text());
+    });
+    page.on('pageerror', error => errors.push('[pageerror] ' + error.message));
 
     try {
         await page.goto('http://localhost:8080', { waitUntil: 'networkidle' });
-        await sleep(800);
         await page.waitForSelector('#start-btn', { state: 'visible', timeout: 10000 });
         await page.click('#start-btn');
         await sleep(1600);
 
-        // 1. start -> playing
-        const st0 = await page.evaluate(() => window.game.state);
-        assert(st0 === 'playing', '1. expected playing, got ' + st0);
-        console.log('1. start -> playing: PASS');
+        const initial = await page.evaluate(() => ({
+            state: window.game.state,
+            level: window.game.levelNumber,
+            difficulty: window.game.difficulty,
+            lives: window.game.lives,
+            score: window.game.score
+        }));
+        assert(initial.state === 'playing', 'campaign did not start');
+        assert(initial.level === 1, 'campaign did not start at level 1');
+        assert(initial.difficulty === 'aventurero', 'default difficulty must be aventurero');
+        assert(initial.lives === 3 && initial.score === 0, 'campaign initial state is dirty');
+        console.log('1. campaign starts clean on aventurero: PASS');
 
-        // 2. teleport LEFT of gate, outside interaction trigger
+        // Level 1 closed door physically blocks crossing.
         await page.evaluate(() => { window.game.player.x = 540; window.game.player.y = 230; });
-        await sleep(300);
         const xBefore = await page.evaluate(() => window.game.player.x);
-
-        // 2b. attempt horizontal movement through CLOSED gate
         await hold(page, 'ArrowRight', 1200);
-        await sleep(200);
-        const xAfter = await page.evaluate(() => window.game.player.x);
-        const doorStateClosed = await page.evaluate(() => window.game.door.state);
-        const doorBlockingClosed = await page.evaluate(() => window.game.door.isBlocking());
-        assert(xAfter < 660, '2. player crossed closed gate (x=' + xAfter + ', before=' + xBefore + ')');
-        assert(doorStateClosed === 'locked', '2. expected locked, got ' + doorStateClosed);
-        assert(doorBlockingClosed === true, '2. expected isBlocking()===true, got ' + doorBlockingClosed);
-        console.log('2. closed gate physically blocks crossing: PASS (x=' + xBefore + ' -> ' + xAfter + ')');
+        const closed = await page.evaluate(() => ({
+            x: window.game.player.x,
+            state: window.game.door.state,
+            blocking: window.game.door.isBlocking()
+        }));
+        assert(closed.x < 660 && closed.x >= xBefore, 'player crossed the closed level 1 door');
+        assert(closed.state === 'locked' && closed.blocking === true, 'closed door state is invalid');
+        console.log('2. closed door blocks progression: PASS');
 
-        // 3. teleport into interaction range
-        await page.evaluate(() => { window.game.player.x = 624; window.game.player.y = 230; });
-        await sleep(300);
-
-        // 3b. press ArrowUp -> challenge opens
-        await page.keyboard.press('ArrowUp');
-        await sleep(400);
-        const stChallenge = await page.evaluate(() => window.game.state);
-        assert(stChallenge === 'challenge', '3. expected challenge, got ' + stChallenge);
-        console.log('3. challenge opens: PASS');
-
-        // 4. press A -> wrong answer
-        await hold(page, 'a', 80);
-        await sleep(1300);
+        // Wrong then correct on level 1.
+        await openChallenge(page);
+        await answer(page, 'a');
         const wrong = await page.evaluate(() => ({
             lives: window.game.lives,
             score: window.game.score,
-            doorState: window.game.door.state,
-            blocking: window.game.door.isBlocking()
+            state: window.game.door.state
         }));
-        assert(wrong.lives === 2, '4. expected lives=2, got ' + wrong.lives);
-        assert(wrong.score === 0, '4. expected score=0, got ' + wrong.score);
-        assert(wrong.doorState === 'locked', '4. expected door locked, got ' + wrong.doorState);
-        assert(wrong.blocking === true, '4. expected blocking=true, got ' + wrong.blocking);
-        console.log('4. wrong answer: lives=2 score=0 door=locked blocking=true: PASS');
-
-        // 5. retry -> challenge opens again
-        await page.keyboard.press('ArrowUp');
-        await sleep(400);
-        const stRetry = await page.evaluate(() => window.game.state);
-        assert(stRetry === 'challenge', '5. expected challenge, got ' + stRetry);
-        console.log('5. retry challenge opens: PASS');
-
-        // 6. press B -> correct answer
-        await hold(page, 'b', 80);
-        await sleep(2600);
-        const correct = await page.evaluate(() => ({
+        assert(wrong.lives === 2 && wrong.score === 0 && wrong.state === 'locked', 'wrong answer state is invalid');
+        await openChallenge(page);
+        await answer(page, 'b');
+        const level1Solved = await page.evaluate(() => ({
             score: window.game.score,
-            doorState: window.game.door.state,
+            state: window.game.door.state,
             blocking: window.game.door.isBlocking()
         }));
-        assert(correct.score === 100, '6. expected score=100, got ' + correct.score);
-        assert(correct.doorState === 'open', '6. expected door open, got ' + correct.doorState);
-        assert(correct.blocking === false, '6. expected blocking=false, got ' + correct.blocking);
-        console.log('6. correct answer: score=100 door=open blocking=false: PASS');
+        assert(level1Solved.score === 100, 'level 1 score was not awarded');
+        assert(level1Solved.state === 'open' && level1Solved.blocking === false, 'level 1 door did not open');
+        console.log('3. level 1 challenge and door: PASS');
 
-        // 7. move horizontally through open gate -> assert crossed boundary
-        await page.evaluate(() => { window.game.player.x = 632; window.game.player.y = 230; });
-        await sleep(200);
-        await hold(page, 'ArrowRight', 1500);
-        await sleep(200);
-        const xCross = await page.evaluate(() => window.game.player.x);
-        assert(xCross > 720, '7. player did not cross door (x=' + xCross + ')');
-        console.log('7. player crossed open gate: PASS (x=' + xCross + ')');
-
-        // 8. move to goal -> activate + victory
-        await hold(page, 'ArrowRight', 700);
-        await sleep(100);
-        await hold(page, 'ArrowDown', 1200);
-        await sleep(100);
-        await hold(page, 'ArrowRight', 500);
-        await sleep(700);
-        const vic = await page.evaluate(() => ({
-            activated: window.game.goal.activated,
-            state: window.game.state
-        }));
-        assert(vic.activated === true, '8. goal not activated');
-        assert(vic.state === 'victory', '8. expected victory, got ' + vic.state);
-        console.log('8. goal activated + victory: PASS');
-
-        // 9. JUGAR DE NUEVO (restart via canvas click) -> start
-        await clickCanvasRect(page, 'victoryButtonRect');
-        await sleep(700);
-        const stStart = await page.evaluate(() => window.game.state);
-        assert(stStart === 'start', '9. expected start, got ' + stStart);
-        console.log('9. JUGAR DE NUEVO -> start: PASS');
-
-        // 10. click start -> CLEAN RESET before answering anything
-        await page.click('#start-btn');
-        await sleep(1600);
-        const clean = await page.evaluate(() => ({
-            lives: window.game.lives,
-            score: window.game.score,
-            doorState: window.game.door.state,
-            blocking: window.game.door.isBlocking()
-        }));
-        assert(clean.lives === 3, '10. expected lives=3, got ' + clean.lives);
-        assert(clean.score === 0, '10. expected score=0, got ' + clean.score);
-        assert(clean.doorState === 'locked', '10. expected door locked, got ' + clean.doorState);
-        assert(clean.blocking === true, '10. expected blocking=true, got ' + clean.blocking);
-        console.log('10. clean reset: lives=3 score=0 door=locked: PASS');
-
-        // 11. three wrong answers -> game over; retries are blocked
-        await page.evaluate(() => { window.game.player.x = 624; window.game.player.y = 230; });
-        for (let attempt = 0; attempt < 3; attempt++) {
-            await page.keyboard.press('ArrowUp');
-            await sleep(350);
-            assert(
-                (await page.evaluate(() => window.game.state)) === 'challenge',
-                `11. expected challenge on attempt ${attempt + 1}`
-            );
-            await hold(page, 'a', 80);
-            await sleep(1100);
-        }
-        const gameOver = await page.evaluate(() => ({
+        await reachGoal(page);
+        await sleep(1400);
+        const level2 = await page.evaluate(() => ({
             state: window.game.state,
+            level: window.game.levelNumber,
+            difficulty: window.game.difficulty,
             lives: window.game.lives,
             score: window.game.score,
             doorState: window.game.door.state
         }));
-        assert(gameOver.state === 'game_over', '11. expected game_over, got ' + gameOver.state);
-        assert(gameOver.lives === 0, '11. expected lives=0, got ' + gameOver.lives);
-        assert(gameOver.score === 0, '11. expected score=0, got ' + gameOver.score);
-        assert(gameOver.doorState === 'locked', '11. expected door locked, got ' + gameOver.doorState);
-        await page.keyboard.press('ArrowUp');
-        await sleep(200);
-        assert((await page.evaluate(() => window.game.state)) === 'game_over', '11. retry escaped game over');
-        console.log('11. zero lives -> game over and retries blocked: PASS');
+        assert(level2.state === 'playing' && level2.level === 2, 'level 1 did not advance to level 2');
+        assert(level2.difficulty === 'aventurero', 'difficulty did not persist to level 2');
+        assert(level2.lives === 2 && level2.score === 100, 'campaign state reset at level 2');
+        assert(level2.doorState === 'locked', 'level 2 door did not start locked');
+        console.log('4. level 1 -> level 2 preserves campaign state: PASS');
 
-        // 12. keyboard restart from game over -> clean game
-        await page.keyboard.press('Enter');
+        await openChallenge(page);
+        await answer(page, 'b');
+        await reachGoal(page);
+        await sleep(1400);
+        const level3 = await page.evaluate(() => ({
+            state: window.game.state,
+            level: window.game.levelNumber,
+            difficulty: window.game.difficulty,
+            lives: window.game.lives,
+            score: window.game.score,
+            doorState: window.game.door.state
+        }));
+        assert(level3.state === 'playing' && level3.level === 3, 'level 2 did not advance to level 3');
+        assert(level3.difficulty === 'aventurero', 'difficulty did not persist to level 3');
+        assert(level3.lives === 2 && level3.score === 200, 'campaign state reset at level 3');
+        assert(level3.doorState === 'locked', 'level 3 door did not start locked');
+        console.log('5. level 2 -> level 3 preserves campaign state: PASS');
+
+        await openChallenge(page);
+        await answer(page, 'b');
+        await reachGoal(page);
+        await sleep(500);
+        const victory = await page.evaluate(() => ({
+            state: window.game.state,
+            level: window.game.levelNumber,
+            difficulty: window.game.difficulty,
+            lives: window.game.lives,
+            score: window.game.score
+        }));
+        assert(victory.state === 'victory' && victory.level === 3, 'level 3 did not trigger campaign victory');
+        assert(victory.difficulty === 'aventurero', 'difficulty changed before victory');
+        assert(victory.lives === 2 && victory.score === 300, 'final campaign state is invalid');
+        console.log('6. level 3 -> campaign victory: PASS');
+
+        await clickCanvasRect(page, 'victoryButtonRect');
         await sleep(700);
-        assert((await page.evaluate(() => window.game.state)) === 'start', '12. game-over restart -> start');
         await page.click('#start-btn');
         await sleep(1600);
-        const afterGameOver = await page.evaluate(() => ({
+        const restarted = await page.evaluate(() => ({
+            state: window.game.state,
+            level: window.game.levelNumber,
+            difficulty: window.game.difficulty,
             lives: window.game.lives,
             score: window.game.score,
             doorState: window.game.door.state,
-            blocking: window.game.door.isBlocking()
+            challengeActive: window.game.mathChallenge.active
         }));
-        assert(afterGameOver.lives === 3, '12. expected lives=3, got ' + afterGameOver.lives);
-        assert(afterGameOver.score === 0, '12. expected score=0, got ' + afterGameOver.score);
-        assert(afterGameOver.doorState === 'locked', '12. expected door locked, got ' + afterGameOver.doorState);
-        assert(afterGameOver.blocking === true, '12. expected blocking=true');
-        console.log('12. game-over keyboard restart is clean: PASS');
+        assert(restarted.state === 'playing' && restarted.level === 1, 'campaign restart did not return to level 1');
+        assert(restarted.difficulty === 'aventurero', 'campaign restart lost selected difficulty');
+        assert(restarted.lives === 3 && restarted.score === 0, 'campaign restart is not clean');
+        assert(restarted.doorState === 'locked' && restarted.challengeActive === false, 'restart left runtime state dirty');
+        console.log('7. campaign restart is clean: PASS');
 
-        // 13. finite player coordinates
-        const fin = await page.evaluate(() => ({
-            px: isFinite(window.game.player.x),
-            py: isFinite(window.game.player.y)
+        // Three wrong answers still produce game over; keyboard restart remains available.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            await openChallenge(page);
+            await answer(page, 'a');
+        }
+        const gameOver = await page.evaluate(() => ({
+            state: window.game.state,
+            lives: window.game.lives,
+            level: window.game.levelNumber
         }));
-        assert(fin.px && fin.py, '13. player coords not finite');
-        console.log('13. finite player coordinates: PASS');
+        assert(gameOver.state === 'game_over' && gameOver.lives === 0, 'zero lives did not trigger game over');
+        assert(gameOver.level === 1, 'game over changed campaign level');
+        await page.keyboard.press('Enter');
+        await sleep(700);
+        assert((await page.evaluate(() => window.game.state)) === 'start', 'keyboard restart failed after game over');
+        console.log('8. game over and keyboard restart: PASS');
 
-        // 14. zero console/page errors
-        assert(errors.length === 0, '14. console errors: ' + JSON.stringify(errors));
-        console.log('14. zero console/page errors: PASS');
-
-        console.log('\n=== ALL FLOW ASSERTIONS PASSED ===');
+        assert(errors.length === 0, 'console/page errors: ' + JSON.stringify(errors));
+        console.log('9. zero console/page errors: PASS');
+        console.log('\n=== FAIR EDITION FLOW PASSED ===');
     } finally {
         await browser.close();
     }
-})().catch(e => {
-    console.error('FLOW QA FAILED:', e.message);
+})().catch(error => {
+    console.error('FLOW QA FAILED:', error.message);
     process.exit(1);
 });

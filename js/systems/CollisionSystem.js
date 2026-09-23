@@ -3,23 +3,25 @@ export class CollisionSystem {
         this.tileSize = 60;
     }
 
-    resolve(entity, level, door, dt) {
+    resolve(entity, level, doors, dt) {
         const dx = entity.vx * dt;
         const dy = entity.vy * dt;
 
         const nextX = entity.x + dx;
         const nextY = entity.y + dy;
 
-        const hitX = this.checkCollision(entity.x + dx, entity.y, entity.width, entity.height, level, door);
-        const hitY = this.checkCollision(entity.x, entity.y + dy, entity.width, entity.height, level, door);
-        const hitDoor = this.checkDoorCollision(entity.x + dx, entity.y + dy, entity.width, entity.height, door);
+        const hitX = this.checkCollision(entity.x + dx, entity.y, entity.width, entity.height, level);
+        const hitY = this.checkCollision(entity.x, entity.y + dy, entity.width, entity.height, level);
+        const blockingDoor = this.findDoorCollision(entity.x + dx, entity.y + dy, entity.width, entity.height, doors);
+        const hitDoor = Boolean(blockingDoor);
 
         const collisionInfo = {
             hitX,
             hitY,
             hitDoor,
             hitWall: hitX || hitY,
-            hitAny: hitX || hitY || hitDoor
+            hitAny: hitX || hitY || hitDoor,
+            door: blockingDoor
         };
 
         if (!hitX && !hitDoor) entity.x = nextX;
@@ -34,7 +36,7 @@ export class CollisionSystem {
         return collisionInfo;
     }
 
-    checkCollision(x, y, width, height, level, door) {
+    checkCollision(x, y, width, height, level) {
         const tileSize = this.tileSize;
         const left = Math.floor(x / tileSize);
         const right = Math.floor((x + width - 1) / tileSize);
@@ -52,18 +54,15 @@ export class CollisionSystem {
         return false;
     }
 
-    checkDoorCollision(x, y, width, height, door) {
-        if (!door || !door.isBlocking()) return false;
-        
-        const doorLeft = door.x;
-        const doorRight = door.x + door.width;
-        const doorTop = door.y;
-        const doorBottom = door.y + door.height;
-
-        if (x < doorRight && x + width > doorLeft && y < doorBottom && y + height > doorTop) {
-            return true;
-        }
-        return false;
+    findDoorCollision(x, y, width, height, doors) {
+        const doorList = Array.isArray(doors) ? doors : (doors ? [doors] : []);
+        return doorList.find(door => (
+            door.isBlocking() &&
+            x < door.x + door.width &&
+            x + width > door.x &&
+            y < door.y + door.height &&
+            y + height > door.y
+        )) || null;
     }
 
     checkTile(x, y, level) {

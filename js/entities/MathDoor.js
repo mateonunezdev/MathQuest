@@ -7,13 +7,13 @@ export const DoorState = {
 };
 
 export class MathDoor {
-    constructor(tileX, tileY, challengeId) {
+    constructor(tileX, tileY, challengeRef) {
         this.tileSize = 60;
         this.x = tileX * this.tileSize;
         this.y = tileY * this.tileSize;
         this.width = this.tileSize;
         this.height = this.tileSize * 2;
-        this.challengeId = challengeId;
+        this.challengeRef = challengeRef;
         
         // State machine
         this.state = DoorState.LOCKED;
@@ -172,7 +172,7 @@ export class MathDoor {
         // Interaction
         if (this.interactionHint && dist < 60 && this.state === DoorState.LOCKED) {
             if (window.game?.input?.wasPressed?.('ArrowUp') || window.game?.input?.wasPressed?.('w')) {
-                window.game?.triggerChallenge?.(this.challengeId);
+                window.game?.triggerChallenge?.(this.challengeRef, this);
             }
         }
     }

@@ -31,6 +31,29 @@ async function clickCanvasRect(page, rectName) {
     await page.mouse.click(point.x, point.y);
 }
 
+async function solveCurrentLevel(page) {
+    await page.evaluate(() => {
+        const door = window.game.door;
+        window.game.player.x = door.x - 36;
+        window.game.player.y = door.y + 50;
+    });
+    await sleep(250);
+    await page.keyboard.press('ArrowUp');
+    await sleep(350);
+    assert((await page.evaluate(() => window.game.state)) === 'challenge', 'challenge should open');
+    await hold(page, 'b', 80);
+    await sleep(2600);
+    assert((await page.evaluate(() => window.game.door.state)) === 'open', 'door should open');
+}
+
+async function activateCurrentGoal(page) {
+    await page.evaluate(() => {
+        window.game.player.x = window.game.goal.x;
+        window.game.player.y = window.game.goal.y;
+    });
+    await sleep(250);
+}
+
 (async () => {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
@@ -129,11 +152,27 @@ async function clickCanvasRect(page, rectName) {
         await page.screenshot({ path: path.join(SCREENSHOT_DIR, '11-goal-zone.png') });
         console.log('Screenshot: 11-goal-zone.png');
 
-        // 12. Victory
-        await sleep(600);
-        const vic = await page.evaluate(() => ({ activated: window.game.goal.activated, state: window.game.state }));
-        assert(vic.activated === true, 'goal should be activated');
-        assert(vic.state === 'victory', 'should be victory, got ' + vic.state);
+        // Complete levels 2 and 3 without adding extra visual captures.
+        await sleep(1400);
+        assert((await page.evaluate(() => window.game.levelNumber)) === 2, 'level 1 should advance to level 2');
+        await solveCurrentLevel(page);
+        await activateCurrentGoal(page);
+        await sleep(1400);
+        assert((await page.evaluate(() => window.game.levelNumber)) === 3, 'level 2 should advance to level 3');
+        await solveCurrentLevel(page);
+        await activateCurrentGoal(page);
+        await sleep(500);
+
+        // 12. Campaign victory
+        const vic = await page.evaluate(() => ({
+            activated: window.game.goal.activated,
+            state: window.game.state,
+            level: window.game.levelNumber,
+            score: window.game.score
+        }));
+        assert(vic.activated === true, 'final goal should be activated');
+        assert(vic.state === 'victory' && vic.level === 3, 'campaign should end in level 3 victory');
+        assert(vic.score === 300, 'campaign score should be 300, got ' + vic.score);
         await page.screenshot({ path: path.join(SCREENSHOT_DIR, '12-victory.png') });
         console.log('Screenshot: 12-victory.png');
 

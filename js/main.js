@@ -9,6 +9,7 @@ import { MathDoor } from './entities/MathDoor.js';
 import { Goal } from './entities/Goal.js';
 import { Particle } from './entities/Particle.js';
 import { LevelData } from './levels/LevelData.js';
+import { DIFFICULTIES } from './levels/ChallengeBank.js';
 
 const GameState = {
     START: 'start',
@@ -44,6 +45,9 @@ class Game {
         this.lives = 3;
         this.maxLives = 3;
         this.levelNumber = 1;
+        this.difficulty = DIFFICULTIES.aventurero.id;
+        this.activeDoor = null;
+        this.completedLevel = null;
 
         // Game feel
         this.hitPauseTimer = 0;
@@ -170,6 +174,7 @@ class Game {
             this.startScreen.classList.add('hidden');
             setTimeout(() => {
                 this.startScreen.remove();
+                this.resetCampaignState();
                 this.loadLevel(1);
                 this.state = GameState.PLAYING;
                 this.transitionDirection = -1;
@@ -181,6 +186,7 @@ class Game {
     loadLevel(levelNum) {
         this.levelNumber = levelNum;
         this.level = LevelData.getLevel(levelNum);
+        this.activeDoor = null;
         this.entities = [];
         this.particles = [];
 
@@ -188,8 +194,13 @@ class Game {
         this.player = new Player(playerStart.x, playerStart.y);
         this.entities.push(this.player);
 
-        this.door = new MathDoor(this.level.door.x, this.level.door.y, this.level.door.challengeId);
-        this.entities.push(this.door);
+        this.doors = this.level.doors.map(doorData => {
+            const door = new MathDoor(doorData.x, doorData.y, doorData.challengeRef);
+            door.levelDoorId = doorData.id;
+            this.entities.push(door);
+            return door;
+        });
+        this.door = this.doors[0];
 
         this.goal = new Goal(this.level.goal.x, this.level.goal.y);
         this.entities.push(this.goal);
@@ -198,8 +209,6 @@ class Game {
         this.camera.x = this.player.x - this.canvas.width / 2;
         this.camera.y = this.player.y - this.canvas.height / 2;
 
-        this.score = 0;
-        this.lives = this.maxLives;
         this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
     }
 
@@ -208,8 +217,8 @@ class Game {
             this.score += 100;
             this.camera.shake = 0.3;
             this.camera.shakeIntensity = 8;
-            this.spawnParticles(this.door.x + 30, this.door.y + 30, '#37c4ff', 20);
-            this.door.unlock();
+            this.spawnParticles(this.activeDoor.x + 30, this.activeDoor.y + 30, '#37c4ff', 20);
+            this.activeDoor.unlock();
             this.audio.play('doorUnlock');
         } else {
             this.lives = Math.max(0, this.lives - 1);
@@ -247,7 +256,7 @@ update(dt) {
 
         if (this.state === GameState.PLAYING) {
             this.player.update(dt, this.input);
-            const collisionInfo = this.collision.resolve(this.player, this.level, this.door, dt);
+            const collisionInfo = this.collision.resolve(this.player, this.level, this.doors, dt);
 
             // Hit pause on wall collision for game feel
             if (collisionInfo.hitWall && (this.player.vx !== 0 || this.player.vy !== 0)) {
@@ -259,7 +268,7 @@ update(dt) {
             
             // Door collision feedback - only freeze world on LOCKED door.
             // During UNLOCKING the door must keep opening (hitPause would stall it).
-            if (collisionInfo.hitDoor && this.door.state !== 'unlocking') {
+            if (collisionInfo.hitDoor && collisionInfo.door?.state !== 'unlocking') {
                 this.hitPauseTimer = 0.06;
                 this.camera.shake = 0.15;
                 this.camera.shakeIntensity = 5;
@@ -360,17 +369,24 @@ update(dt) {
         if (this.state === GameState.TRANSITION && this.transitionAlpha > 0) {
             this.ctx.fillStyle = `rgba(7, 17, 31, ${this.transitionAlpha})`;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            if (this.completedLevel) {
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = 'bold 30px "JetBrains Mono", monospace';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(`NIVEL ${this.completedLevel} COMPLETADO`, this.canvas.width / 2, 245);
+                this.ctx.fillStyle = '#37c4ff';
+                this.ctx.font = '16px "JetBrains Mono", monospace';
+                this.ctx.fillText('SIGUIENTE DESTINO...', this.canvas.width / 2, 285);
+            }
         }
     }
 
     restartGame() {
-        // Limpiar estado de victoria y volver a START una sola vez
         this.state = GameState.START;
         this.level = null;
         this.entities = [];
         this.particles = [];
-        this.score = 0;
-        this.lives = this.maxLives;
+        this.resetCampaignState();
         this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
 
         // No duplicar start screens
@@ -394,10 +410,11 @@ update(dt) {
         requestAnimationFrame((t) => this.gameLoop(t));
     }
 
-    triggerChallenge(challengeId) {
+    triggerChallenge(challengeRef, door) {
+        this.activeDoor = door;
         this.state = GameState.CHALLENGE;
         this.audio.play('doorCharge');
-        this.mathChallenge.open(challengeId, (correct) => {
+        this.mathChallenge.open(this.levelNumber, this.difficulty, challengeRef, (correct) => {
             this.handleChallengeResult(correct);
             if (this.state !== GameState.GAME_OVER) {
                 this.state = GameState.PLAYING;
@@ -411,6 +428,10 @@ update(dt) {
     }
 
     triggerVictory() {
+        if (this.levelNumber < LevelData.getLevelCount()) {
+            this.triggerLevelTransition();
+            return;
+        }
         this.state = GameState.VICTORY;
         this.spawnParticles(this.goal.x, this.goal.y, '#37c4ff', 40);
         this.spawnParticles(this.goal.x, this.goal.y, '#ffd700', 20);
@@ -420,6 +441,29 @@ update(dt) {
             this.initStartScreen();
             this.state = GameState.START;
         });
+    }
+
+    triggerLevelTransition() {
+        this.completedLevel = this.levelNumber;
+        this.state = GameState.TRANSITION;
+        this.transitionAlpha = 0.92;
+        this.transitionDirection = 0;
+        setTimeout(() => {
+            if (this.state !== GameState.TRANSITION) return;
+            this.loadLevel(this.completedLevel + 1);
+            this.completedLevel = null;
+            this.transitionAlpha = 0;
+            this.state = GameState.PLAYING;
+        }, 900);
+    }
+
+    resetCampaignState() {
+        this.levelNumber = 1;
+        this.score = 0;
+        this.lives = this.maxLives;
+        this.activeDoor = null;
+        this.completedLevel = null;
+        this.mathChallenge.reset();
     }
 }
 
