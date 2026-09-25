@@ -21,7 +21,7 @@ export class InputSystem {
             this.onMenuInput(key);
         }
 
-        if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(key)) {
+        if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' ', 'e'].includes(key)) {
             e.preventDefault();
         }
     }

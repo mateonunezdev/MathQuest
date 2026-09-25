@@ -5,6 +5,9 @@ export class Renderer {
         this.tileSize = 60;
         this.time = 0;
         this.templeSurface = null;
+        this.templeArtwork = new Image();
+        this.templeArtwork.onload = () => { this.templeSurface = null; };
+        this.templeArtwork.src = new URL('../../assets/fair/level1/temple-chamber.svg', import.meta.url).href;
 
         this.gradients = this.createGradients();
         this.patterns = this.createPatterns();
@@ -146,8 +149,6 @@ export class Renderer {
     }
 
     renderBackground(level) {
-        this.time += 0.016;
-
         if (level.number === 1) {
             if (!this.templeSurface) this.templeSurface = this.createTempleSurface(level);
             this.ctx.drawImage(this.templeSurface, 0, 0);
@@ -212,6 +213,379 @@ export class Renderer {
         this.renderParallaxElements(width, height);
     }
 
+    renderArtLayer(level, name) {
+        this.artAssets?.drawLayer(this.ctx, level, name, this.camera, this.time);
+    }
+
+    renderGroundLighting(level, door, goal, encounters) {
+        const ctx = this.ctx;
+        const pool = (x, y, radius, rgb, strength) => {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(1, 0.42);
+            const light = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+            light.addColorStop(0, `rgba(${rgb},${strength})`);
+            light.addColorStop(0.5, `rgba(${rgb},${strength * 0.28})`);
+            light.addColorStop(1, `rgba(${rgb},0)`);
+            ctx.fillStyle = light;
+            ctx.fillRect(-radius, -radius, radius * 2, radius * 2);
+            ctx.restore();
+        };
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        if (level.number === 1) {
+            pool(110, 184, 115, '231,170,91', 0.16);
+            pool(434, 317, 155, '223,179,103', 0.07);
+        } else if (level.number === 2) {
+            pool(471, 135, 330, '255,199,125', 0.17);
+        } else {
+            pool(483, 176, 255, '246,176,88', 0.13);
+            if (encounters.boss?.health > 0) {
+                pool(encounters.boss.x, encounters.boss.y + 82, 132, '72,212,239',
+                    0.16 + Math.sin(this.time * 3) * 0.035);
+            }
+        }
+        if (encounters.station && !encounters.station.used) {
+            pool(encounters.station.x, encounters.station.y + 38, 86, '74,210,237', 0.22);
+        }
+        if (door) {
+            const energy = door.state === 'locked' ? (door.interactionHint ? 0.16 : 0.08) :
+                door.state === 'unlocking' ? 0.27 + door.unlockPhase * 0.14 : 0.31;
+            pool(door.x + 30, door.y + door.height, 150, '66,201,231', energy);
+            if (door.state === 'unlocking') {
+                pool(door.x + 30, door.y + door.height, 82, '242,185,94', door.unlockPhase * 0.28);
+            }
+        }
+        if (goal) {
+            const footY = goal.y + goal.height + (goal.y < 100 ? 125 : 0);
+            pool(goal.x + 30, footY, 132, '64,197,238', goal.locked ? 0.14 : 0.29);
+        }
+        ctx.restore();
+    }
+
+    renderEncounterObject(encounters, kind, attack, activeAction) {
+        const ctx = this.ctx;
+        if (kind === 'station' && encounters.station) {
+            const station = encounters.station;
+            const asset = this.artAssets?.get('encounter', station.type);
+            ctx.save();
+            const active = activeAction?.kind === 'powerup';
+            if (active) {
+                ctx.strokeStyle = `rgba(125, 221, 232, ${0.55 + Math.sin(this.time * 9) * 0.25})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(station.x, station.y + 36, 38, 13, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(2, 8, 13, .55)';
+            ctx.beginPath();
+            ctx.ellipse(station.x, station.y + 37, 30, 9, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = station.used ? 0.6 : 1;
+            if (!this.artAssets?.draw(ctx, asset, station.x, station.y, this.time)) {
+                ctx.fillStyle = '#b3dce2';
+                ctx.fillRect(station.x - 12, station.y - 20, 24, 40);
+            }
+            ctx.restore();
+            return;
+        }
+        if (kind === 'sentinel') {
+            const sentinel = encounters.sentinel;
+            if (!sentinel || (!sentinel.alive && !(attack?.kind === 'attack' && attack.life > 0.22))) return;
+            ctx.save();
+            ctx.fillStyle = 'rgba(2, 8, 13, .6)';
+            ctx.beginPath();
+            ctx.ellipse(sentinel.x, sentinel.y + 42, 34, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            this.artAssets?.draw(ctx, this.artAssets.get('encounter', 'sentinel'),
+                sentinel.x, sentinel.y, this.time);
+            ctx.restore();
+            return;
+        }
+        if (kind !== 'boss') return;
+        const boss = encounters.boss;
+        if (!boss) return;
+        const holding = attack?.kind === 'boss' && attack.life > 0.3;
+        const health = holding ? attack.previousHealth : boss.health;
+        const defeat = this.bossDefeatFx;
+        if (health <= 0 && !defeat) return;
+        const phase = holding ? attack.previousPhase : Math.min(3, boss.phase);
+        const art = this.artAssets?.get('boss', `phase-${phase}`);
+        const impacting = attack?.kind === 'boss' && attack.life <= 0.3 && attack.life > 0;
+        const recoil = impacting ? Math.sin(this.time * 65) * attack.life * 32 : 0;
+        ctx.save();
+        ctx.fillStyle = 'rgba(1, 7, 12, .58)';
+        ctx.beginPath();
+        ctx.ellipse(boss.x, boss.y + (art?.offsetY || 86) - 4, 68, 17, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (phase > 1 || this.phaseFx) {
+            const glow = ctx.createRadialGradient(boss.x, boss.y - 18, 10,
+                boss.x, boss.y - 18, phase === 3 ? 118 : 90);
+            glow.addColorStop(0, phase === 3 ? 'rgba(238,188,94,.26)' : 'rgba(83,217,239,.23)');
+            glow.addColorStop(1, 'rgba(65,200,233,0)');
+            ctx.fillStyle = glow;
+            ctx.fillRect(boss.x - 125, boss.y - 143, 250, 250);
+        }
+        if (defeat?.started) ctx.globalAlpha = Math.min(1, defeat.life / 0.8);
+        if (impacting) {
+            ctx.filter = `brightness(${1 + attack.life * 2.5})`;
+        }
+        this.artAssets?.draw(ctx, art, boss.x + recoil, boss.y, this.time);
+        ctx.filter = 'none';
+        if (defeat?.started) {
+            ctx.globalAlpha = Math.min(1, defeat.life / 1.1);
+            ctx.strokeStyle = '#a7edf0';
+            ctx.shadowColor = '#55d9ec';
+            ctx.shadowBlur = 9;
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 4; i++) {
+                const angle = i * Math.PI / 2 + this.time * 0.4;
+                ctx.beginPath();
+                ctx.moveTo(boss.x, boss.y - 12);
+                ctx.lineTo(boss.x + Math.cos(angle) * (24 + i * 8),
+                    boss.y - 12 + Math.sin(angle) * (24 + i * 8));
+                ctx.stroke();
+            }
+        } else if (this.phaseFx) {
+            ctx.strokeStyle = `rgba(244,205,126,${Math.min(1, this.phaseFx.life)})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(boss.x, boss.y - 18, 47 + (0.85 - this.phaseFx.life) * 72,
+                0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    renderEncounterPrompt(encounters, player) {
+        const ctx = this.ctx;
+        const action = encounters.actionNear(player);
+        if (action) {
+            const target = action.kind === 'powerup' ? encounters.station :
+                action.kind === 'attack' ? encounters.sentinel : encounters.boss;
+            if (target) {
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('ESPACIO / E', target.x, target.y - 34);
+                ctx.restore();
+            }
+        }
+    }
+
+    renderWorldEffects(encounters, player, attack, power) {
+        const ctx = this.ctx;
+        ctx.save();
+        if (encounters.shield > 0) {
+            const x = player.x + 30;
+            const y = player.y + 22;
+            const pulse = 0.55 + Math.sin(this.time * 5) * 0.12;
+            for (const [rx, ry, alpha] of [[36, 52, pulse], [42, 57, pulse * 0.26]]) {
+                ctx.strokeStyle = `rgba(92,224,241,${alpha})`;
+                ctx.lineWidth = rx === 36 ? 2.5 : 1;
+                ctx.beginPath();
+                ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.fillStyle = 'rgba(78, 203, 228, 0.055)';
+            ctx.beginPath();
+            ctx.ellipse(x, y, 36, 52, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = `rgba(185,241,245,${pulse * 0.68})`;
+            for (let i = 0; i < 6; i++) {
+                const a = this.time * 0.7 + i * Math.PI / 3;
+                ctx.fillRect(x + Math.cos(a) * 38 - 2, y + Math.sin(a) * 51 - 2, 4, 4);
+            }
+        }
+        if (power) {
+            const progress = 1 - power.life / 0.8;
+            const radius = 20 + progress * (power.type === 'pulse' ? 140 : 80);
+            ctx.strokeStyle = power.type === 'heal' ? `rgba(242, 207, 121, ${power.life})` :
+                `rgba(112, 224, 244, ${power.life})`;
+            ctx.lineWidth = 5 * (1 - progress) + 1;
+            ctx.beginPath();
+            ctx.arc(power.x, power.y, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            if (power.type === 'pulse') {
+                ctx.strokeStyle = `rgba(241,202,126,${power.life * 0.48})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(power.x, power.y, Math.max(8, radius - 22), 0, Math.PI * 2);
+                ctx.stroke();
+                for (let i = 0; i < 12; i++) {
+                    const a = i * Math.PI / 6;
+                    ctx.fillStyle = i % 2 ? '#d6e9de' : '#80deed';
+                    ctx.globalAlpha = power.life * 0.65;
+                    ctx.beginPath();
+                    ctx.arc(power.x + Math.cos(a) * radius,
+                        power.y + Math.sin(a) * radius, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+            } else if (power.type === 'heal') {
+                const px = power.playerX, py = power.playerY;
+                const light = ctx.createRadialGradient(px, py, 0, px, py, 55);
+                light.addColorStop(0, `rgba(244,212,133,${power.life * 0.35})`);
+                light.addColorStop(1, 'rgba(244,212,133,0)');
+                ctx.fillStyle = light;
+                ctx.fillRect(px - 55, py - 55, 110, 110);
+                for (let i = 0; i < 9; i++) {
+                    const x = px + (i - 4) * 8 + Math.sin(i * 2) * 5;
+                    const y = py + 29 - progress * 66 - i * 3;
+                    ctx.fillStyle = i % 2 ? '#f3cf81' : '#8ce4ee';
+                    ctx.globalAlpha = power.life * 0.85;
+                    ctx.fillRect(x, y, 3, 3);
+                }
+                ctx.globalAlpha = 1;
+            }
+        }
+        if (attack) {
+            const elapsed = attack.total - attack.life;
+            if (elapsed < 0.28) {
+                const charge = elapsed / 0.28;
+                const aura = ctx.createRadialGradient(attack.fromX, attack.fromY, 1,
+                    attack.fromX, attack.fromY, 26 + charge * 18);
+                aura.addColorStop(0, `rgba(255,237,166,${0.6 + charge * 0.25})`);
+                aura.addColorStop(0.5, 'rgba(62,218,245,.28)');
+                aura.addColorStop(1, 'rgba(62,218,245,0)');
+                ctx.fillStyle = aura;
+                ctx.fillRect(attack.fromX - 48, attack.fromY - 48, 96, 96);
+                for (let i = 0; i < 9; i++) {
+                    const a = i * Math.PI * 2 / 9 + this.time * 1.3;
+                    const distance = 42 * (1 - charge) + 5;
+                    ctx.fillStyle = i % 2 ? '#f5cc81' : '#96e6f0';
+                    ctx.beginPath();
+                    ctx.arc(attack.fromX + Math.cos(a) * distance,
+                        attack.fromY + Math.sin(a) * distance, 2.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else if (attack.life > 0.3) {
+                const progress = Math.min(1, (elapsed - 0.28) / 0.45);
+                const endX = attack.fromX + (attack.toX - attack.fromX) * progress;
+                const endY = attack.fromY + (attack.toY - attack.fromY) * progress;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = 'rgba(54, 210, 242, .55)';
+                ctx.lineWidth = 11;
+                ctx.beginPath();
+                ctx.moveTo(attack.fromX, attack.fromY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+                for (let i = 1; i <= 4; i++) {
+                    const t = Math.max(0, progress - i * 0.09);
+                    ctx.fillStyle = i % 2 ? '#8fe6ee' : '#e9bf78';
+                    ctx.globalAlpha = (1 - i / 5) * 0.72;
+                    ctx.beginPath();
+                    ctx.arc(attack.fromX + (attack.toX - attack.fromX) * t,
+                        attack.fromY + (attack.toY - attack.fromY) * t, 4 - i * 0.4,
+                        0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                ctx.strokeStyle = '#fce6ac';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                const dx = endX - attack.fromX;
+                const dy = endY - attack.fromY;
+                const length = Math.max(1, Math.hypot(dx, dy));
+                for (const side of [-1, 1]) {
+                    ctx.strokeStyle = side < 0 ? 'rgba(245,202,125,.8)' : 'rgba(139,235,245,.8)';
+                    ctx.lineWidth = 1.7;
+                    ctx.beginPath();
+                    for (let i = 0; i <= 8; i++) {
+                        const t = i / 8;
+                        const twist = Math.sin(t * Math.PI * 4 - this.time * 14) * 7 * side;
+                        const x = attack.fromX + dx * t - dy / length * twist;
+                        const y = attack.fromY + dy * t + dx / length * twist;
+                        if (i) ctx.lineTo(x, y);
+                        else ctx.moveTo(x, y);
+                    }
+                    ctx.stroke();
+                }
+                ctx.shadowColor = '#5de4ff';
+                ctx.shadowBlur = 17;
+                ctx.fillStyle = '#fff3ce';
+                ctx.beginPath();
+                ctx.arc(endX, endY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#2b7280';
+                ctx.font = 'bold 11px "JetBrains Mono", monospace';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Σ', endX, endY + 1);
+                ctx.strokeStyle = 'rgba(240,190,111,.85)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(endX, endY, 15, this.time * 5, this.time * 5 + Math.PI * 1.4);
+                ctx.stroke();
+            } else {
+                const fade = Math.max(0, attack.life / 0.3);
+                const radius = 16 + (1 - fade) * 58;
+                const impact = ctx.createRadialGradient(attack.toX, attack.toY, 0,
+                    attack.toX, attack.toY, radius);
+                impact.addColorStop(0, `rgba(255,236,174,${fade * 0.65})`);
+                impact.addColorStop(0.5, `rgba(74,220,246,${fade * 0.33})`);
+                impact.addColorStop(1, 'rgba(74,220,246,0)');
+                ctx.fillStyle = impact;
+                ctx.fillRect(attack.toX - radius, attack.toY - radius, radius * 2, radius * 2);
+                ctx.strokeStyle = `rgba(252,211,127,${fade})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(attack.toX, attack.toY, radius * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
+    renderBossTelegraph(encounters) {
+        const boss = encounters.boss;
+        if (!boss || (boss.state !== 'telegraph' && boss.state !== 'recovering')) return;
+        const ctx = this.ctx;
+        ctx.save();
+        const warning = boss.state === 'telegraph';
+        ctx.strokeStyle = warning ? '#ffb078' : '#e9c27e';
+        ctx.lineWidth = warning ? 3 : 2;
+        ctx.setLineDash(warning ? [10, 8] : [4, 10]);
+        ctx.beginPath();
+        ctx.arc(boss.x, boss.y, 170, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (warning) {
+            ctx.strokeStyle = '#fff0c9';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(boss.x, boss.y, 170, -Math.PI / 2,
+                -Math.PI / 2 + Math.PI * 2 * (1 - boss.telegraph / 1.4));
+            ctx.stroke();
+        }
+        ctx.fillStyle = '#fff0d8';
+        ctx.font = 'bold 16px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(warning ? 'ATAQUE INMINENTE' : 'VENTANA DE ATAQUE', boss.x, boss.y - 72);
+        ctx.restore();
+    }
+
+    renderBossEntrance(life) {
+        const ctx = this.ctx;
+        const alpha = Math.min(1, life, 1.7 - life);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = 'rgba(7, 18, 25, .86)';
+        ctx.fillRect(236, 114, 488, 64);
+        ctx.strokeStyle = '#d7ae70';
+        ctx.strokeRect(236.5, 114.5, 487, 63);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f1d49a';
+        ctx.font = 'bold 20px "JetBrains Mono", monospace';
+        ctx.fillText('GUARDIÁN DEL NÚCLEO', 480, 140);
+        ctx.fillStyle = '#9cd7df';
+        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        ctx.fillText('TRES SELLOS · UNA ÚLTIMA PRUEBA', 480, 163);
+        ctx.restore();
+    }
+
     createTempleSurface(level) {
         const canvas = document.createElement('canvas');
         canvas.width = level.width * this.tileSize;
@@ -219,6 +593,11 @@ export class Renderer {
         const ctx = canvas.getContext('2d');
         const width = canvas.width;
         const height = canvas.height;
+
+        if (this.templeArtwork.complete && this.templeArtwork.naturalWidth) {
+            ctx.drawImage(this.templeArtwork, 0, 0, width, height);
+            return canvas;
+        }
 
         const voidGradient = ctx.createLinearGradient(0, 0, 0, height);
         voidGradient.addColorStop(0, '#03070d');
@@ -547,27 +926,52 @@ export class Renderer {
     renderLevelGuidance(level, doorOpen) {
         if (level.number !== 1) return;
         const ctx = this.ctx;
-        const pulse = .5 + Math.sin(this.time * 2.1) * .5;
-        const pathA = [[92, 112], [332, 112], [332, 270], [690, 270]];
-        const pathB = [[690, 270], [790, 270], [790, 450], [870, 450]];
-        const drawPath = (points, active) => {
+        const pulse = .5 + Math.sin(this.time * 1.8) * .5;
+        const drawPath = (segments, active) => {
             ctx.save();
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = active ? `rgba(64,210,239,${.28 + pulse * .1})` : 'rgba(42,113,135,.18)';
-            ctx.lineWidth = active ? 5 : 3;
-            ctx.shadowColor = active ? 'rgba(55,196,255,.55)' : 'transparent';
-            ctx.shadowBlur = active ? 12 : 0;
             ctx.beginPath();
-            points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+            ctx.moveTo(...segments[0]);
+            for (let i = 1; i < segments.length; i++) {
+                const previous = segments[i - 1];
+                const current = segments[i];
+                ctx.quadraticCurveTo(previous[0], previous[1],
+                    (previous[0] + current[0]) / 2, (previous[1] + current[1]) / 2);
+            }
+            ctx.lineTo(...segments[segments.length - 1]);
+            ctx.strokeStyle = 'rgba(3,20,29,.62)';
+            ctx.lineWidth = 13;
             ctx.stroke();
-            ctx.strokeStyle = active ? 'rgba(190,246,255,.65)' : 'rgba(92,155,169,.17)';
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(188,153,92,.33)';
+            ctx.lineWidth = 8;
             ctx.stroke();
+            ctx.strokeStyle = active ? `rgba(60,194,220,${.38 + pulse * .13})` : 'rgba(59,127,147,.18)';
+            ctx.shadowColor = active ? 'rgba(49,190,221,.36)' : 'transparent';
+            ctx.shadowBlur = active ? 9 : 0;
+            ctx.lineWidth = active ? 5 : 3;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = active ? 'rgba(190,245,250,.6)' : 'rgba(80,148,160,.13)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([9, 17]);
+            ctx.stroke();
+            ctx.setLineDash([]);
             ctx.restore();
         };
-        drawPath(pathA, true);
-        drawPath(pathB, doorOpen);
+        drawPath([[93, 116], [179, 179], [260, 242], [355, 300], [458, 282], [558, 264], [690, 258]], true);
+        drawPath([[690, 258], [748, 301], [799, 370], [855, 441]], doorOpen);
+
+        for (const [x, y, active] of [[355, 300, true], [690, 258, true], [855, 441, doorOpen]]) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.strokeStyle = active ? 'rgba(190,233,231,.55)' : 'rgba(127,153,151,.25)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, -8); ctx.lineTo(8, 0); ctx.lineTo(0, 8); ctx.lineTo(-8, 0); ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
     }
 
     renderForeground(level) {
@@ -586,26 +990,16 @@ export class Renderer {
     }
 
     renderAtmosphere(level) {
-        if (level.number !== 1) return;
         const ctx = this.ctx;
         ctx.save();
         ctx.globalCompositeOperation = 'screen';
-        const gateGlow = ctx.createRadialGradient(690, 260, 0, 690, 260, 125);
-        gateGlow.addColorStop(0, 'rgba(37,153,188,.08)');
-        gateGlow.addColorStop(1, 'rgba(37,153,188,0)');
-        ctx.fillStyle = gateGlow;
-        ctx.fillRect(550, 120, 280, 280);
-        const goalGlow = ctx.createRadialGradient(870, 450, 0, 870, 450, 90);
-        goalGlow.addColorStop(0, 'rgba(48,180,215,.11)');
-        goalGlow.addColorStop(1, 'rgba(48,180,215,0)');
-        ctx.fillStyle = goalGlow;
-        ctx.fillRect(775, 355, 190, 185);
-
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < 14; i++) {
             const x = (i * 157 + Math.sin(this.time * .35 + i) * 18) % 930 + 15;
             const y = (i * 83 - this.time * (3 + i % 4)) % 440 + 75;
-            const alpha = .12 + (i % 4) * .035;
-            ctx.fillStyle = i % 5 === 0 ? `rgba(226,184,90,${alpha})` : `rgba(73,196,221,${alpha})`;
+            const alpha = .08 + (i % 4) * .025;
+            const rgb = level.number === 2 ? '248,200,135' :
+                level.number === 3 && i % 3 === 0 ? '245,183,91' : '73,196,221';
+            ctx.fillStyle = `rgba(${rgb},${alpha})`;
             ctx.beginPath();
             ctx.arc(x, y, i % 3 === 0 ? 1.5 : 1, 0, Math.PI * 2);
             ctx.fill();

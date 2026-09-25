@@ -89,6 +89,36 @@ export class AudioSystem {
         
         // UI hover
         this.sounds.uiHover = this.createTone(1000, 0.03, 'sine', 0.15);
+        this.sounds.mathAttack = this.createTone(260, 0.28, 'triangle', 0.2, 880);
+        this.sounds.attackCharge = this.createTone(190, 0.27, 'sine', 0.16, 620);
+        this.sounds.attackLaunch = this.createTone(390, 0.32, 'triangle', 0.24, 1120);
+        this.sounds.bossHit = this.createToneSequence([
+            { freq: 180, dur: 0.18, type: 'triangle', gain: 0.3 },
+            { freq: 95, dur: 0.24, type: 'sawtooth', gain: 0.18 }
+        ], 0.02);
+        this.sounds.bossEntrance = this.createToneSequence([
+            { freq: 110, dur: 0.3, type: 'sine', gain: 0.24 },
+            { freq: 165, dur: 0.4, type: 'triangle', gain: 0.18 }
+        ], 0.04);
+        this.sounds.bossPhase = this.createToneSequence([
+            { freq: 330, dur: 0.12, type: 'triangle', gain: 0.18 },
+            { freq: 494, dur: 0.2, type: 'sine', gain: 0.22 }
+        ], 0.02);
+        this.sounds.bossDefeat = this.createToneSequence([
+            { freq: 392, dur: 0.14, type: 'triangle', gain: 0.24 },
+            { freq: 523, dur: 0.16, type: 'triangle', gain: 0.24 },
+            { freq: 784, dur: 0.35, type: 'sine', gain: 0.28 }
+        ], 0.03);
+        this.sounds.portalUnlock = this.createTone(440, 0.4, 'sine', 0.19, 880);
+        this.sounds.portalActivate = this.createToneSequence([
+            { freq: 659, dur: 0.11, type: 'sine', gain: 0.2 },
+            { freq: 988, dur: 0.27, type: 'sine', gain: 0.24 }
+        ], 0.02);
+        this.sounds.powerActivate = this.createToneSequence([
+            { freq: 440, dur: 0.1, type: 'sine', gain: 0.2 },
+            { freq: 660, dur: 0.16, type: 'sine', gain: 0.25 },
+            { freq: 880, dur: 0.22, type: 'sine', gain: 0.18 }
+        ], 0.02);
     }
 
     createTone(frequency, duration, type = 'sine', gain = 0.3, freqEnd = null) {
@@ -134,7 +164,7 @@ export class AudioSystem {
                 gain.gain.exponentialRampToValueAtTime(0.001, noteTime + note.dur);
                 
                 osc.connect(gain);
-                gain.connect(ctx.destination);
+                gain.connect(this.masterGain || ctx.destination);
                 
                 osc.start(noteTime);
                 osc.stop(noteTime + note.dur);
@@ -198,7 +228,7 @@ export class AudioSystem {
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
         
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(this.masterGain || ctx.destination);
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.08);
     }

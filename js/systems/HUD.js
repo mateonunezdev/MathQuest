@@ -9,6 +9,9 @@ export class HUD {
         this.gameOverVisible = false;
         this.victoryAnim = 0;
         this.time = 0;
+        this.difficultyLabel = '';
+        this.encounters = null;
+        this.doorOpen = false;
     }
 
     reset(score, lives, maxLives, level) {
@@ -21,6 +24,7 @@ export class HUD {
         this.victoryAnim = 0;
         this.victoryButtonRect = null;
         this.gameOverButtonRect = null;
+        this.finalStats = null;
     }
 
     update(score, lives, maxLives) {
@@ -29,13 +33,22 @@ export class HUD {
         this.maxLives = maxLives;
     }
 
-    showVictory(score, lives, callback) {
+    setCampaignStatus(difficultyLabel, encounters, doorOpen, attackFx = null, bossDefeatFx = null) {
+        this.difficultyLabel = difficultyLabel;
+        this.encounters = encounters;
+        this.doorOpen = doorOpen;
+        this.attackFx = attackFx;
+        this.bossDefeatFx = bossDefeatFx;
+    }
+
+    showVictory(score, lives, callback, stats = {}) {
         this.victoryVisible = true;
         this.gameOverVisible = false;
         this.victoryCallback = callback;
         this.victoryAnim = 0;
         this.finalScore = score;
         this.finalLives = lives;
+        this.finalStats = stats;
     }
 
     showGameOver(score) {
@@ -69,24 +82,89 @@ export class HUD {
 
         const barHeight = 70;
         const grad = ctx.createLinearGradient(0, 0, 0, barHeight);
-        grad.addColorStop(0, 'rgba(7, 18, 28, 0.95)');
-        grad.addColorStop(1, 'rgba(7, 18, 28, 0.7)');
+        grad.addColorStop(0, 'rgba(29, 31, 31, 0.96)');
+        grad.addColorStop(0.42, 'rgba(19, 28, 31, 0.93)');
+        grad.addColorStop(1, 'rgba(9, 24, 32, 0.78)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, barHeight);
 
-        ctx.strokeStyle = 'rgba(55, 196, 255, 0.2)';
+        ctx.strokeStyle = 'rgba(221, 176, 99, 0.5)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, barHeight);
         ctx.lineTo(canvas.width, barHeight);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(76, 211, 229, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(0, barHeight - 2);
+        ctx.lineTo(canvas.width, barHeight - 2);
         ctx.stroke();
 
         this.renderLevelBadge(ctx, padding, 12);
         this.renderLives(ctx, canvas.width / 2, 18);
         this.renderScore(ctx, canvas.width - padding - 60, 18);
         this.renderMuteButton(ctx, canvas.width - padding, 18);
+        this.renderCampaignStatus(ctx);
 
         ctx.restore();
+    }
+
+    renderCampaignStatus(ctx) {
+        const encounter = this.encounters;
+        ctx.save();
+        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#d8b977';
+        ctx.fillText(this.difficultyLabel, 150, 28);
+
+        const abilities = [encounter?.shield ? 'ESCUDO ACTIVO' : null,
+            encounter?.pulse ? 'PULSO LISTO' : null].filter(Boolean);
+        const boss = this.doorOpen ? encounter?.boss : null;
+        const visibleBossHealth = this.attackFx?.kind === 'boss' && this.attackFx.life > 0.3 ?
+            this.attackFx.previousHealth : boss?.health;
+        const visibleBossPhase = this.attackFx?.kind === 'boss' && this.attackFx.life > 0.3 ?
+            this.attackFx.previousPhase : boss?.phase;
+        let message = abilities.join('  •  ');
+        if (visibleBossHealth > 0 || this.bossDefeatFx) {
+            this.renderBossStatus(ctx, visibleBossHealth || 0, visibleBossPhase || 3, boss);
+            ctx.restore();
+            return;
+        }
+        else if (encounter?.sentinel?.alive && this.doorOpen) message = 'META SELLADA  •  DERROTA AL CENTINELA';
+        else if (!message && encounter?.station && !encounter.station.used) message = 'BUSCA EL ARTEFACTO  •  ESPACIO / E';
+        if (message) {
+            ctx.fillStyle = 'rgba(5, 16, 26, .88)';
+            ctx.fillRect(20, 500, 510, 28);
+            ctx.strokeStyle = boss?.state === 'telegraph' ? '#ff9b65' : '#6a8490';
+            ctx.strokeRect(20, 500, 510, 28);
+            ctx.fillStyle = boss?.state === 'telegraph' ? '#ffb188' : '#d9e9ed';
+            ctx.fillText(message, 33, 519);
+        }
+        ctx.restore();
+    }
+
+    renderBossStatus(ctx, health, phase, boss) {
+        const x = 20, y = 480, w = 418, h = 50;
+        ctx.fillStyle = 'rgba(7, 17, 25, .92)';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = boss?.state === 'telegraph' ? '#efac77' : '#ba9560';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+        ctx.fillStyle = '#e9c890';
+        ctx.font = 'bold 13px "JetBrains Mono", monospace';
+        ctx.fillText('GUARDIÁN DEL NÚCLEO', x + 12, y + 19);
+        ctx.font = 'bold 11px "JetBrains Mono", monospace';
+        ctx.fillStyle = this.bossDefeatFx ? '#91e5ef' : '#a9c9ce';
+        ctx.fillText(this.bossDefeatFx ? 'NÚCLEO DESACTIVÁNDOSE' : `FASE ${phase} / 3`, x + 12, y + 38);
+        for (let i = 0; i < 3; i++) {
+            const sx = x + 245 + i * 53;
+            ctx.fillStyle = i < health ? '#7cdae8' : '#273940';
+            ctx.strokeStyle = i < health ? '#e5bd7d' : '#617078';
+            ctx.beginPath();
+            ctx.roundRect(sx, y + 18, 43, 15, 3);
+            ctx.fill();
+            ctx.stroke();
+        }
     }
 
     renderMuteButton(ctx, rightX, y) {
@@ -263,33 +341,57 @@ export class HUD {
         ctx.textBaseline = 'middle';
         ctx.shadowColor = '#37c4ff';
         ctx.shadowBlur = 10;
-        ctx.fillText('VICTORIA', centerX, centerY * 0.4 - 20);
+        ctx.fillText('MATHQUEST', centerX, 92);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#e9f3f2';
+        ctx.font = 'bold 22px "JetBrains Mono", monospace';
+        ctx.fillText('MISIÓN COMPLETADA', centerX, 132);
 
         // Cian accent line under title
         ctx.strokeStyle = 'rgba(55, 196, 255, 0.5)';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(centerX - 150, centerY * 0.4 + 10);
-        ctx.lineTo(centerX + 150, centerY * 0.4 + 10);
+        ctx.moveTo(centerX - 180, 153);
+        ctx.lineTo(centerX + 180, 153);
         ctx.stroke();
 
-        // Score presentation - large dorado
-        const scoreString = this.finalScore.toLocaleString();
-        ctx.fillStyle = '#ffd700';
-        ctx.font = 'bold 64px "JetBrains Mono", monospace';
-        ctx.shadowBlur = 0;
-        ctx.fillText('SCORE', centerX, centerY * 0.5 + 20);
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 96px "JetBrains Mono", monospace';
-        ctx.fillText(scoreString, centerX, centerY * 0.5 + 55);
+        const resultPanel = ctx.createLinearGradient(0, 165, 0, 370);
+        resultPanel.addColorStop(0, 'rgba(30, 42, 43, .92)');
+        resultPanel.addColorStop(1, 'rgba(9, 23, 31, .9)');
+        ctx.fillStyle = resultPanel;
+        ctx.strokeStyle = 'rgba(223, 178, 108, .72)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(centerX - 260, 166, 520, 202, 10);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(94, 210, 231, .38)';
+        ctx.beginPath();
+        ctx.moveTo(centerX - 230, 277);
+        ctx.lineTo(centerX + 230, 277);
+        ctx.stroke();
 
-        // Lives remaining - subtle
-        ctx.fillStyle = '#a0a8b8';
-        ctx.font = '14px "JetBrains Mono", monospace';
-        ctx.fillText(`VIDAS: ${this.finalLives}/3`, centerX, centerY * 0.7 - 20);
+        const stats = this.finalStats || {};
+        const rank = stats.accuracy >= 90 ? 'GUARDIÁN DE LA LÓGICA' :
+            stats.accuracy >= 70 ? 'MAESTRO DEL TEMPLO' : 'EXPLORADOR MATEMÁTICO';
+        ctx.fillStyle = '#e5bb7b';
+        ctx.font = 'bold 15px "JetBrains Mono", monospace';
+        ctx.fillText(rank, centerX, 183);
+        ctx.fillStyle = '#f3f0e7';
+        ctx.font = 'bold 34px "JetBrains Mono", monospace';
+        ctx.fillText(this.finalScore.toLocaleString(), centerX, 238);
+        ctx.fillStyle = '#9ec6ce';
+        ctx.font = 'bold 12px "JetBrains Mono", monospace';
+        ctx.fillText('PUNTOS', centerX, 262);
+        ctx.fillStyle = '#e9f3f2';
+        ctx.font = 'bold 15px "JetBrains Mono", monospace';
+        ctx.fillText(`${stats.difficulty || 'AVENTURERO'}   •   PRECISIÓN ${stats.accuracy ?? 0}%`, centerX, 307);
+        const minutes = Math.floor((stats.seconds || 0) / 60);
+        const seconds = String((stats.seconds || 0) % 60).padStart(2, '0');
+        ctx.fillText(`TIEMPO ${minutes}:${seconds}   •   VIDAS ${this.finalLives}/${this.maxLives}`, centerX, 336);
 
         // JUGAR DE NUEVO button with stronger design
-        const buttonY = centerY * 0.75;
+        const buttonY = 397;
         const buttonW = 280;
         const buttonH = 50;
         const buttonX = centerX - buttonW / 2;

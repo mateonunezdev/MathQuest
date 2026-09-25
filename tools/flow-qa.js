@@ -1,4 +1,7 @@
 const { chromium } = require('playwright');
+const fs = require('fs');
+const BRAVE_PATH = process.env.BRAVE_EXECUTABLE_PATH ||
+    (fs.existsSync('/usr/bin/brave-browser') ? '/usr/bin/brave-browser' : undefined);
 
 async function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
@@ -38,9 +41,26 @@ async function openChallenge(page) {
     assert((await page.evaluate(() => window.game.state)) === 'challenge', 'challenge did not open');
 }
 
-async function answer(page, letter) {
+async function answer(page, choice) {
+    const letter = await page.evaluate(kind => {
+        const correct = window.game.mathChallenge.challengeData.correct;
+        return kind === 'correct' ? correct : ['A', 'B', 'C'].find(key => key !== correct);
+    }, choice);
     await hold(page, letter, 80);
-    await sleep(2600);
+    await page.waitForFunction(() => window.game.state === 'playing' || window.game.state === 'game_over');
+    await sleep(120);
+}
+
+async function solveEncounter(page, targetName) {
+    await page.evaluate(name => {
+        const target = window.game.encounters[name];
+        window.game.player.x = target.x - 18;
+        window.game.player.y = target.y - 20;
+    }, targetName);
+    await sleep(80);
+    await page.keyboard.press('Space');
+    await page.waitForFunction(() => window.game.state === 'challenge');
+    await answer(page, 'correct');
 }
 
 async function reachGoal(page) {
@@ -52,7 +72,7 @@ async function reachGoal(page) {
 }
 
 (async () => {
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ headless: true, executablePath: BRAVE_PATH });
     const page = await browser.newPage({ viewport: { width: 1100, height: 700 } });
     const errors = [];
     page.on('console', message => {
@@ -111,21 +131,24 @@ async function reachGoal(page) {
 
         // Wrong then correct on level 1.
         await openChallenge(page);
-        await answer(page, 'a');
+        await answer(page, 'wrong');
         const wrong = await page.evaluate(() => ({
             lives: window.game.lives,
             score: window.game.score,
             state: window.game.door.state
         }));
         assert(wrong.lives === 2 && wrong.score === 0 && wrong.state === 'locked', 'wrong answer state is invalid');
+        await solveEncounter(page, 'station');
+        assert((await page.evaluate(() => window.game.encounters.shield)) === 1, 'level 1 shield not granted');
         await openChallenge(page);
-        await answer(page, 'b');
+        await answer(page, 'correct');
+        await page.waitForFunction(() => window.game.door.state === 'open');
         const level1Solved = await page.evaluate(() => ({
             score: window.game.score,
             state: window.game.door.state,
             blocking: window.game.door.isBlocking()
         }));
-        assert(level1Solved.score === 100, 'level 1 score was not awarded');
+        assert(level1Solved.score === 210, 'level 1 rewards were not awarded');
         assert(level1Solved.state === 'open' && level1Solved.blocking === false, 'level 1 door did not open');
         console.log('3. level 1 challenge and door: PASS');
 
@@ -145,12 +168,18 @@ async function reachGoal(page) {
         }));
         assert(level2.state === 'playing' && level2.level === 2, 'level 1 did not advance to level 2');
         assert(level2.difficulty === 'maestro', 'difficulty did not persist to level 2');
-        assert(level2.lives === 2 && level2.score === 100, 'campaign state reset at level 2');
+        assert(level2.lives === 2 && level2.score === 210, 'campaign state reset at level 2');
         assert(level2.doorState === 'locked', 'level 2 door did not start locked');
         console.log('4. level 1 -> level 2 preserves campaign state: PASS');
 
+        await solveEncounter(page, 'station');
+        assert((await page.evaluate(() => window.game.encounters.pulse)) === 1, 'level 2 pulse not granted');
         await openChallenge(page);
-        await answer(page, 'b');
+        await answer(page, 'correct');
+        await page.waitForFunction(() => window.game.door.state === 'open');
+        await reachGoal(page);
+        assert((await page.evaluate(() => window.game.state)) === 'playing', 'sentinel did not block goal');
+        await solveEncounter(page, 'sentinel');
         await reachGoal(page);
         await sleep(750);
         assert((await page.evaluate(() => window.game.state)) === 'level_intro', 'level 3 intro did not appear');
@@ -167,12 +196,24 @@ async function reachGoal(page) {
         }));
         assert(level3.state === 'playing' && level3.level === 3, 'level 2 did not advance to level 3');
         assert(level3.difficulty === 'maestro', 'difficulty did not persist to level 3');
-        assert(level3.lives === 2 && level3.score === 200, 'campaign state reset at level 3');
+        assert(level3.lives === 2 && level3.score === 533, 'campaign state reset at level 3');
         assert(level3.doorState === 'locked', 'level 3 door did not start locked');
         console.log('5. level 2 -> level 3 preserves campaign state: PASS');
 
+        await solveEncounter(page, 'station');
+        assert((await page.evaluate(() => window.game.lives)) === 3, 'level 3 heal did not restore one life');
         await openChallenge(page);
-        await answer(page, 'b');
+        await answer(page, 'correct');
+        await page.waitForFunction(() => window.game.door.state === 'open');
+        await reachGoal(page);
+        assert((await page.evaluate(() => window.game.state)) === 'playing', 'boss did not block final goal');
+        for (let phase = 1; phase <= 3; phase++) {
+            if (phase > 1) await page.waitForFunction(() => !window.game.attackFx);
+            await solveEncounter(page, 'boss');
+            assert((await page.evaluate(() => window.game.encounters.boss.health)) === 3 - phase,
+                `boss phase ${phase} did not resolve`);
+        }
+        await page.waitForFunction(() => !window.game.bossDefeatFx);
         await reachGoal(page);
         await sleep(500);
         const victory = await page.evaluate(() => ({
@@ -184,7 +225,7 @@ async function reachGoal(page) {
         }));
         assert(victory.state === 'victory' && victory.level === 3, 'level 3 did not trigger campaign victory');
         assert(victory.difficulty === 'maestro', 'difficulty changed before victory');
-        assert(victory.lives === 2 && victory.score === 300, 'final campaign state is invalid');
+        assert(victory.lives === 3 && victory.score === 1419, 'final campaign state is invalid');
         console.log('6. level 3 -> campaign victory: PASS');
 
         await clickCanvasRect(page, 'victoryButtonRect');
@@ -216,7 +257,7 @@ async function reachGoal(page) {
         // Three wrong answers still produce game over; keyboard restart remains available.
         for (let attempt = 0; attempt < 3; attempt++) {
             await openChallenge(page);
-            await answer(page, 'a');
+            await answer(page, 'wrong');
         }
         const gameOver = await page.evaluate(() => ({
             state: window.game.state,

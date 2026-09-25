@@ -13,9 +13,10 @@ export class MathChallengeSystem {
         this.closeDelay = 0;
         this.closeTimer = null;
         this.particles = [];
+        this.remainingSeconds = 0;
     }
 
-    open(level, difficulty, challengeRef, callback) {
+    open(level, difficulty, challengeRef, callback, rules = {}) {
         this.challengeData = ChallengeBank.resolve(level, difficulty, challengeRef);
         if (!this.challengeData) {
             throw new Error(`No challenge for level=${level}, difficulty=${difficulty}, ref=${challengeRef}`);
@@ -27,6 +28,10 @@ export class MathChallengeSystem {
         this.feedbackType = '';
         this.animTime = 0;
         this.particles = [];
+        this.remainingSeconds = rules.answerSeconds || 0;
+        this.contextLabel = rules.contextLabel || 'SISTEMA DE ACCESO // PUERTA PRINCIPAL';
+        this.successText = rules.successText || '✓ ACCESO CONCEDIDO';
+        this.failureText = rules.failureText || '✗ ACCESO DENEGADO';
 
         // Spawn entrance particles
         for (let i = 0; i < 30; i++) {
@@ -45,6 +50,10 @@ export class MathChallengeSystem {
 
     update(dt) {
         this.animTime = Math.min(1, this.animTime + dt * 3);
+        if (this.active && !this.selectedAnswer && this.remainingSeconds > 0) {
+            this.remainingSeconds = Math.max(0, this.remainingSeconds - dt);
+            if (this.remainingSeconds === 0) this.submitAnswer('TIME');
+        }
         
         // Update particles
         this.particles.forEach(p => {
@@ -69,10 +78,10 @@ export class MathChallengeSystem {
         this.selectedAnswer = letter;
         const correct = letter === this.challengeData.correct;
         this.resultTimer = 0;
-        this.closeDelay = correct ? 1000 : 800;
+        this.closeDelay = correct ? 1 : 0.8;
 
         if (correct) {
-            this.feedback = '✓ ACCESO CONCEDIDO';
+            this.feedback = this.successText;
             this.feedbackType = 'success';
             // Success particles - dorado/cian mix
             for (let i = 0; i < 40; i++) {
@@ -88,7 +97,7 @@ export class MathChallengeSystem {
                 });
             }
         } else {
-            this.feedback = '✗ ACCESO DENEGADO';
+            this.feedback = letter === 'TIME' ? '✗ TIEMPO AGOTADO' : this.failureText;
             this.feedbackType = 'error';
             // Error particles - only red on selected, NO green on correct
             for (let i = 0; i < 20; i++) {
@@ -107,7 +116,7 @@ export class MathChallengeSystem {
 
         this.closeTimer = setTimeout(() => {
             this.close(correct);
-        }, correct ? 1000 : 800);
+        }, this.closeDelay * 1000);
     }
 
     close(correct) {
@@ -127,6 +136,7 @@ export class MathChallengeSystem {
         this.feedback = '';
         this.feedbackType = '';
         this.particles = [];
+        this.remainingSeconds = 0;
     }
 
     render(ctx) {
@@ -140,7 +150,7 @@ export class MathChallengeSystem {
         ctx.save();
 
         // Subtle world-textured background
-        ctx.fillStyle = 'rgba(5, 15, 30, 0.8)';
+        ctx.fillStyle = 'rgba(5, 15, 30, 0.55)';
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
         // Subtle scanlines
@@ -222,8 +232,26 @@ export class MathChallengeSystem {
         ctx.roundRect(panelX + 3, panelY + 3, panelW - 6, panelH - 6, 17);
         ctx.stroke();
 
+        const art = window.game?.artAssets;
+        const plate = art?.get('ui', 'challenge');
+        if (art?.image(plate)) {
+            ctx.globalAlpha = progress;
+            art.draw(ctx, plate, centerX, centerY);
+            ctx.globalAlpha = 1;
+        }
+
+        // Entrance sparks belong behind the question and answer labels.
+        this.particles.forEach(p => {
+            ctx.globalAlpha = p.life / p.maxLife * progress * 0.24;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, Math.min(p.size, 3), 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1;
+
         // Header
-        const headerY = panelY + 40;
+        const headerY = panelY + 80;
         ctx.fillStyle = `rgba(255, 203, 106, ${0.2 * progress})`;
         ctx.fillRect(panelX + 20, headerY - 10, panelW - 40, 2);
 
@@ -232,13 +260,18 @@ export class MathChallengeSystem {
         ctx.font = 'bold 14px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('SISTEMA DE ACCESO // PUERTA PRINCIPAL', centerX, headerY + 10);
+        ctx.fillText(this.contextLabel, centerX, headerY + 10);
 
         // Skill tag
-        if (this.challengeData) {
+        if (this.challengeData && !this.feedback) {
             ctx.fillStyle = `rgba(80, 227, 160, ${0.8 * progress})`;
             ctx.font = '11px "JetBrains Mono", monospace';
             ctx.fillText(`HABILIDAD: ${this.challengeData.skill}`, centerX, headerY + 30);
+        }
+        if (this.remainingSeconds > 0 && !this.selectedAnswer) {
+            ctx.fillStyle = this.remainingSeconds < 6 ? '#ffb579' : '#d7e7ed';
+            ctx.font = 'bold 14px "JetBrains Mono", monospace';
+            ctx.fillText(`${Math.ceil(this.remainingSeconds)} s`, panelX + panelW - 50, headerY + 30);
         }
 
         // Question
@@ -252,8 +285,8 @@ export class MathChallengeSystem {
         // Answer options
         const options = this.challengeData?.options || {};
         const optionKeys = ['A', 'B', 'C'];
-        const optionYStart = centerY + 30;
-        const optionSpacing = 70;
+        const optionYStart = centerY + 10;
+        const optionSpacing = 56;
 
         optionKeys.forEach((key, i) => {
             const optionY = optionYStart + i * optionSpacing;
@@ -273,8 +306,8 @@ export class MathChallengeSystem {
                         textColor = '#50e3a0';
                         glowColor = `rgba(80, 227, 160, ${0.4 * progress})`;
                     } else {
-                        bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
-                        borderColor = `rgba(55, 196, 255, ${0.3 * progress})`;
+                        bgColor = `rgba(27, 27, 29, ${0.85 * progress})`;
+                        borderColor = `rgba(194, 149, 84, ${0.4 * progress})`;
                         textColor = '#92a9c0';
                         glowColor = 'transparent';
                     }
@@ -286,15 +319,15 @@ export class MathChallengeSystem {
                         textColor = '#ff6b6b';
                         glowColor = `rgba(255, 107, 107, ${0.4 * progress})`;
                     } else {
-                        bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
-                        borderColor = `rgba(55, 196, 255, ${0.3 * progress})`;
+                        bgColor = `rgba(27, 27, 29, ${0.85 * progress})`;
+                        borderColor = `rgba(194, 149, 84, ${0.4 * progress})`;
                         textColor = '#92a9c0';
                         glowColor = 'transparent';
                     }
                 }
             } else {
-                bgColor = `rgba(20, 30, 50, ${0.5 * progress})`;
-                borderColor = `rgba(55, 196, 255, ${0.4 * progress})`;
+                bgColor = `rgba(27, 27, 29, ${0.85 * progress})`;
+                borderColor = `rgba(194, 149, 84, ${0.7 * progress})`;
                 textColor = '#ffffff';
                 glowColor = 'transparent';
             }
@@ -302,7 +335,7 @@ export class MathChallengeSystem {
             // Option background with glow
             const optX = centerX - 200;
             const optW = 400;
-            const optH = 56;
+            const optH = 48;
 
             // Glow
             if (glowColor !== 'transparent') {
@@ -314,20 +347,20 @@ export class MathChallengeSystem {
             ctx.strokeStyle = borderColor;
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.roundRect(optX, optionY - 28, optW, optH, 12);
+            ctx.roundRect(optX, optionY - 24, optW, optH, 6);
             ctx.fill();
             ctx.stroke();
             ctx.shadowBlur = 0;
 
             // Key label
-            ctx.fillStyle = `rgba(55, 196, 255, ${0.8 * progress})`;
+            ctx.fillStyle = `rgba(232, 190, 116, ${0.95 * progress})`;
             ctx.font = 'bold 16px "JetBrains Mono", monospace';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'middle';
             ctx.fillText(`${key}`, optX + 24, optionY);
 
             // Separator
-            ctx.strokeStyle = `rgba(55, 196, 255, ${0.3 * progress})`;
+            ctx.strokeStyle = `rgba(194, 149, 84, ${0.5 * progress})`;
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(optX + 60, optionY - 20);
@@ -351,7 +384,7 @@ export class MathChallengeSystem {
 
         // Feedback message
         if (this.feedback) {
-            const fbY = centerY + 180;
+            const fbY = centerY - 100;
             const fbColor = this.feedbackType === 'success' ? '#50e3a0' : '#ff6b6b';
             ctx.fillStyle = `rgba(${this.feedbackType === 'success' ? '80, 227, 160' : '255, 107, 107'}, ${progress})`;
             ctx.font = 'bold 18px "JetBrains Mono", monospace';
@@ -367,23 +400,6 @@ export class MathChallengeSystem {
             ctx.fillStyle = `rgba(55, 196, 255, ${0.8 * progress})`;
             ctx.fillRect(centerX - barW/2, fbY + 25, barW * (1 - elapsed), 4);
         }
-
-        // Particles
-        this.particles.forEach(p => {
-            const pProgress = p.life / p.maxLife;
-            ctx.globalAlpha = pProgress * progress;
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-        });
-        ctx.globalAlpha = 1;
-
-        // Keyboard hint
-        ctx.fillStyle = `rgba(146, 169, 192, ${0.6 * progress})`;
-        ctx.font = '12px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Pulsa A, B o C para responder  •  ↑/W para interactuar', centerX, centerY + 230);
 
         ctx.restore();
     }

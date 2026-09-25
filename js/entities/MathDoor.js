@@ -1,5 +1,8 @@
 import { Particle } from './Particle.js';
 
+const gateArtwork = new Image();
+gateArtwork.src = new URL('../../assets/fair/architecture/hero-gate.svg', import.meta.url).href;
+
 export const DoorState = {
     LOCKED: 'locked',
     UNLOCKING: 'unlocking',
@@ -361,23 +364,190 @@ export class MathDoor {
     
     render(renderer) {
         const ctx = renderer.ctx;
-        const ts = this.tileSize;
-        
         ctx.save();
         ctx.translate(this.x, this.y);
-        
-        // Render order: background -> frame -> conduits -> panels -> seal -> energy -> particles -> hint
-        this.renderArchitecturalFrame(ctx);
+
+        const artState = this.state === DoorState.LOCKED && this.interactionHint ? 'active' : this.state;
+        const doorArt = renderer.artAssets?.get('door', artState);
+        if (renderer.artAssets?.image(doorArt)) {
+            ctx.fillStyle = 'rgba(1, 7, 12, .62)';
+            ctx.beginPath();
+            ctx.ellipse(this.width / 2, this.height - 2, 70, 16, 0, 0, Math.PI * 2);
+            ctx.fill();
+            if (this.state === DoorState.UNLOCKING) {
+                const reveal = Math.max(0, Math.min(1, (this.unlockPhase - 0.35) / 0.45));
+                ctx.globalAlpha = 1 - reveal;
+                renderer.artAssets.draw(ctx, doorArt, this.width / 2, this.height);
+                ctx.globalAlpha = reveal;
+                renderer.artAssets.draw(ctx, renderer.artAssets.get('door', 'open'), this.width / 2, this.height);
+                ctx.globalAlpha = 1;
+            } else {
+                renderer.artAssets.draw(ctx, doorArt, this.width / 2, this.height, this.pulseTime);
+            }
+            this.renderEnergyField(ctx);
+            this.renderArtActivation(ctx);
+            this.particles.forEach(p => p.render(ctx));
+            if (this.hintAlpha > 0) this.renderInteractionHint(ctx);
+            ctx.restore();
+            return;
+        }
+
+        const hasArtwork = gateArtwork.complete && gateArtwork.naturalWidth > 0;
+        if (hasArtwork) {
+            ctx.drawImage(gateArtwork, -60, -55, 180, 230);
+            ctx.save();
+            ctx.translate(30, 60);
+            ctx.scale(1.25, 1.1);
+            ctx.translate(-30, -60);
+        } else {
+            this.renderArchitecturalFrame(ctx);
+            this.renderMonumentalFrame(ctx);
+        }
         this.renderConduits(ctx);
         this.renderDoorPanels(ctx);
         this.renderMathSeal(ctx);
+        if (!hasArtwork) this.renderCrest(ctx);
         this.renderEnergyField(ctx);
+        if (hasArtwork) ctx.restore();
         this.particles.forEach(p => p.render(ctx));
         
         if (this.hintAlpha > 0) {
             this.renderInteractionHint(ctx);
         }
         
+        ctx.restore();
+    }
+
+    renderArtActivation(ctx) {
+        if (this.state === DoorState.LOCKED && !this.interactionHint) return;
+        const charge = this.state === DoorState.UNLOCKING ? Math.min(1, this.unlockPhase * 1.4) :
+            this.state === DoorState.OPEN ? 0.55 : 0.25;
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.strokeStyle = `rgba(104,226,245,${0.22 + charge * 0.48})`;
+        ctx.lineWidth = 2 + charge * 2;
+        ctx.beginPath();
+        ctx.arc(30, 28, 22 + Math.sin(this.pulseTime * 5) * 2, 0, Math.PI * 2);
+        ctx.stroke();
+        if (this.state === DoorState.UNLOCKING) {
+            const travel = Math.max(0, Math.min(1, this.unlockPhase / 0.7));
+            for (const x of [-34, 94]) {
+                const conduit = ctx.createLinearGradient(x, 111, x, -55);
+                conduit.addColorStop(0, 'rgba(59,208,240,0)');
+                conduit.addColorStop(travel * 0.85, `rgba(124,236,250,${charge * 0.7})`);
+                conduit.addColorStop(1, 'rgba(59,208,240,0)');
+                ctx.strokeStyle = conduit;
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(x, 108);
+                ctx.lineTo(x, -50);
+                ctx.stroke();
+            }
+            ctx.strokeStyle = `rgba(245,206,128,${charge * 0.7})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(30, 28, 31 + this.unlockPhase * 15, 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (this.state === DoorState.OPEN) {
+            const shimmerY = 12 + (this.pulseTime * 28) % 95;
+            ctx.strokeStyle = 'rgba(141,239,249,.23)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(9, shimmerY);
+            ctx.quadraticCurveTo(30, shimmerY - 12, 51, shimmerY);
+            ctx.stroke();
+            for (let i = 0; i < 3; i++) {
+                const y = 105 - ((this.pulseTime * (19 + i * 4) + i * 38) % 115);
+                ctx.fillStyle = i === 1 ? 'rgba(246,209,139,.48)' : 'rgba(132,231,248,.42)';
+                ctx.fillRect(19 + i * 11, y, 2, 4);
+            }
+        }
+        ctx.restore();
+    }
+
+    renderMonumentalFrame(ctx) {
+        const open = this.state === DoorState.OPEN;
+        const energy = this.state === DoorState.UNLOCKING ? 0.5 + Math.sin(this.pulseTime * 12) * 0.25 : open ? 0.55 : 0.16;
+        ctx.save();
+        // Recess remains dark when the panels withdraw, making the opening unmistakable.
+        ctx.fillStyle = '#040e16';
+        ctx.fillRect(4, 17, 52, 88);
+        if (open) {
+            ctx.fillStyle = 'rgba(51, 190, 217, 0.10)';
+            ctx.fillRect(8, 21, 44, 80);
+        }
+        const stone = ctx.createLinearGradient(-25, 0, 85, 0);
+        stone.addColorStop(0, '#0b1922');
+        stone.addColorStop(0.2, '#54707a');
+        stone.addColorStop(0.52, '#233c48');
+        stone.addColorStop(0.8, '#54707a');
+        stone.addColorStop(1, '#0b1922');
+        ctx.fillStyle = stone;
+        for (const x of [-20, 60]) {
+            ctx.beginPath();
+            ctx.moveTo(x - 5, 112);
+            ctx.lineTo(x - 5, 22);
+            ctx.lineTo(x + 2, 15);
+            ctx.lineTo(x + 14, 15);
+            ctx.lineTo(x + 20, 22);
+            ctx.lineTo(x + 20, 112);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(222,181,102,.55)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x + 3, 22); ctx.lineTo(x + 3, 107);
+            ctx.stroke();
+            ctx.fillStyle = '#102632';
+            ctx.fillRect(x - 8, 104, 30, 8);
+            ctx.fillStyle = '#657981';
+            ctx.fillRect(x - 8, 102, 30, 3);
+        }
+        ctx.fillStyle = stone;
+        ctx.beginPath();
+        ctx.moveTo(-25, 23);
+        ctx.lineTo(-17, 5);
+        ctx.lineTo(6, -7);
+        ctx.lineTo(54, -7);
+        ctx.lineTo(77, 5);
+        ctx.lineTo(85, 23);
+        ctx.lineTo(72, 20);
+        ctx.quadraticCurveTo(30, -11, -12, 20);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(223,183,101,.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-17, 18); ctx.quadraticCurveTo(30, -18, 77, 18);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(78,210,231,${energy})`;
+        ctx.shadowColor = '#42c9e7';
+        ctx.shadowBlur = open ? 9 : 3;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-2, 23); ctx.lineTo(-2, 98);
+        ctx.moveTo(62, 23); ctx.lineTo(62, 98);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    renderCrest(ctx) {
+        const open = this.state === DoorState.OPEN;
+        const charging = this.state === DoorState.UNLOCKING;
+        ctx.save();
+        ctx.translate(30, 4);
+        ctx.fillStyle = '#142b37';
+        ctx.strokeStyle = '#cca761';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -12); ctx.lineTo(18, -2); ctx.lineTo(15, 11);
+        ctx.lineTo(0, 17); ctx.lineTo(-15, 11); ctx.lineTo(-18, -2); ctx.closePath();
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = charging ? '#ffffff' : open ? '#a6eff8' : '#ddb777';
+        ctx.font = 'bold 16px ui-monospace, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(open ? '∞' : 'Σ', 0, 2);
         ctx.restore();
     }
     
@@ -635,12 +805,11 @@ export class MathDoor {
                 ctx.fillStyle = `rgba(55, 196, 255, ${0.2 * pulse})`;
                 ctx.fillRect(8, y + offset, ts - 16, currentH);
             } else {
-                // OPEN: bright activated state - lighter with green-cyan accents
-                panelGrad.addColorStop(0, '#0a251a');
-                panelGrad.addColorStop(0.5, '#1a3a2f');
-                panelGrad.addColorStop(1, '#0d3025');
-                // Open accent stripe - green indicating operable state
-                ctx.fillStyle = 'rgba(80, 255, 120, 0.2)';
+                // OPEN: withdrawn stone panels remain part of the cyan/gold temple.
+                panelGrad.addColorStop(0, '#102d37');
+                panelGrad.addColorStop(0.5, '#1b4652');
+                panelGrad.addColorStop(1, '#0a2633');
+                ctx.fillStyle = 'rgba(99, 223, 239, 0.25)';
                 ctx.fillRect(8, y + currentH/2 - 1 + offset, ts - 16, 2);
             }
             ctx.fillStyle = panelGrad;
@@ -652,7 +821,7 @@ export class MathDoor {
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.5 + Math.sin(this.pulseTime * 4) * 0.3})`;
             } else {
-                ctx.strokeStyle = 'rgba(80, 255, 120, 0.8)';
+                ctx.strokeStyle = 'rgba(114, 230, 241, 0.82)';
             }
             ctx.lineWidth = 2;
             ctx.strokeRect(8.5, y + 0.5 + offset, ts - 17, currentH - 1);
@@ -663,7 +832,7 @@ export class MathDoor {
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.4 + Math.sin(this.pulseTime * 3) * 0.3})`;
             } else {
-                ctx.strokeStyle = 'rgba(80, 255, 120, 0.4)';
+                ctx.strokeStyle = 'rgba(104, 216, 231, 0.48)';
             }
             ctx.lineWidth = 1;
             ctx.strokeRect(12, y + 4 + offset, ts - 24, currentH - 8);
@@ -674,7 +843,7 @@ export class MathDoor {
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.2 + Math.sin(this.pulseTime * 3) * 0.3})`;
             } else {
-                ctx.strokeStyle = 'rgba(80, 255, 120, 0.2)';
+                ctx.strokeStyle = 'rgba(104, 216, 231, 0.25)';
             }
             ctx.lineWidth = 1;
             for (let r = 1; r < 4; r++) {
@@ -691,7 +860,7 @@ export class MathDoor {
             } else if (this.state === DoorState.UNLOCKING) {
                 ctx.strokeStyle = `rgba(55, 196, 255, ${0.3 + Math.sin(this.pulseTime * 2) * 0.3})`;
             } else {
-                ctx.strokeStyle = 'rgba(80, 255, 120, 0.25)';
+                ctx.strokeStyle = 'rgba(104, 216, 231, 0.30)';
             }
             ctx.lineWidth = 1;
             for (let r = 1; r < 3; r++) {
@@ -709,14 +878,14 @@ export class MathDoor {
                 { x: 12, y: y + currentH - 6 + offset },
                 { x: ts - 12, y: y + currentH - 6 + offset }
             ];
-            const boltColor = this.state === DoorState.LOCKED ? 'rgba(55, 196, 255, 0.2)' : 'rgba(80, 255, 120, 0.3)';
-            const boltActiveColor = this.state === DoorState.UNLOCKING ? 'rgba(55, 196, 255, 0.5)' : 'rgba(80, 255, 120, 0.5)';
+            const boltColor = this.state === DoorState.LOCKED ? 'rgba(55, 196, 255, 0.2)' : 'rgba(104, 216, 231, 0.3)';
+            const boltActiveColor = this.state === DoorState.UNLOCKING ? 'rgba(55, 196, 255, 0.5)' : 'rgba(104, 216, 231, 0.5)';
             boltPositions.forEach(b => {
                 ctx.fillStyle = this.state === DoorState.LOCKED ? boltColor : boltActiveColor;
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, 2.5, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = this.state === DoorState.LOCKED ? 'rgba(55, 196, 255, 0.3)' : 'rgba(80, 255, 120, 0.5)';
+                ctx.strokeStyle = this.state === DoorState.LOCKED ? 'rgba(55, 196, 255, 0.3)' : 'rgba(104, 216, 231, 0.5)';
                 ctx.lineWidth = 1;
                 ctx.stroke();
             });
@@ -776,39 +945,23 @@ export class MathDoor {
         
         // Lock symbol (when locked) OR charging seal (when unlocking)
         if (this.state === DoorState.LOCKED && this.sealCharge < 0.5) {
-            // Traditional lock - larger, more prominent
-            const lockPulse = Math.sin(this.pulseTime * 2) * 0.3 + 0.7;
-            ctx.fillStyle = `rgba(173, 107, 49, ${lockPulse})`;
-            ctx.beginPath();
-            ctx.roundRect(cx - 18, cy - 14, 36, 28, 6);
-            ctx.fill();
-            
-            ctx.strokeStyle = '#8b5a2b';
+            // A mathematical seal reads as a locked mechanism from projector distance.
+            ctx.fillStyle = '#081b27';
+            ctx.strokeStyle = '#d5ad65';
             ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+            ctx.strokeStyle = 'rgba(95,212,234,.65)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 15, 0, Math.PI * 2);
             ctx.stroke();
-            
-            // Keyhole - larger
-            ctx.fillStyle = `rgba(255, 200, 100, ${lockPulse})`;
-            ctx.beginPath();
-            ctx.arc(cx, cy + 4, 9, 0, Math.PI);
-            ctx.fill();
-            
-            ctx.fillStyle = '#5a3515';
-            ctx.beginPath();
-            ctx.arc(cx, cy + 4, 5, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Shackle - more dramatic
-            const shackleY = cy - 14 + Math.sin(this.pulseTime * 3) * 2;
-            ctx.strokeStyle = `rgba(173, 107, 49, ${lockPulse})`;
-            ctx.lineWidth = 5;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(cx - 14, shackleY);
-            ctx.lineTo(cx - 10, cy - 8);
-            ctx.arc(cx, cy - 8, 12, Math.PI, 0);
-            ctx.lineTo(cx + 14, shackleY);
-            ctx.stroke();
+            ctx.fillStyle = '#f2cc83';
+            ctx.font = 'bold 26px ui-monospace, monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('∑', cx, cy + 1);
             
         } else {
             // Mathematical seal - enhanced readable symbols

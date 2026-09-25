@@ -1,0 +1,40 @@
+{
+  "levels": {
+    "1": { "background": { "src": "level1/temple-premium.webp", "x": 0, "y": 0, "width": 960, "height": 540, "anchor": "top-left" } },
+    "2": { "background": { "src": "level2/observatory-premium.webp", "x": 0, "y": 0, "width": 960, "height": 540, "anchor": "top-left" } },
+    "3": { "background": { "src": "level3/reactor-premium.webp", "x": 0, "y": 0, "width": 960, "height": 540, "anchor": "top-left" } }
+  },
+  "player": {
+    "idle-down": { "src": "player/explorer.webp", "width": 62, "height": 93, "anchor": "bottom-center" },
+    "idle-up": { "src": "player/explorer-back.webp", "width": 62, "height": 93, "anchor": "bottom-center" },
+    "idle-left": { "src": "player/explorer.webp", "width": 62, "height": 93, "anchor": "bottom-center", "flipX": true },
+    "idle-right": { "src": "player/explorer.webp", "width": 62, "height": 93, "anchor": "bottom-center" },
+    "walk-down": { "src": "player/explorer.webp", "width": 62, "height": 93, "anchor": "bottom-center" },
+    "walk-up": { "src": "player/explorer-back.webp", "width": 62, "height": 93, "anchor": "bottom-center" },
+    "walk-left": { "src": "player/explorer.webp", "width": 62, "height": 93, "anchor": "bottom-center", "flipX": true },
+    "walk-right": { "src": "player/explorer.webp", "width": 62, "height": 93, "anchor": "bottom-center" }
+  },
+  "door": {
+    "locked": { "src": "common/gate-locked.webp", "width": 162, "height": 194, "anchor": "bottom-center" },
+    "active": { "src": "common/gate-locked.webp", "width": 162, "height": 194, "anchor": "bottom-center" },
+    "unlocking": { "src": "common/gate-locked.webp", "width": 162, "height": 194, "anchor": "bottom-center" },
+    "open": { "src": "common/gate-open.webp", "width": 162, "height": 194, "anchor": "bottom-center" }
+  },
+  "portal": {
+    "base": { "src": "common/portal-premium.webp", "width": 170, "height": 182, "anchor": "bottom-center" }
+  },
+  "encounter": {
+    "shield": { "src": "common/relic-station.webp", "width": 72, "height": 85, "anchor": "bottom-center", "offsetY": 42 },
+    "pulse": { "src": "common/relic-station.webp", "width": 72, "height": 85, "anchor": "bottom-center", "offsetY": 42 },
+    "heal": { "src": "common/relic-station.webp", "width": 72, "height": 85, "anchor": "bottom-center", "offsetY": 42 },
+    "sentinel": { "src": "common/guardian-premium.webp", "width": 86, "height": 92, "anchor": "bottom-center", "offsetY": 46 }
+  },
+  "boss": {
+    "phase-1": { "src": "common/guardian-premium.webp", "width": 162, "height": 174, "anchor": "bottom-center", "offsetY": 87 },
+    "phase-2": { "src": "common/guardian-shield.webp", "width": 174, "height": 186, "anchor": "bottom-center", "offsetY": 93 },
+    "phase-3": { "src": "common/guardian-empowered.webp", "width": 188, "height": 200, "anchor": "bottom-center", "offsetY": 100 }
+  },
+  "ui": {
+    "challenge": { "src": "common/challenge-plate.webp", "width": 760, "height": 440 }
+  }
+}

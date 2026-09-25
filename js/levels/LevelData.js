@@ -43,7 +43,8 @@ export class LevelData {
             height,
             tileSize,
             tilemap,
-            playerStart: { x: 1 * tileSize + 12, y: 1 * tileSize + 8 },
+            playerStart: { x: 1 * tileSize + 12, y: 2 * tileSize + 8 },
+            powerUp: { x: 330, y: 270, type: 'shield' },
             doors,
             goal: { x: 14, y: 7 },
             decorations: this.generateDecorations({ width, height, tilemap })
@@ -75,7 +76,9 @@ export class LevelData {
             height,
             tileSize,
             tilemap,
-            playerStart: { x: 1 * tileSize + 12, y: 7 * tileSize + 8 },
+            playerStart: { x: 3 * tileSize + 12, y: 6 * tileSize + 8 },
+            powerUp: { x: 270, y: 210, type: 'pulse' },
+            sentinel: { x: 750, y: 210 },
             doors,
             goal: { x: 14, y: 1 },
             decorations: this.generateDecorations({ width, height, tilemap })
@@ -108,8 +111,10 @@ export class LevelData {
             tileSize,
             tilemap,
             playerStart: { x: 14 * tileSize + 12, y: 7 * tileSize + 8 },
+            powerUp: { x: 750, y: 450, type: 'heal' },
+            boss: { x: 240, y: 330 },
             doors,
-            goal: { x: 1, y: 1 },
+            goal: { x: 1, y: 7 },
             decorations: this.generateDecorations({ width, height, tilemap })
         };
     }

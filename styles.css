@@ -52,8 +52,7 @@ body {
 }
 
 .app {
-    width: min(1100px, 94vw);
-    max-height: 95vh;
+    width: min(1280px, 98vw, calc(96vh * 16 / 9));
     display: flex;
     flex-direction: column;
     align-items: center;

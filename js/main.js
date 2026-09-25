@@ -1,6 +1,8 @@
 import { InputSystem } from './systems/InputSystem.js';
 import { CollisionSystem } from './systems/CollisionSystem.js';
 import { Renderer } from './systems/Renderer.js';
+import { ArtAssets } from './systems/ArtAssets.js';
+import { EncounterSystem } from './systems/EncounterSystem.js';
 import { MathChallengeSystem } from './systems/MathChallengeSystem.js';
 import { HUD } from './systems/HUD.js';
 import { AudioSystem } from './systems/AudioSystem.js';
@@ -38,8 +40,12 @@ class Game {
         this.input = new InputSystem();
         this.input.onMenuInput = key => this.handleMenuInput(key);
         this.collision = new CollisionSystem();
+        this.artAssets = new ArtAssets();
+        this.artReady = this.artAssets.preload();
         this.renderer = new Renderer(this.ctx, this.camera);
+        this.renderer.artAssets = this.artAssets;
         this.mathChallenge = new MathChallengeSystem();
+        this.encounters = new EncounterSystem();
         this.hud = new HUD();
         this.audio = new AudioSystem();
         this.level = null;
@@ -52,6 +58,7 @@ class Game {
         this.difficultyOrder = Object.keys(DIFFICULTIES);
         this.selectedDifficultyIndex = this.difficultyOrder.indexOf(this.difficulty);
         this.activeDoor = null;
+        this.activeEncounterAction = null;
         this.completedLevel = null;
         this.levelIntroTimer = null;
         this.levelTransitionTimer = null;
@@ -61,6 +68,14 @@ class Game {
         this.hitPauseTimer = 0;
         this.hitPauseDuration = 0;
         this.lastFootstepTime = 0;
+        this.attackFx = null;
+        this.powerFx = null;
+        this.phaseFx = null;
+        this.bossDefeatFx = null;
+        this.bossEntranceFx = 0;
+        this.correctAnswers = 0;
+        this.answeredChallenges = 0;
+        this.runElapsed = 0;
 
         this.lastTime = 0;
         this.accumulator = 0;
@@ -110,20 +125,8 @@ class Game {
     }
 
     resize() {
-        const maxWidth = Math.min(1100, window.innerWidth * 0.94);
-        const maxHeight = window.innerHeight * 0.75;
-        const aspectRatio = 16 / 9;
-
-        let width = maxWidth;
-        let height = width / aspectRatio;
-
-        if (height > maxHeight) {
-            height = maxHeight;
-            width = height * aspectRatio;
-        }
-
-        this.canvas.style.width = `${width}px`;
-        this.canvas.style.height = `${height}px`;
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
         this.canvas.width = 960;
         this.canvas.height = 540;
     }
@@ -159,6 +162,7 @@ class Game {
                     <div class="arcade-controls">
                         <span><kbd>WASD</kbd> / <kbd>FLECHAS</kbd> MOVERSE</span>
                         <span><kbd>A</kbd> <kbd>B</kbd> <kbd>C</kbd> RESPONDER</span>
+                        <span><kbd>ESPACIO</kbd> / <kbd>E</kbd> ACTIVAR</span>
                     </div>
                 </div>
                 <button id="mute-btn" class="sound-toggle" title="Silenciar audio"><span id="mute-icon">◖</span> SONIDO</button>
@@ -240,6 +244,7 @@ class Game {
     confirmDifficulty(difficultyId = this.difficultyOrder[this.selectedDifficultyIndex]) {
         if (this.state !== GameState.DIFFICULTY || !DIFFICULTIES[difficultyId]) return;
         this.difficulty = difficultyId;
+        this.maxLives = DIFFICULTIES[difficultyId].startingLives;
         this.selectedDifficultyIndex = this.difficultyOrder.indexOf(difficultyId);
         this.audio.play('uiClick');
         this.input.clear();
@@ -300,12 +305,22 @@ class Game {
         `;
         document.querySelector('.game-shell').appendChild(intro);
         requestAnimationFrame(() => intro.classList.add('is-visible'));
-        this.levelIntroTimer = window.setTimeout(() => this.finishLevelIntro(), 1350);
+        this.levelIntroTimer = window.setTimeout(() => this.finishLevelIntro(), 1000);
     }
 
     finishLevelIntro() {
         if (this.state !== GameState.LEVEL_INTRO) return;
         window.clearTimeout(this.levelIntroTimer);
+        if (!this.artAssets.ready) {
+            if (!this.waitingForArt) {
+                this.waitingForArt = true;
+                this.artReady.then(() => {
+                    this.waitingForArt = false;
+                    this.finishLevelIntro();
+                });
+            }
+            return;
+        }
         const levelNumber = this.introLevelNumber;
         document.querySelector('#level-intro')?.remove();
         this.loadLevel(levelNumber);
@@ -317,9 +332,17 @@ class Game {
     loadLevel(levelNum) {
         this.levelNumber = levelNum;
         this.level = LevelData.getLevel(levelNum);
+        this.encounters.load(this.level);
         this.activeDoor = null;
+        this.activeEncounterAction = null;
         this.entities = [];
         this.particles = [];
+        this.attackFx = null;
+        this.powerFx = null;
+        this.phaseFx = null;
+        this.bossDefeatFx = null;
+        this.bossEntranceFx = 0;
+        this.lastFootstepTime = 0;
 
         const playerStart = this.level.playerStart;
         this.player = new Player(playerStart.x, playerStart.y);
@@ -344,24 +367,34 @@ class Game {
     }
 
     handleChallengeResult(correct) {
+        this.answeredChallenges++;
+        if (correct) this.correctAnswers++;
         if (correct) {
-            this.score += 100;
+            this.score += DIFFICULTIES[this.difficulty].doorScore;
             this.camera.shake = 0.3;
             this.camera.shakeIntensity = 8;
             this.spawnParticles(this.activeDoor.x + 30, this.activeDoor.y + 30, '#37c4ff', 20);
             this.activeDoor.unlock();
             this.audio.play('doorUnlock');
         } else {
-            this.lives = Math.max(0, this.lives - 1);
-            this.camera.shake = 0.2;
-            this.camera.shakeIntensity = 5;
-            this.spawnParticles(this.player.x, this.player.y, '#ff4444', 10);
-            this.audio.play('incorrect');
+            this.takeDamage(1);
         }
         this.hud.update(this.score, this.lives, this.maxLives);
-        if (!correct && this.lives === 0) {
-            this.triggerGameOver();
+    }
+
+    takeDamage(amount) {
+        if (this.encounters.absorbHit()) {
+            this.spawnParticles(this.player.x + 18, this.player.y + 22, '#67d9e8', 12);
+            this.audio.play('correct');
+            return;
         }
+        this.lives = Math.max(0, this.lives - amount);
+        this.camera.shake = 0.2;
+        this.camera.shakeIntensity = 5;
+        this.spawnParticles(this.player.x + 18, this.player.y + 22, '#ff6b6b', 10);
+        this.audio.play('incorrect');
+        this.hud.update(this.score, this.lives, this.maxLives);
+        if (this.lives === 0) this.triggerGameOver();
     }
 
     spawnParticles(x, y, color, count) {
@@ -378,6 +411,9 @@ class Game {
         }
     }
 update(dt) {
+        if (this.state === GameState.PLAYING || this.state === GameState.CHALLENGE) {
+            this.runElapsed += dt;
+        }
         // Handle hit pause - freeze everything except camera shake
         if (this.hitPauseTimer > 0) {
             this.hitPauseTimer -= dt;
@@ -388,6 +424,14 @@ update(dt) {
         if (this.state === GameState.PLAYING) {
             this.player.update(dt, this.input);
             const collisionInfo = this.collision.resolve(this.player, this.level, this.doors, dt);
+            const bossStrike = this.encounters.update(dt, this.player,
+                DIFFICULTIES[this.difficulty].bossInterval, this.door?.state === 'open');
+            if (bossStrike.hit) this.takeDamage(1);
+            if (!this.attackFx && !this.bossDefeatFx &&
+                (this.input.wasPressed(' ') || this.input.wasPressed('e'))) {
+                const action = this.encounters.actionNear(this.player);
+                if (action) this.triggerEncounterAction(action);
+            }
 
             // Hit pause on wall collision for game feel
             if (collisionInfo.hitWall && (this.player.vx !== 0 || this.player.vy !== 0)) {
@@ -406,20 +450,71 @@ update(dt) {
                 this.audio.play('doorHit');
             }
 
+            const doorWasOpen = this.door.state === 'open';
             this.door.update(dt, this.player);
-            this.goal.update(dt, this.player);
+            if (!doorWasOpen && this.door.state === 'open' && this.levelNumber === 3) {
+                this.bossEntranceFx = 1.7;
+                this.audio.play('bossEntrance');
+            }
+            this.goal.update(dt, this.player,
+                this.encounters.canActivateGoal() && !this.bossDefeatFx);
 
             // Footstep sounds
             if (this.player.walkSpeed > 0.3) {
                 this.lastFootstepTime -= dt;
                 if (this.lastFootstepTime <= 0) {
                     this.audio.playFootstep();
-                    this.lastFootstepTime = 0.35; // Footstep interval
+                    this.lastFootstepTime = 0.26 + (1 - this.player.walkSpeed) * 0.08;
                 }
+            } else {
+                this.lastFootstepTime = 0;
             }
 
             this.updateCamera(dt);
             this.updateParticles(dt);
+            if (this.attackFx) {
+                const impactLife = 0.3;
+                this.attackFx.life -= dt;
+                if (!this.attackFx.launched && this.attackFx.total - this.attackFx.life >= 0.28) {
+                    this.attackFx.launched = true;
+                    this.audio.play('attackLaunch');
+                }
+                if (!this.attackFx.impacted && this.attackFx.life <= impactLife) {
+                    this.attackFx.impacted = true;
+                    this.spawnParticles(this.attackFx.toX, this.attackFx.toY, '#f8d58e', 16);
+                    this.audio.play(this.attackFx.kind === 'boss' ? 'bossHit' : 'mathAttack');
+                    this.requestScreenShake(0.14, 5);
+                    this.hitPauseTimer = 0.045;
+                    if (this.attackFx.kind === 'boss') {
+                        if (this.encounters.boss.health > 0) {
+                            this.phaseFx = { phase: this.encounters.boss.phase, life: 0.85 };
+                            this.audio.play('bossPhase');
+                        } else if (this.bossDefeatFx) {
+                            this.bossDefeatFx.started = true;
+                        }
+                    }
+                }
+                if (this.attackFx.life <= 0) this.attackFx = null;
+            }
+            if (this.phaseFx) {
+                this.phaseFx.life -= dt;
+                if (this.phaseFx.life <= 0) this.phaseFx = null;
+            }
+            if (this.bossEntranceFx > 0) this.bossEntranceFx = Math.max(0, this.bossEntranceFx - dt);
+            if (this.bossDefeatFx?.started) {
+                this.bossDefeatFx.life -= dt;
+                if (this.bossDefeatFx.life <= 0) {
+                    this.bossDefeatFx = null;
+                    this.spawnParticles(this.encounters.boss.x, this.encounters.boss.y,
+                        '#e9c37d', 24);
+                    this.audio.play('bossDefeat');
+                    this.audio.play('portalUnlock');
+                }
+            }
+            if (this.powerFx) {
+                this.powerFx.life -= dt;
+                if (this.powerFx.life <= 0) this.powerFx = null;
+            }
         } else if (this.state === GameState.CHALLENGE) {
             this.mathChallenge.update(dt);
         } else if (this.state === GameState.VICTORY || this.state === GameState.GAME_OVER) {
@@ -479,27 +574,74 @@ update(dt) {
         );
 
         if (renderWorld) {
+            this.renderer.time += this.fixedTimeStep;
             this.ctx.save();
             this.ctx.translate(-this.camera.x + (this.camera.offsetX || 0), -this.camera.y + (this.camera.offsetY || 0));
 
-            this.renderer.renderBackground(this.level);
-            if (this.levelNumber === 1) {
-                this.renderer.renderTilemap(this.level);
-                this.renderer.renderLevelGuidance(this.level, this.door?.state === 'open');
-                this.renderer.renderDecorations(this.decorations);
+            const professionalEnvironment = this.artAssets.hasLevelArt(this.level);
+            if (!professionalEnvironment) {
+                this.renderer.renderBackground(this.level);
+                if (this.levelNumber === 1) {
+                    this.renderer.renderTilemap(this.level);
+                    this.renderer.renderLevelGuidance(this.level, this.door?.state === 'open');
+                    this.renderer.renderDecorations(this.decorations);
+                } else {
+                    this.renderer.renderDecorations(this.decorations);
+                    this.renderer.renderTilemap(this.level);
+                }
             } else {
-                this.renderer.renderDecorations(this.decorations);
-                this.renderer.renderTilemap(this.level);
+                this.ctx.fillStyle = '#050e17';
+                this.ctx.fillRect(0, 0, this.level.width * this.level.tileSize,
+                    this.level.height * this.level.tileSize);
             }
-            this.entities.forEach(e => e.render(this.renderer));
+            this.renderer.renderArtLayer(this.level, 'farBackground');
+            this.renderer.renderArtLayer(this.level, 'background');
+            this.renderer.renderArtLayer(this.level, 'ground');
+            this.renderer.renderArtLayer(this.level, 'architectureBack');
+            this.renderer.levelNumber = this.levelNumber;
+            this.renderer.phaseFx = this.phaseFx;
+            this.renderer.bossDefeatFx = this.bossDefeatFx;
+            this.renderer.renderGroundLighting(this.level, this.door, this.goal, this.encounters);
+            const worldObjects = this.entities.map(entity => ({
+                entity, foot: entity === this.player ? entity.y + entity.tileSize : entity.y + entity.height
+            }));
+            if (this.encounters.station) {
+                worldObjects.push({ kind: 'station', foot: this.encounters.station.y + 42 });
+            }
+            if (this.encounters.sentinel) {
+                worldObjects.push({ kind: 'sentinel', foot: this.encounters.sentinel.y + 46 });
+            }
+            if (this.encounters.boss) {
+                const bossArt = this.artAssets.get('boss', `phase-${this.encounters.boss.phase}`);
+                worldObjects.push({ kind: 'boss',
+                    foot: this.encounters.boss.y + (bossArt?.offsetY || 87) });
+            }
+            worldObjects.sort((a, b) => a.foot - b.foot);
+            for (const object of worldObjects) {
+                if (object.entity) object.entity.render(this.renderer);
+                else this.renderer.renderEncounterObject(this.encounters, object.kind,
+                    this.attackFx, this.activeEncounterAction);
+            }
+            if (!this.attackFx) this.renderer.renderEncounterPrompt(this.encounters, this.player);
             this.particles.forEach(p => p.render(this.ctx));
-            this.renderer.renderForeground(this.level);
+            this.renderer.renderWorldEffects(this.encounters, this.player, this.attackFx, this.powerFx);
+            this.renderer.renderArtLayer(this.level, 'architectureFront');
+            this.renderer.renderArtLayer(this.level, 'foreground');
+            if (!professionalEnvironment) this.renderer.renderForeground(this.level);
+            this.renderer.renderArtLayer(this.level, 'lightingOverlay');
             this.renderer.renderAtmosphere(this.level);
+            this.renderer.renderArtLayer(this.level, 'fx');
+            this.renderer.renderBossTelegraph(this.encounters);
 
             this.ctx.restore();
         }
 
+        this.hud.setCampaignStatus(DIFFICULTIES[this.difficulty].label, this.encounters,
+            this.door?.state === 'open', this.attackFx, this.bossDefeatFx);
         this.hud.render(this.ctx);
+        if (this.bossEntranceFx > 0 && this.state === GameState.PLAYING) {
+            this.renderer.renderBossEntrance(this.bossEntranceFx);
+        }
 
         if (this.state === GameState.CHALLENGE) {
             this.mathChallenge.render(this.ctx);
@@ -509,13 +651,25 @@ update(dt) {
             this.ctx.fillStyle = `rgba(7, 17, 31, ${this.transitionAlpha})`;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             if (this.completedLevel) {
-                this.ctx.fillStyle = '#ffffff';
-                this.ctx.font = 'bold 30px "JetBrains Mono", monospace';
+                const progress = Math.min(1, (performance.now() - this.transitionStartedAt) / 620);
+                const sweepX = -120 + progress * (this.canvas.width + 240);
+                const sweep = this.ctx.createLinearGradient(sweepX - 80, 0, sweepX + 80, 0);
+                sweep.addColorStop(0, 'rgba(70,219,239,0)');
+                sweep.addColorStop(0.5, 'rgba(70,219,239,.15)');
+                sweep.addColorStop(1, 'rgba(70,219,239,0)');
+                this.ctx.fillStyle = sweep;
+                this.ctx.fillRect(sweepX - 80, 0, 160, this.canvas.height);
+                this.ctx.fillStyle = '#e9c482';
+                this.ctx.font = 'bold 19px "JetBrains Mono", monospace';
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText(`NIVEL ${this.completedLevel} COMPLETADO`, this.canvas.width / 2, 245);
-                this.ctx.fillStyle = '#37c4ff';
-                this.ctx.font = '16px "JetBrains Mono", monospace';
-                this.ctx.fillText('SIGUIENTE DESTINO...', this.canvas.width / 2, 285);
+                this.ctx.fillText(`NIVEL ${this.completedLevel} COMPLETADO`, this.canvas.width / 2, 222);
+                this.ctx.fillStyle = '#eaf4ef';
+                this.ctx.font = 'bold 28px "JetBrains Mono", monospace';
+                this.ctx.fillText(`NIVEL ${this.completedLevel + 1}`, this.canvas.width / 2, 266);
+                this.ctx.fillStyle = '#80ddea';
+                this.ctx.font = 'bold 17px "JetBrains Mono", monospace';
+                this.ctx.fillText(LevelData.getLevel(this.completedLevel + 1).name,
+                    this.canvas.width / 2, 302);
             }
         }
     }
@@ -562,7 +716,52 @@ update(dt) {
             if (this.state !== GameState.GAME_OVER) {
                 this.state = GameState.PLAYING;
             }
-        });
+        }, DIFFICULTIES[this.difficulty]);
+    }
+
+    triggerEncounterAction(action) {
+        this.state = GameState.CHALLENGE;
+        this.activeEncounterAction = action;
+        const label = action.kind === 'powerup' ? 'ARTEFACTO MATEMÁTICO' :
+            action.kind === 'attack' ? 'ATAQUE MATEMÁTICO' : 'GUARDIÁN DEL NÚCLEO';
+        this.mathChallenge.open(this.levelNumber, this.difficulty, action.ref, correct => {
+            this.answeredChallenges++;
+            if (correct) this.correctAnswers++;
+            const previousHealth = this.encounters.boss?.health || 0;
+            const previousPhase = this.encounters.boss?.phase || 1;
+            const result = this.encounters.resolve(action, correct);
+            if (result.damage) this.takeDamage(result.damage);
+            if (result.heal) this.lives = Math.min(this.maxLives, this.lives + result.heal);
+            this.score += Math.round(result.score * DIFFICULTIES[this.difficulty].doorScore / 100);
+            this.hud.update(this.score, this.lives, this.maxLives);
+            this.audio.play(correct ? 'correct' : 'incorrect');
+            const target = action.kind === 'powerup' ? this.encounters.station :
+                action.kind === 'attack' ? this.encounters.sentinel : this.encounters.boss;
+            if (correct && target) {
+                if (action.kind === 'powerup') {
+                    this.powerFx = { type: action.ref, x: target.x, y: target.y,
+                        playerX: this.player.x + 30, playerY: this.player.y + 22, life: 0.8 };
+                    this.audio.play('powerActivate');
+                } else {
+                    this.attackFx = {
+                        fromX: this.player.x + 30, fromY: this.player.y + 22,
+                        toX: target.x, toY: target.y,
+                        kind: action.kind, previousHealth, previousPhase,
+                        total: 1.03, life: 1.03, impacted: false, launched: false
+                    };
+                    this.audio.play('attackCharge');
+                    if (action.kind === 'boss' && this.encounters.boss.health === 0) {
+                        this.bossDefeatFx = { life: 1.1, started: false };
+                    }
+                }
+            } else if (target) {
+                this.spawnParticles(target.x, target.y, '#ff916b', 9);
+            }
+            if (this.state !== GameState.GAME_OVER) this.state = GameState.PLAYING;
+            this.activeEncounterAction = null;
+        }, { ...DIFFICULTIES[this.difficulty], contextLabel: label,
+            successText: '✓ ACCIÓN ACTIVADA',
+            failureText: action.kind === 'powerup' ? '✗ ARTEFACTO EN RECARGA' : '✗ ATAQUE FALLIDO' });
     }
 
     triggerGameOver() {
@@ -571,6 +770,7 @@ update(dt) {
     }
 
     triggerVictory() {
+        this.audio.play('portalActivate');
         if (this.levelNumber < LevelData.getLevelCount()) {
             this.triggerLevelTransition();
             return;
@@ -579,7 +779,12 @@ update(dt) {
         this.spawnParticles(this.goal.x, this.goal.y, '#37c4ff', 40);
         this.spawnParticles(this.goal.x, this.goal.y, '#ffd700', 20);
         this.audio.play('victory');
-        this.hud.showVictory(this.score, this.lives, () => this.restartGame());
+        const accuracy = this.answeredChallenges ?
+            Math.round(this.correctAnswers / this.answeredChallenges * 100) : 0;
+        this.hud.showVictory(this.score, this.lives, () => this.restartGame(), {
+            difficulty: DIFFICULTIES[this.difficulty].label,
+            accuracy, seconds: Math.max(1, Math.round(this.runElapsed))
+        });
     }
 
     triggerLevelTransition() {
@@ -587,6 +792,7 @@ update(dt) {
         this.state = GameState.TRANSITION;
         this.transitionAlpha = 0.92;
         this.transitionDirection = 0;
+        this.transitionStartedAt = performance.now();
         window.clearTimeout(this.levelTransitionTimer);
         this.levelTransitionTimer = window.setTimeout(() => {
             if (this.state !== GameState.TRANSITION) return;
@@ -594,7 +800,7 @@ update(dt) {
             this.completedLevel = null;
             this.transitionAlpha = 0;
             this.showLevelIntro(nextLevel);
-        }, 560);
+        }, 620);
     }
 
     resetCampaignState() {
@@ -604,6 +810,13 @@ update(dt) {
         this.activeDoor = null;
         this.completedLevel = null;
         this.mathChallenge.reset();
+        this.encounters.reset();
+        this.correctAnswers = 0;
+        this.answeredChallenges = 0;
+        this.runElapsed = 0;
+        this.phaseFx = null;
+        this.bossDefeatFx = null;
+        this.bossEntranceFx = 0;
     }
 }
 

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="190" height="200" viewBox="0 0 190 200">
+  <defs>
+    <linearGradient id="stone" x2="1" y2=".25"><stop stop-color="#122d3b"/><stop offset=".3" stop-color="#779097"/><stop offset=".62" stop-color="#304f5c"/><stop offset="1" stop-color="#0f2936"/></linearGradient>
+    <linearGradient id="gold" x2="0" y2="1"><stop stop-color="#f8dda1"/><stop offset=".55" stop-color="#b58e52"/><stop offset="1" stop-color="#6c5032"/></linearGradient>
+    <radialGradient id="depth"><stop stop-color="#69d6eb" stop-opacity=".42"/><stop offset=".28" stop-color="#145571" stop-opacity=".7"/><stop offset=".7" stop-color="#06283d"/><stop offset="1" stop-color="#04121e"/></radialGradient>
+    <radialGradient id="spill"><stop stop-color="#7de3ef" stop-opacity=".55"/><stop offset="1" stop-color="#4cb1d2" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="95" cy="176" rx="91" ry="23" fill="#03121b" opacity=".65"/>
+  <ellipse cx="95" cy="160" rx="90" ry="46" fill="url(#spill)"/>
+  <path d="M26 169V78Q26 15 95 8q69 7 69 70v91z" fill="#071d2b" stroke="#0b2531" stroke-width="12"/>
+  <path d="M48 166V81Q48 39 95 35q47 4 47 46v85z" fill="url(#depth)" stroke="#68bccb" stroke-opacity=".65" stroke-width="3"/>
+  <path d="M58 158V83Q58 48 95 45q37 3 37 38v75z" fill="none" stroke="#9ae7ed" stroke-opacity=".25" stroke-width="2"/>
+  <path d="M35 169V77Q36 24 95 18q59 6 60 59v92" fill="none" stroke="url(#stone)" stroke-width="27"/>
+  <path d="M32 167V77Q33 21 95 15q62 6 63 62v90" fill="none" stroke="url(#gold)" stroke-width="3"/>
+  <path d="M48 163V81Q48 37 95 32q47 5 47 49v82" fill="none" stroke="#9dcbd1" stroke-width="2"/>
+  <path d="M21 170l11-25 19 4 5 23zM169 170l-11-25-19 4-5 23z" fill="url(#stone)" stroke="#0c2531" stroke-width="3"/>
+  <path d="M16 171h158l11 15H5z" fill="url(#stone)" stroke="#0b2330" stroke-width="3"/>
+  <path d="M17 173h156M26 183h138" stroke="url(#gold)" stroke-width="2"/>
+  <path d="M72 22l23-14 23 14-5 20-18 12-18-12z" fill="#294b5a" stroke="url(#gold)" stroke-width="3"/>
+  <circle cx="95" cy="29" r="9" fill="#092c40" stroke="#a7dce2" stroke-width="2"/>
+  <path d="M95 21v16M87 29h16" stroke="#d7be84" stroke-width="2"/>
+  <g fill="#69d1e2"><circle cx="38" cy="78" r="3"/><circle cx="37" cy="115" r="3"/><circle cx="152" cy="78" r="3"/><circle cx="153" cy="115" r="3"/></g>
+  <g fill="#dfc289" font-family="serif" font-size="14" text-anchor="middle"><text x="27" y="104">π</text><text x="163" y="104">∞</text><text x="45" y="53">Σ</text><text x="145" y="53">Δ</text></g>
+  <path d="M48 153l-13 15m107-15l13 15" stroke="#b79b65" stroke-width="3"/>
+</svg>
