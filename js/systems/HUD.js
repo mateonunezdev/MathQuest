@@ -49,6 +49,7 @@ export class HUD {
         this.finalScore = score;
         this.finalLives = lives;
         this.finalStats = stats;
+        this.resultSelection = 0;
     }
 
     showGameOver(score) {
@@ -345,7 +346,7 @@ export class HUD {
         ctx.shadowBlur = 0;
         ctx.fillStyle = '#e9f3f2';
         ctx.font = 'bold 22px "JetBrains Mono", monospace';
-        ctx.fillText('MISIÓN COMPLETADA', centerX, 132);
+        ctx.fillText('ESCAPE COMPLETADO', centerX, 132);
 
         // Cian accent line under title
         ctx.strokeStyle = 'rgba(55, 196, 255, 0.5)';
@@ -388,13 +389,13 @@ export class HUD {
         ctx.fillText(`${stats.difficulty || 'AVENTURERO'}   •   PRECISIÓN ${stats.accuracy ?? 0}%`, centerX, 307);
         const minutes = Math.floor((stats.seconds || 0) / 60);
         const seconds = String((stats.seconds || 0) % 60).padStart(2, '0');
-        ctx.fillText(`TIEMPO ${minutes}:${seconds}   •   VIDAS ${this.finalLives}/${this.maxLives}`, centerX, 336);
+        ctx.fillText(`TIEMPO ${minutes}:${seconds}   •   COMBO MÁX. x${stats.maxCombo || 1}   •   VIDAS ${this.finalLives}`, centerX, 336);
 
         // JUGAR DE NUEVO button with stronger design
         const buttonY = 397;
-        const buttonW = 280;
+        const buttonW = 250;
         const buttonH = 50;
-        const buttonX = centerX - buttonW / 2;
+        const buttonX = centerX - buttonW - 12;
         const borderAlpha = 0.5 + Math.sin(this.victoryAnim * 3) * 0.3;
 
         // Button background with dorado gradient
@@ -422,9 +423,18 @@ export class HUD {
         ctx.font = 'bold 20px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('JUGAR DE NUEVO', centerX, buttonY + buttonH/2 + 4);
-
-        this.victoryButtonRect = { x: buttonX, y: buttonY, w: buttonW, h: buttonH };
+        ctx.fillText('REINTENTAR', buttonX + buttonW / 2, buttonY + buttonH/2 + 4);
+        const homeX = centerX + 12;
+        ctx.fillStyle = 'rgba(55,196,255,.12)';
+        ctx.strokeStyle = this.resultSelection === 1 ? '#37c4ff' : 'rgba(55,196,255,.45)';
+        ctx.beginPath(); ctx.roundRect(homeX, buttonY, buttonW, buttonH, 12); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#e5bb7b';
+        ctx.fillText('VOLVER AL INICIO', homeX + buttonW / 2, buttonY + buttonH/2 + 4);
+        if (this.resultSelection === 0) {
+            ctx.strokeStyle = '#ffd070'; ctx.lineWidth = 3;
+            ctx.strokeRect(buttonX - 3, buttonY - 3, buttonW + 6, buttonH + 6);
+        }
+        this.victoryButtonRect = { x: buttonX, y: buttonY, w: buttonW * 2 + 24, h: buttonH };
 
         ctx.restore();
     }

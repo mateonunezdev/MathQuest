@@ -1,4 +1,5 @@
 import { Player } from '../entities/Player.js';
+import { EscapeMode } from './EscapeMode.js';
 
 const ROOM_SPECS = [
     ['entrance', 'UMBRAL DEL TEMPLO', 940],
@@ -51,6 +52,13 @@ export class AdventureModel {
         this.energy = 0;
         this.maxEnergy = 5;
         this.shield = 0;
+        this.combo = 1;
+        this.maxCombo = 1;
+        this.mathAttempts = 0;
+        this.mathCorrect = 0;
+        this.damageTaken = 0;
+        this.perfectDodges = 0;
+        this.scoreProgressX = this.player.x;
         this.powerCooldown = 0;
         this.progress = { sequence: false, sentinel: false, artifact: false, secret: false, lore: false };
         this.tutorial = { move: false, interact: false, dash: false, attack: false, power: false };
@@ -74,6 +82,13 @@ export class AdventureModel {
         const gateRoom = this.room('gate');
         this.gate = { x: gateRoom.end, y: 275, state: 'locked', timer: 0 };
         this.portal = { x: this.room('portal').x + 535, y: 288 };
+        this.escape = new EscapeMode(this.difficulty, this.room('corridor').x,
+            this.portal.x - 120);
+        this.fallingColumns = [
+            { x: this.room('corridor').x + 420, y: 200, radius: 54, offset: 0.15 },
+            { x: this.room('pulse').x + 760, y: 370, radius: 58, offset: 1.35 }
+        ];
+        this.closingGate = { x: this.room('pulse').end - 85, gapY: 285, cycle: 3.1 };
         this.challenge = null;
         this.checkpoint = null;
         this.setCheckpoint('entrance', 120, 275);
@@ -123,7 +138,7 @@ export class AdventureModel {
         this.introTime = 7.2;
         this.phase = 'playing';
         this.player.disabled = false;
-        this.say('ENCUENTRA EL ARTEFACTO Y DESBLOQUEA EL TEMPLO', 3.3);
+        this.say('ESCAPA DEL TEMPLO  ·  3  2  1  ¡CORRE!', 3.3);
         this.emit('introEnd');
     }
 
@@ -196,6 +211,25 @@ export class AdventureModel {
         if (actions.interact) this.interact();
         this.player.update(safeDt, { getMovementVector: () => movement });
         this.movePlayer(safeDt);
+        if (!this.escape.active && this.center().x >= this.room('corridor').x + 120) {
+            this.escape.start(this.center().x);
+            this.say('EL TEMPLO DESPIERTA · ¡CORRE!', 2.3);
+            this.emit('escapeStart');
+        }
+        const combatPause = this.roomIndex === 4 && !this.progress.sentinel;
+        const pressure = this.escape.update(safeDt, this.center().x, combatPause || !!this.challenge);
+        if (pressure.caught) {
+            this.breakCombo();
+            this.hurt(-1, 0);
+            this.emit('pressureHit');
+        }
+        if (this.escape.active && !combatPause) {
+            const gained = Math.floor((this.center().x - this.scoreProgressX) / 90);
+            if (gained > 0) {
+                this.score += gained * Math.round(2 * this.escape.config.multiplier);
+                this.scoreProgressX += gained * 90;
+            }
+        }
         if (Math.hypot(this.player.vx, this.player.vy) > 40) this.tutorial.move = true;
         if (this.player.state === 'DASH') {
             this.trail.push({ x: this.center().x, y: this.center().y + 24, life: 0.23 });
@@ -283,14 +317,21 @@ export class AdventureModel {
         this.puzzle.lastPlate = plate.id;
         this.puzzle.pulse = 0.65;
         if (!plate.correct) {
+            this.mathAttempts++;
+            this.breakCombo();
+            this.escape.pressureX += 75;
             this.puzzle.cooldown = 0.65;
-            this.say('LA SECUENCIA NO ENCAJA · PRUEBA OTRA PLACA', 1.5);
+            this.say('RUTA INCORRECTA · LA PRESIÓN AUMENTA', 1.5);
             this.emit('puzzleError', { x: plate.x, y: plate.y });
             return;
         }
         this.progress.sequence = true;
+        this.mathAttempts++;
+        this.mathCorrect++;
+        this.raiseCombo();
+        this.escape.grantBreathingRoom(125);
         this.energy = clamp(this.energy + 2, 0, this.maxEnergy);
-        this.score += 80;
+        this.score += 80 * this.combo;
         this.setCheckpoint('sequence', this.room('pulse').x + 82, 275);
         this.say('SECUENCIA COMPLETA · EL PASO SE ABRE', 2.2);
         this.focusOn(this.room('pulse').x, 275, 1.2);
@@ -305,15 +346,26 @@ export class AdventureModel {
     }
 
     updateHazards() {
-        if (this.roomIndex !== 3) return;
+        if (this.roomIndex < 1 || this.roomIndex > 3) return;
         const hall = this.room('pulse');
         const center = this.center();
-        for (let index = 0; index < 3; index++) {
+        if (this.roomIndex === 3) for (let index = 0; index < 3; index++) {
             const x = hall.x + 270 + index * 245;
             if (this.hazardState(index) === 'active' && Math.abs(center.x - x) < 28 &&
                 center.y > 130 && center.y < 445) {
                 this.hurt(center.x < x ? -1 : 1, 0);
             }
+        }
+        for (const column of this.fallingColumns) {
+            const phase = (this.hazardClock + column.offset) % 3.4;
+            const active = phase > 1.15 && phase < 1.55;
+            if (active && dist(center, column) < column.radius) this.hurt(-1, 0);
+        }
+        if (this.roomIndex === 3) {
+            const phase = this.hazardClock % this.closingGate.cycle;
+            const halfGap = phase > 1.45 && phase < 2.25 ? 48 : 118;
+            if (Math.abs(center.x - this.closingGate.x) < 25 &&
+                Math.abs(center.y - this.closingGate.gapY) > halfGap) this.hurt(-1, 0);
         }
     }
 
@@ -391,8 +443,11 @@ export class AdventureModel {
         }
         if (enemy.health <= 0) {
             this.progress.sentinel = true;
-            this.score += 110;
-            this.say('CENTINELA DERROTADO · EL SANTUARIO DESPIERTA', 2.4);
+            this.raiseCombo();
+            this.score += 110 * this.combo;
+            this.energy = clamp(this.energy + 1, 0, this.maxEnergy);
+            this.escape.grantBreathingRoom(150);
+            this.say('CENTINELA DERROTADO · ¡SIGUE CORRIENDO!', 2.4);
             this.focusOn(this.artifact.x, this.artifact.y, 1.5);
             this.emit('enemyDefeated');
         }
@@ -469,15 +524,19 @@ export class AdventureModel {
         if (!this.challenge || !['A', 'B', 'C'].includes(choice)) return;
         const kind = this.challenge.kind;
         const correct = choice === this.challenge.correct;
+        this.mathAttempts++;
+        if (correct) this.mathCorrect++;
         this.challenge = null;
         this.player.disabled = false;
         if (correct && kind === 'sentinel') {
+            this.raiseCombo();
             this.sentinel.shield = false;
             this.energy = clamp(this.energy + 1, 0, this.maxEnergy);
             this.score += 70;
             this.say('ESCUDO ROTO · CONTRAATACA', 1.8);
             this.emit('combatMathSuccess');
         } else if (correct && kind === 'secret') {
+            this.raiseCombo();
             this.progress.secret = true;
             this.score += 55;
             this.energy = clamp(this.energy + 1, 0, this.maxEnergy);
@@ -485,6 +544,7 @@ export class AdventureModel {
             this.say('PASADIZO REVELADO · ENERGÍA Σ +1', 2.2);
             this.emit('secretFound');
         } else {
+            this.breakCombo();
             this.say('EL SELLO RECHAZA LA RESPUESTA · INTENTA OTRA VEZ', 1.7);
             this.emit('mathError');
         }
@@ -522,9 +582,31 @@ export class AdventureModel {
         }
         if (!this.player.receiveHit(dx, dy)) return false;
         this.lives--;
+        this.damageTaken++;
+        this.breakCombo();
         this.emit('playerHurt');
         if (this.lives <= 0) this.restoreCheckpoint();
         return true;
+    }
+
+    raiseCombo() {
+        this.combo = Math.min(6, this.combo + 1);
+        this.maxCombo = Math.max(this.maxCombo, this.combo);
+    }
+
+    breakCombo() { this.combo = 1; }
+
+    results() {
+        return {
+            seconds: Math.max(1, Math.round(this.escape.elapsed)),
+            attempts: this.mathAttempts,
+            correct: this.mathCorrect,
+            accuracy: this.mathAttempts ? Math.round(this.mathCorrect / this.mathAttempts * 100) : 0,
+            maxCombo: this.maxCombo,
+            damageTaken: this.damageTaken,
+            lives: this.lives,
+            score: this.score
+        };
     }
 
     setCheckpoint(id, x, y) {

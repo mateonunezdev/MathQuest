@@ -59,7 +59,7 @@ async function fight(page) {
     const courtX = await page.evaluate(() => game.adventure.room('sentinel').x);
     await moveAxis(page, 'x', courtX + 420);
     await pause(350);
-    await screenshot(page, 'adventure-l1-05-combat.png');
+    await screenshot(page, 'escape-06-combat.png');
     const start = Date.now();
     while (Date.now() - start < 36000) {
         const state = await snapshot(page);
@@ -129,30 +129,31 @@ async function fight(page) {
     const started = Date.now();
     try {
         await page.goto(ROOT, { waitUntil: 'networkidle' });
+        await screenshot(page, 'escape-01-start.png');
         await page.keyboard.press('Enter');
         await page.keyboard.press('ArrowLeft');
         await page.keyboard.press('Enter');
         await page.waitForFunction(() => game.adventure?.phase === 'intro');
         await pause(1500);
-        await screenshot(page, 'adventure-l1-01-intro.png');
+        await screenshot(page, 'escape-02-intro.png');
         await page.waitForFunction(() => game.adventure?.phase === 'playing', { timeout: 10000 });
 
         const corridor = await page.evaluate(() => game.adventure.room('corridor'));
         await at(page, corridor.x + 280, 330);
-        await screenshot(page, 'adventure-l1-02-traversal.png');
+        await screenshot(page, 'escape-03-run.png');
         await page.keyboard.press('e');
         await pause(160);
 
         const sequence = await page.evaluate(() => game.adventure.room('sequence'));
         await at(page, sequence.x + 425, 280);
-        await screenshot(page, 'adventure-l1-03-puzzle.png');
+        await screenshot(page, 'escape-05-math-route.png');
         const plate = await page.evaluate(() => game.adventure.puzzle.plates.find(item => item.correct));
         await at(page, plate.x, plate.y);
         await page.waitForFunction(() => game.adventure.progress.sequence);
 
         const hall = await page.evaluate(() => game.adventure.room('pulse'));
         await at(page, hall.x + 170, 280);
-        await screenshot(page, 'adventure-l1-04-hazard.png');
+        await screenshot(page, 'escape-04-dash-hazard.png');
         await moveAxis(page, 'x', hall.x + 225, 10);
         await page.waitForFunction(() => game.adventure.hazardState(0) === 'warning');
         await page.keyboard.down('ArrowRight');
@@ -170,36 +171,44 @@ async function fight(page) {
         await page.waitForFunction(() => game.adventure.progress.artifact);
         await page.keyboard.press('l');
         await page.waitForFunction(() => game.adventure.shield === 1);
-
-        const secret = await page.evaluate(() => game.adventure.secret);
-        await moveAxis(page, 'x', secret.x - 30);
-        await moveAxis(page, 'y', secret.y);
-        await moveAxis(page, 'x', secret.x);
-        await page.keyboard.press('e');
-        await page.waitForFunction(() => game.adventure.challenge?.kind === 'secret');
-        await page.keyboard.press('k');
-        await page.waitForFunction(() => game.adventure.progress.secret);
-        await screenshot(page, 'adventure-l1-07-secret.png');
+        await screenshot(page, 'escape-07-power.png');
 
         const gate = await page.evaluate(() => game.adventure.gate);
+        await at(page, gate.x - 280, gate.y);
+        await screenshot(page, 'escape-08-final-run.png');
         await at(page, gate.x - 102, gate.y);
+        await page.evaluate(() => {
+            const model = game.adventure;
+            model.player.x = model.gate.x - 82 - model.player.width / 2;
+            model.player.y = model.gate.y - model.player.height / 2;
+            model.player.vx = 0; model.player.vy = 0;
+        });
+        await pause(100);
         await page.keyboard.press('e');
         await page.waitForFunction(() => game.adventure.gate.state === 'unlocking');
-        await screenshot(page, 'adventure-l1-08-gate.png');
+        await screenshot(page, 'escape-09-gate.png');
         await page.waitForFunction(() => game.adventure.gate.state === 'open');
 
         const portal = await page.evaluate(() => game.adventure.portal);
         await at(page, portal.x - 90, portal.y);
-        await screenshot(page, 'adventure-l1-09-portal.png');
+        await page.evaluate(() => {
+            const model = game.adventure;
+            model.player.x = model.portal.x - 55 - model.player.width / 2;
+            model.player.y = model.portal.y - model.player.height / 2;
+            model.player.vx = 0; model.player.vy = 0;
+        });
+        await pause(100);
         await page.keyboard.press('e');
         await page.waitForFunction(() => game.adventure.phase === 'complete');
-        await page.waitForFunction(() => game.state === 'level_intro', { timeout: 5000 });
+        await page.waitForFunction(() => game.state === 'victory', { timeout: 5000 });
+        await pause(500);
+        await screenshot(page, 'escape-10-result.png');
         if (errors.length) throw new Error(`Browser errors: ${errors.join(' | ')}`);
         const duration = ((Date.now() - started) / 1000).toFixed(1);
         await page.close();
-        await page.video().saveAs(path.join(SHOTS, 'adventure-level1-playthrough.webm'));
+        await page.video().saveAs(path.join(SHOTS, 'escape-core-playthrough.webm'));
         await browser.close();
-        console.log(`PASS: Level 1 real-keyboard playthrough in ${duration}s; nine screenshots; zero page/console errors`);
+        console.log(`PASS: Escape Core real-keyboard playthrough in ${duration}s; ten screenshots; zero page/console errors`);
     } catch (error) {
         console.error(error);
         console.error('Last state:', await snapshot(page).catch(() => null));

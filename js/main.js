@@ -40,6 +40,7 @@ class Game {
         this.particles = [];
         this.camera = { x: 0, y: 0, shake: 0, shakeIntensity: 0 };
         this.input = new InputSystem();
+        this.input.setContext('MENU');
         this.input.onMenuInput = key => this.handleMenuInput(key);
         this.collision = new CollisionSystem();
         this.artAssets = new ArtAssets();
@@ -150,7 +151,7 @@ class Game {
                     </svg>
                     <p class="edition-kicker">FAIR EDITION</p>
                     <h1 class="title-main">MATH<span>QUEST</span></h1>
-                    <p class="title-sub">RESUELVE <i>•</i> AVANZA <i>•</i> CONQUISTA</p>
+                    <p class="title-sub">ESCAPA <i>•</i> RESUELVE <i>•</i> DOMINA EL TEMPLO</p>
                 </div>
                 <div class="portal-stage" aria-hidden="true">
                     <div class="portal-glow"></div>
@@ -203,6 +204,10 @@ class Game {
         `;
         document.querySelector('.game-shell').appendChild(this.startScreen);
 
+        this.attractTimer = window.setTimeout(() => {
+            const panel = this.startScreen?.querySelector('[data-entry-panel="attract"]');
+            if (this.state === GameState.START && panel) panel.classList.add('is-attracting');
+        }, 6500);
         this.startScreen.querySelector('#start-btn').addEventListener('click', () => this.showDifficultySelection());
         document.querySelector('#mute-btn').addEventListener('click', (e) => {
             e.stopPropagation();
@@ -222,10 +227,12 @@ class Game {
 
     showDifficultySelection() {
         if (this.state !== GameState.START) return;
+        window.clearTimeout(this.attractTimer);
         this.audio.init();
         this.audio.play('uiClick');
         this.input.clear();
         this.state = GameState.DIFFICULTY;
+        this.input.setContext('MENU');
         this.startScreen.querySelector('[data-entry-panel="attract"]').classList.add('hidden');
         this.startScreen.querySelector('[data-entry-panel="difficulty"]').classList.remove('hidden');
         this.selectedDifficultyIndex = Math.max(0, this.difficultyOrder.indexOf(this.difficulty));
@@ -284,7 +291,13 @@ class Game {
 
         if ((this.state === GameState.VICTORY || this.state === GameState.GAME_OVER) &&
             (key === 'enter' || key === ' ')) {
-            this.restartGame();
+            if (this.state === GameState.VICTORY && this.hud.resultSelection === 0)
+                this.retryEscape();
+            else this.restartGame();
+            return;
+        }
+        if (this.state === GameState.VICTORY && ['arrowleft', 'arrowright', 'a', 'd'].includes(key)) {
+            this.hud.resultSelection = this.hud.resultSelection ? 0 : 1;
         }
     }
 
@@ -297,6 +310,7 @@ class Game {
         }
         this.introLevelNumber = levelNumber;
         this.state = GameState.LEVEL_INTRO;
+        this.input.setContext('CINEMATIC');
         this.input.clear();
 
         if (levelNumber === 1) {
@@ -332,6 +346,7 @@ class Game {
             this.adventure.skipIntro();
             this.introLevelNumber = null;
             this.state = GameState.PLAYING;
+            this.input.setContext('EXPLORATION');
             this.input.clear();
             return;
         }
@@ -456,6 +471,11 @@ class Game {
 update(dt) {
         if (this.adventure && this.levelNumber === 1 &&
             (this.state === GameState.LEVEL_INTRO || this.state === GameState.PLAYING)) {
+            if (this.state === GameState.LEVEL_INTRO) this.input.setContext('CINEMATIC');
+            else if (this.adventure.challenge) this.input.setContext('CHALLENGE');
+            else if (this.adventure.roomIndex === 4 && !this.adventure.progress.sentinel)
+                this.input.setContext('COMBAT');
+            else this.input.setContext(this.adventure.escape.active ? 'ESCAPE' : 'EXPLORATION');
             if (this.state === GameState.PLAYING) this.runElapsed += dt;
             const events = this.adventure.step(dt, this.state === GameState.PLAYING ? {
                 move: this.input.getMovementVector(),
@@ -478,7 +498,8 @@ update(dt) {
                     artifactAcquired: 'powerActivate', gateStart: 'doorUnlock',
                     gateOpen: 'portalUnlock', portalStart: 'portalActivate',
                     shieldActivate: 'powerActivate', shieldAbsorb: 'doorHit',
-                    combatMathSuccess: 'correct', secretFound: 'correct'
+                    combatMathSuccess: 'correct', secretFound: 'correct',
+                    escapeStart: 'escapeStart', pressureHit: 'pressureHit'
                 }[event.kind];
                 if (cue) this.audio.play(cue);
                 if (event.kind === 'levelComplete') this.triggerVictory();
@@ -654,7 +675,7 @@ update(dt) {
 
         if (this.adventure && this.levelNumber === 1 &&
             (this.state === GameState.LEVEL_INTRO || this.state === GameState.PLAYING ||
-                this.state === GameState.TRANSITION)) {
+                this.state === GameState.TRANSITION || this.state === GameState.VICTORY)) {
             this.adventureView.render(this.ctx);
         } else if (renderWorld) {
             this.renderer.time += this.fixedTimeStep;
@@ -719,7 +740,7 @@ update(dt) {
             this.ctx.restore();
         }
 
-        if (!this.adventure || this.levelNumber !== 1) {
+        if (!this.adventure || this.levelNumber !== 1 || this.state === GameState.VICTORY) {
             this.hud.setCampaignStatus(DIFFICULTIES[this.difficulty].label, this.encounters,
                 this.door?.state === 'open', this.attackFx, this.bossDefeatFx);
             this.hud.render(this.ctx);
@@ -778,6 +799,16 @@ update(dt) {
         this.input.clear();
         this.hud.reset(this.score, this.lives, this.maxLives, this.levelNumber);
         this.initStartScreen();
+    }
+
+    retryEscape() {
+        this.state = GameState.LEVEL_INTRO;
+        this.resetCampaignState();
+        this.loadLevel(1);
+        this.audio.startAdventureAmbience();
+        this.adventure.skipIntro();
+        this.state = GameState.PLAYING;
+        this.input.clear();
     }
 
     gameLoop(time) {
@@ -859,6 +890,21 @@ update(dt) {
 
     triggerVictory() {
         this.audio.play('portalActivate');
+        if (this.adventure && this.levelNumber === 1) {
+            const stats = this.adventure.results();
+            this.state = GameState.VICTORY;
+            this.score = stats.score;
+            this.lives = stats.lives;
+            this.audio.play('victory');
+            this.hud.showVictory(this.score, this.lives, () => this.retryEscape(), {
+                difficulty: DIFFICULTIES[this.difficulty].label,
+                accuracy: stats.accuracy,
+                seconds: stats.seconds,
+                maxCombo: stats.maxCombo,
+                damageTaken: stats.damageTaken
+            });
+            return;
+        }
         if (this.levelNumber < LevelData.getLevelCount()) {
             this.triggerLevelTransition();
             return;

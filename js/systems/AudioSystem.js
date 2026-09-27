@@ -131,6 +131,13 @@ export class AudioSystem {
             { freq: 98, dur: 0.17, type: 'triangle', gain: 0.16 }
         ], 0.02);
         this.sounds.adventurePuzzleError = this.createTone(245, 0.22, 'triangle', 0.13, 170);
+        this.sounds.escapeStart = this.createToneSequence([
+            { freq: 98, dur: 0.18, type: 'sawtooth', gain: 0.2 },
+            { freq: 196, dur: 0.18, type: 'triangle', gain: 0.2 },
+            { freq: 392, dur: 0.32, type: 'triangle', gain: 0.24 }
+        ], 0.025);
+        this.sounds.hazardWarning = this.createTone(220, 0.16, 'square', 0.11, 330);
+        this.sounds.pressureHit = this.createTone(82, 0.3, 'sawtooth', 0.2, 55);
     }
 
     createTone(frequency, duration, type = 'sine', gain = 0.3, freqEnd = null) {

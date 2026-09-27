@@ -47,7 +47,7 @@ export class AdventureView {
         } else {
             const room = model.rooms[model.roomIndex];
             targetX = model.focus ? model.focus.x - 480 :
-                center.x - 480 + model.player.vx * (this.reducedMotion ? 0 : 0.24);
+                center.x - 430 + model.player.vx * (this.reducedMotion ? 0 : 0.3);
             const roomMin = Math.max(0, room.x - 95);
             const roomMax = Math.min(model.width - 960, room.end - 865);
             if (!model.focus && roomMax >= roomMin) targetX = clamp(targetX, roomMin, roomMax);
@@ -84,6 +84,7 @@ export class AdventureView {
             room.x <= this.camera.x + 1060);
         for (const room of visible) this.drawRoom(ctx, room);
         for (const room of visible) this.drawRoomActivity(ctx, room);
+        this.drawEscapePressure(ctx);
         this.drawActors(ctx);
         if (visible.some(room => room.id === 'gate')) this.drawGateFacade(ctx);
         for (const room of visible) this.drawForeground(ctx, room);
@@ -207,6 +208,8 @@ export class AdventureView {
         this.drawRune(ctx, this.model.lore.x, this.model.lore.y, 35,
             this.model.clock * 0.1, this.model.progress.lore ? 0.08 : 0.4);
         this.drawPlaque(ctx, this.model.lore.x, this.model.lore.y - 58, 'Σ');
+        for (const column of this.model.fallingColumns.filter(item => item.x >= room.x && item.x < room.end))
+            this.drawFallingColumn(ctx, column);
     }
 
     drawSequence(ctx, room) {
@@ -276,7 +279,54 @@ export class AdventureView {
             }
             ctx.restore();
         }
+        for (const column of this.model.fallingColumns.filter(item => item.x >= room.x && item.x < room.end))
+            this.drawFallingColumn(ctx, column);
+        const gate = this.model.closingGate;
+        const phase = this.model.hazardClock % gate.cycle;
+        const closing = phase > 0.85 && phase < 2.25;
+        const halfGap = phase > 1.45 && phase < 2.25 ? 48 : 118;
+        ctx.save();
+        ctx.fillStyle = 'rgba(5,13,19,.92)';
+        ctx.strokeStyle = closing ? 'rgba(233,170,97,.85)' : 'rgba(102,219,228,.4)';
+        ctx.lineWidth = 5;
+        ctx.fillRect(gate.x - 24, 82, 48, gate.gapY - halfGap - 82);
+        ctx.fillRect(gate.x - 24, gate.gapY + halfGap, 48, 475 - gate.gapY - halfGap);
+        ctx.strokeRect(gate.x - 24, 82, 48, 393);
+        ctx.restore();
         this.drawPlaque(ctx, room.x + 520, 115, 'OBSERVA · ESQUIVA · ATRAVIESA');
+    }
+
+    drawFallingColumn(ctx, column) {
+        const phase = (this.model.hazardClock + column.offset) % 3.4;
+        const warning = phase > 0.25 && phase <= 1.15;
+        const active = phase > 1.15 && phase < 1.55;
+        ctx.save();
+        ctx.fillStyle = active ? 'rgba(239,139,92,.38)' : warning ? 'rgba(224,181,103,.22)' : 'rgba(35,95,103,.09)';
+        ctx.strokeStyle = active ? '#f0a06e' : warning ? '#e1bc78' : 'rgba(95,201,211,.2)';
+        ctx.lineWidth = active ? 5 : 2;
+        ctx.beginPath(); ctx.ellipse(column.x, column.y + 34, column.radius, 24, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        if (active) {
+            ctx.fillStyle = 'rgba(24,24,24,.9)';
+            ctx.fillRect(column.x - 27, column.y - 140, 54, 177);
+            ctx.strokeStyle = '#bd9664'; ctx.strokeRect(column.x - 27, column.y - 140, 54, 177);
+        } else if (warning) {
+            ctx.fillStyle = '#e9c77f'; ctx.font = 'bold 23px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText('!', column.x, column.y + 42);
+        }
+        ctx.restore();
+    }
+
+    drawEscapePressure(ctx) {
+        const escape = this.model.escape;
+        if (!escape.active || escape.paused || escape.pressureX < this.camera.x - 90) return;
+        const x = escape.pressureX;
+        const glow = ctx.createLinearGradient(x - 80, 0, x + 45, 0);
+        glow.addColorStop(0, 'rgba(239,114,72,0)');
+        glow.addColorStop(0.7, 'rgba(239,114,72,.35)');
+        glow.addColorStop(1, 'rgba(255,196,102,.72)');
+        ctx.save(); ctx.fillStyle = glow; ctx.fillRect(x - 80, 70, 125, 410);
+        ctx.strokeStyle = '#ffbd72'; ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.moveTo(x, 80); ctx.lineTo(x, 475); ctx.stroke(); ctx.restore();
     }
 
     drawSentinelCourt(ctx, room) {
@@ -509,9 +559,16 @@ export class AdventureView {
         ctx.fillText('♥'.repeat(model.lives) + '♡'.repeat(model.maxLives - model.lives), 432, 28);
         ctx.fillStyle = COLORS.cyan;
         ctx.font = 'bold 13px "JetBrains Mono", monospace';
-        ctx.fillText('ENERGÍA Σ', 587, 25);
+        ctx.fillText('ENERGÍA Σ', 565, 25);
         ctx.font = 'bold 21px sans-serif';
-        ctx.fillText('●'.repeat(model.energy) + '○'.repeat(model.maxEnergy - model.energy), 588, 51);
+        ctx.fillText('●'.repeat(model.energy) + '○'.repeat(model.maxEnergy - model.energy), 565, 51);
+        if (model.escape.active) {
+            ctx.fillStyle = COLORS.gold;
+            ctx.font = 'bold 15px "JetBrains Mono", monospace';
+            ctx.fillText(`COMBO x${model.combo}`, 760, 25);
+            ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.fillRect(760, 40, 105, 7);
+            ctx.fillStyle = COLORS.cyan; ctx.fillRect(760, 40, 105 * model.escape.progress, 7);
+        }
         ctx.font = '12px "JetBrains Mono", monospace';
         ctx.fillStyle = '#e7d8b6';
         ctx.textAlign = 'right';
@@ -589,13 +646,13 @@ export class AdventureView {
             ctx.font = 'bold 16px "JetBrains Mono", monospace';
             ctx.fillText('MATHQUEST', 480, 145);
             ctx.font = 'bold 31px "JetBrains Mono", monospace';
-            ctx.fillText('NIVEL 1 · TEMPLO DE LOS NÚMEROS', 480, 185);
+            ctx.fillText('ESCAPE CORE · TEMPLO DE LOS NÚMEROS', 480, 185);
         } else if (t >= 5.5) {
             ctx.font = 'bold 22px "JetBrains Mono", monospace';
-            ctx.fillText('ERES EL EXPLORADOR MATEMÁTICO', 480, 143);
+            ctx.fillText('ESCAPA DEL TEMPLO', 480, 143);
             ctx.fillStyle = '#b9f3f0';
             ctx.font = 'bold 17px "JetBrains Mono", monospace';
-            ctx.fillText('ENCUENTRA EL ARTEFACTO · DESBLOQUEA EL TEMPLO', 480, 177);
+            ctx.fillText(t > 6.5 ? '3   2   1   ¡CORRE!' : 'EL NÚCLEO HA DESPERTADO', 480, 177);
         }
         ctx.shadowBlur = 0;
         ctx.fillStyle = 'rgba(231,244,241,.8)';

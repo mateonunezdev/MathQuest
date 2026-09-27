@@ -4,6 +4,7 @@ export class InputSystem {
         this.keysPressed = new Set();
         this.keysReleased = new Set();
         this.onMenuInput = null;
+        this.context = 'EXPLORATION';
 
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
@@ -57,6 +58,9 @@ export class InputSystem {
     }
 
     wasActionPressed(action) {
+        if (this.context === 'CHALLENGE' && action !== 'START') return false;
+        if (this.context === 'CINEMATIC' && action !== 'START') return false;
+        if (this.context === 'MENU' && action !== 'START') return false;
         const bindings = {
             BUTTON_A: ['j'],
             BUTTON_B: ['k'],
@@ -77,9 +81,21 @@ export class InputSystem {
     }
 
     getAnswerKey() {
+        if (this.context !== 'CHALLENGE') return null;
         if (this.wasPressed('a') || this.wasPressed('j')) return 'A';
         if (this.wasPressed('b') || this.wasPressed('k')) return 'B';
         if (this.wasPressed('c') || this.wasPressed('l')) return 'C';
         return null;
+    }
+
+    setContext(context) {
+        const allowed = ['MENU', 'EXPLORATION', 'ESCAPE', 'COMBAT', 'CHALLENGE', 'CINEMATIC'];
+        if (!allowed.includes(context) || context === this.context) return;
+        this.context = context;
+        if (['MENU', 'CHALLENGE', 'CINEMATIC'].includes(context)) this.clear();
+        else {
+            this.keysPressed.clear();
+            this.keysReleased.clear();
+        }
     }
 }
