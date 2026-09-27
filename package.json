@@ -6,8 +6,9 @@
     "playwright": "^1.63.0"
   },
   "scripts": {
-    "test": "node tools/validate-level.js",
+    "test": "node tools/validate-level.js && npm run test:adventure",
     "test:level": "node tools/validate-level.js",
+    "test:adventure": "node tools/adventure-qa.mjs && node tools/adventure-model-qa.mjs",
     "test:flow": "node tools/flow-qa.js",
     "test:browser": "node tools/browser-qa.js",
     "serve": "python3 -m http.server 8080"

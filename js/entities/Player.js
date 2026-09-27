@@ -9,52 +9,138 @@ export class Player {
         this.vy = 0;
         this.speed = 240;
         this.direction = 'down';
+        this.facingX = 0;
+        this.facingY = 1;
+        this.state = 'IDLE';
+        this.dashTimer = 0;
+        this.dashCooldown = 0;
+        this.dashX = 0;
+        this.dashY = 0;
+        this.attackTimer = 0;
+        this.attackCooldown = 0;
+        this.attackActive = false;
+        this.hurtTimer = 0;
+        this.interactTimer = 0;
+        this.disabled = false;
         this.walkCycle = 0;
         this.walkSpeed = 0;
         this.idleTime = 0;
         this.bobOffset = 0;
         this.invulnerable = 0;
         this.flashTime = 0;
+        this.hurtFlash = 0;
         this.time = 0;
     }
 
     update(dt, input) {
         this.time += dt;
+        this.dashCooldown = Math.max(0, this.dashCooldown - dt);
+        this.attackCooldown = Math.max(0, this.attackCooldown - dt);
+        this.dashTimer = Math.max(0, this.dashTimer - dt);
+        this.attackTimer = Math.max(0, this.attackTimer - dt);
+        this.hurtTimer = Math.max(0, this.hurtTimer - dt);
+        this.interactTimer = Math.max(0, this.interactTimer - dt);
+        this.invulnerable = Math.max(0, this.invulnerable - dt);
+        this.hurtFlash = Math.max(0, this.hurtFlash - dt);
+        if (this.invulnerable > 0) this.flashTime += dt * 20;
+        this.attackActive = this.attackTimer > 0.19 && this.attackTimer <= 0.33;
+
         const move = input.getMovementVector();
-        const wasMoving = this.walkSpeed > 0.1;
+        const length = Math.hypot(move.x, move.y);
+        const allowed = !this.disabled && this.hurtTimer === 0 && this.interactTimer === 0;
+        if (allowed && length > 0 && this.dashTimer === 0) {
+            this.facingX = move.x / length;
+            this.facingY = move.y / length;
+            this.direction = Math.abs(move.x) > Math.abs(move.y) ?
+                (move.x > 0 ? 'right' : 'left') : (move.y > 0 ? 'down' : 'up');
+        }
 
-        if (move.x !== 0 || move.y !== 0) {
-            const len = Math.hypot(move.x, move.y);
-            this.vx = (move.x / len) * this.speed;
-            this.vy = (move.y / len) * this.speed;
-            this.walkSpeed = Math.min(this.walkSpeed + dt * 10, 1);
+        if (this.disabled) {
+            this.vx = 0;
+            this.vy = 0;
+            this.state = 'DISABLED';
+        } else if (this.dashTimer > 0) {
+            this.vx = this.dashX * 560;
+            this.vy = this.dashY * 560;
+            this.state = 'DASH';
+        } else if (this.hurtTimer > 0) {
+            const decay = Math.max(0, 1 - dt * 8);
+            this.vx *= decay;
+            this.vy *= decay;
+            this.state = 'HURT';
+        } else {
+            const inputX = allowed && length ? move.x / length : 0;
+            const inputY = allowed && length ? move.y / length : 0;
+            const rate = length && allowed ? 3000 : 4200;
+            const approach = (current, target) =>
+                current + Math.max(-rate * dt, Math.min(rate * dt, target - current));
+            const moveScale = this.attackTimer > 0 ? 0.38 : 1;
+            this.vx = approach(this.vx, inputX * this.speed * moveScale);
+            this.vy = approach(this.vy, inputY * this.speed * moveScale);
+            this.state = this.interactTimer > 0 ? 'INTERACT' :
+                this.attackTimer > 0 ? 'ATTACK' :
+                    Math.hypot(this.vx, this.vy) > 8 ? 'MOVE' : 'IDLE';
+        }
+
+        this.walkSpeed = Math.min(1, Math.hypot(this.vx, this.vy) / this.speed);
+        if (this.walkSpeed > 0.04) {
             this.walkCycle += dt * 12 * this.walkSpeed;
-
-            if (Math.abs(move.x) > Math.abs(move.y)) {
-                this.direction = move.x > 0 ? 'right' : 'left';
-            } else {
-                this.direction = move.y > 0 ? 'down' : 'up';
-            }
             this.idleTime = 0;
             this.bobOffset = Math.sin(this.walkCycle * 2) * 2.4 * this.walkSpeed;
         } else {
-            this.vx = 0;
-            this.vy = 0;
-            this.walkSpeed = Math.max(this.walkSpeed - dt * 8, 0);
             this.idleTime += dt;
             this.bobOffset = Math.sin(this.idleTime * 2) * 1.5;
-            if (this.walkSpeed < 0.05) this.walkCycle = 0;
+            this.walkCycle = 0;
         }
+    }
 
-        if (this.invulnerable > 0) {
-            this.invulnerable -= dt;
-            this.flashTime += dt * 20;
-        }
+    startDash(x = this.facingX, y = this.facingY) {
+        if (this.disabled || this.dashTimer > 0 || this.dashCooldown > 0 ||
+            this.hurtTimer > 0 || this.interactTimer > 0 || this.attackTimer > 0) return false;
+        const length = Math.hypot(x, y) || 1;
+        this.dashX = x / length;
+        this.dashY = y / length;
+        this.dashTimer = 0.16;
+        this.dashCooldown = 1;
+        this.invulnerable = Math.max(this.invulnerable, 0.22);
+        this.state = 'DASH';
+        return true;
+    }
+
+    startAttack() {
+        if (this.disabled || this.attackCooldown > 0 || this.dashTimer > 0 ||
+            this.hurtTimer > 0 || this.interactTimer > 0) return false;
+        this.attackTimer = 0.42;
+        this.attackCooldown = 0.55;
+        this.attackActive = false;
+        this.state = 'ATTACK';
+        return true;
+    }
+
+    startInteract(duration = 0.28) {
+        if (this.disabled || this.hurtTimer > 0 || this.dashTimer > 0 ||
+            this.interactTimer > 0 || this.attackTimer > 0) return false;
+        this.interactTimer = duration;
+        this.state = 'INTERACT';
+        return true;
+    }
+
+    receiveHit(fromX, fromY) {
+        if (this.disabled || this.invulnerable > 0 || this.dashTimer > 0) return false;
+        const length = Math.hypot(fromX, fromY) || 1;
+        this.vx = fromX / length * 175;
+        this.vy = fromY / length * 175;
+        this.hurtTimer = 0.24;
+        this.invulnerable = 0.8;
+        this.flashTime = 0;
+        this.hurtFlash = 0.8;
+        this.state = 'HURT';
+        return true;
     }
 
     render(renderer) {
         const ctx = renderer.ctx;
-        if (this.invulnerable > 0 && Math.sin(this.flashTime) > 0) return;
+        if (this.hurtFlash > 0 && Math.sin(this.flashTime) > 0) return;
 
         const motion = this.walkSpeed > 0.1 ? 'walk' : 'idle';
         const sprite = renderer.artAssets?.get('player', `${motion}-${this.direction}`);

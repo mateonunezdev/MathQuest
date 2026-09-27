@@ -119,6 +119,18 @@ export class AudioSystem {
             { freq: 660, dur: 0.16, type: 'sine', gain: 0.25 },
             { freq: 880, dur: 0.22, type: 'sine', gain: 0.18 }
         ], 0.02);
+        this.sounds.adventureIntro = this.createToneSequence([
+            { freq: 82, dur: 0.75, type: 'sine', gain: 0.19, freqEnd: 131 },
+            { freq: 392, dur: 0.3, type: 'triangle', gain: 0.13 },
+            { freq: 587, dur: 0.4, type: 'sine', gain: 0.12 }
+        ], 0.08);
+        this.sounds.adventureDash = this.createTone(190, 0.18, 'triangle', 0.19, 760);
+        this.sounds.adventureAttack = this.createTone(310, 0.17, 'triangle', 0.19, 690);
+        this.sounds.adventureHurt = this.createToneSequence([
+            { freq: 165, dur: 0.13, type: 'sawtooth', gain: 0.2 },
+            { freq: 98, dur: 0.17, type: 'triangle', gain: 0.16 }
+        ], 0.02);
+        this.sounds.adventurePuzzleError = this.createTone(245, 0.22, 'triangle', 0.13, 170);
     }
 
     createTone(frequency, duration, type = 'sine', gain = 0.3, freqEnd = null) {
@@ -209,6 +221,34 @@ export class AudioSystem {
                 console.warn(`Failed to play sound ${soundName}:`, e);
             }
         }
+    }
+
+    startAdventureAmbience() {
+        if (!this.initialized || this.ambience) return;
+        const base = this.audioContext.createOscillator();
+        const shimmer = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        base.type = 'sine';
+        base.frequency.value = 65.4;
+        shimmer.type = 'triangle';
+        shimmer.frequency.value = 130.8;
+        gain.gain.value = 0.018;
+        base.connect(gain);
+        shimmer.connect(gain);
+        gain.connect(this.masterGain);
+        base.start();
+        shimmer.start();
+        this.ambience = { base, shimmer, gain };
+    }
+
+    stopAdventureAmbience() {
+        if (!this.ambience) return;
+        this.ambience.base.stop();
+        this.ambience.shimmer.stop();
+        this.ambience.base.disconnect();
+        this.ambience.shimmer.disconnect();
+        this.ambience.gain.disconnect();
+        this.ambience = null;
     }
 
     playFootstep() {

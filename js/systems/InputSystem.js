@@ -7,6 +7,7 @@ export class InputSystem {
 
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
+        window.addEventListener('blur', () => this.clear());
     }
 
     onKeyDown(e) {
@@ -21,7 +22,7 @@ export class InputSystem {
             this.onMenuInput(key);
         }
 
-        if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' ', 'e'].includes(key)) {
+        if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' ', 'e', 'j', 'k', 'l'].includes(key)) {
             e.preventDefault();
         }
     }
@@ -55,6 +56,17 @@ export class InputSystem {
         return this.keysReleased.has(key.toLowerCase());
     }
 
+    wasActionPressed(action) {
+        const bindings = {
+            BUTTON_A: ['j'],
+            BUTTON_B: ['k'],
+            BUTTON_C: ['l'],
+            INTERACT: ['e', ' '],
+            START: ['enter']
+        };
+        return (bindings[action] || []).some(key => this.wasPressed(key));
+    }
+
     getMovementVector() {
         let x = 0, y = 0;
         if (this.isDown('arrowup') || this.isDown('w')) y = -1;
@@ -65,9 +77,9 @@ export class InputSystem {
     }
 
     getAnswerKey() {
-        if (this.wasPressed('a')) return 'A';
-        if (this.wasPressed('b')) return 'B';
-        if (this.wasPressed('c')) return 'C';
+        if (this.wasPressed('a') || this.wasPressed('j')) return 'A';
+        if (this.wasPressed('b') || this.wasPressed('k')) return 'B';
+        if (this.wasPressed('c') || this.wasPressed('l')) return 'C';
         return null;
     }
 }

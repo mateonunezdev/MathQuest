@@ -11,6 +11,8 @@ import { MathDoor } from './entities/MathDoor.js';
 import { Goal } from './entities/Goal.js';
 import { Particle } from './entities/Particle.js';
 import { LevelData } from './levels/LevelData.js';
+import { AdventureModel } from './levels/AdventureModel.js';
+import { AdventureView } from './levels/AdventureView.js';
 import { DIFFICULTIES } from './levels/ChallengeBank.js';
 
 const GameState = {
@@ -49,6 +51,8 @@ class Game {
         this.hud = new HUD();
         this.audio = new AudioSystem();
         this.level = null;
+        this.adventure = null;
+        this.adventureView = null;
 
         this.score = 0;
         this.lives = 3;
@@ -287,9 +291,23 @@ class Game {
     showLevelIntro(levelNumber) {
         window.clearTimeout(this.levelIntroTimer);
         document.querySelector('#level-intro')?.remove();
+        if (levelNumber !== 1) {
+            this.adventure = null;
+            this.adventureView = null;
+        }
         this.introLevelNumber = levelNumber;
         this.state = GameState.LEVEL_INTRO;
         this.input.clear();
+
+        if (levelNumber === 1) {
+            this.artReady.then(() => {
+                if (this.state !== GameState.LEVEL_INTRO || this.introLevelNumber !== 1) return;
+                this.loadLevel(1);
+                this.audio.startAdventureAmbience();
+                this.audio.play('adventureIntro');
+            });
+            return;
+        }
 
         const data = LevelData.getLevel(levelNumber);
         const intro = document.createElement('div');
@@ -310,6 +328,13 @@ class Game {
 
     finishLevelIntro() {
         if (this.state !== GameState.LEVEL_INTRO) return;
+        if (this.introLevelNumber === 1 && this.adventure) {
+            this.adventure.skipIntro();
+            this.introLevelNumber = null;
+            this.state = GameState.PLAYING;
+            this.input.clear();
+            return;
+        }
         window.clearTimeout(this.levelIntroTimer);
         if (!this.artAssets.ready) {
             if (!this.waitingForArt) {
@@ -324,6 +349,10 @@ class Game {
         const levelNumber = this.introLevelNumber;
         document.querySelector('#level-intro')?.remove();
         this.loadLevel(levelNumber);
+        if (levelNumber === 1) {
+            this.audio.startAdventureAmbience();
+            this.adventure.skipIntro();
+        }
         this.introLevelNumber = null;
         this.state = GameState.PLAYING;
         this.input.clear();
@@ -332,6 +361,20 @@ class Game {
     loadLevel(levelNum) {
         this.levelNumber = levelNum;
         this.level = LevelData.getLevel(levelNum);
+        this.adventure = null;
+        this.adventureView = null;
+        if (levelNum === 1) {
+            this.encounters.reset();
+            this.adventure = new AdventureModel(this.difficulty, this.maxLives);
+            this.adventureView = new AdventureView(this, this.adventure);
+            this.player = this.adventure.player;
+            this.doors = [];
+            this.door = null;
+            this.goal = null;
+            this.hud.reset(this.score, this.lives, this.maxLives, levelNum);
+            return;
+        }
+        this.audio.stopAdventureAmbience();
         this.encounters.load(this.level);
         this.activeDoor = null;
         this.activeEncounterAction = null;
@@ -411,6 +454,42 @@ class Game {
         }
     }
 update(dt) {
+        if (this.adventure && this.levelNumber === 1 &&
+            (this.state === GameState.LEVEL_INTRO || this.state === GameState.PLAYING)) {
+            if (this.state === GameState.PLAYING) this.runElapsed += dt;
+            const events = this.adventure.step(dt, this.state === GameState.PLAYING ? {
+                move: this.input.getMovementVector(),
+                attack: this.input.wasActionPressed('BUTTON_A'),
+                dash: this.input.wasActionPressed('BUTTON_B'),
+                power: this.input.wasActionPressed('BUTTON_C'),
+                interact: this.input.wasActionPressed('INTERACT'),
+                answer: this.input.getAnswerKey()
+            } : {});
+            this.adventureView.update(dt, events);
+            this.score = this.adventure.score;
+            this.lives = this.adventure.lives;
+            this.hud.update(this.score, this.lives, this.maxLives);
+            for (const event of events) {
+                const cue = {
+                    dash: 'adventureDash', attack: 'adventureAttack',
+                    enemyHit: 'bossHit', enemyWindup: 'doorCharge',
+                    playerHurt: 'adventureHurt', puzzleSuccess: 'correct',
+                    puzzleError: 'adventurePuzzleError', artifactStart: 'coreActivate',
+                    artifactAcquired: 'powerActivate', gateStart: 'doorUnlock',
+                    gateOpen: 'portalUnlock', portalStart: 'portalActivate',
+                    shieldActivate: 'powerActivate', shieldAbsorb: 'doorHit',
+                    combatMathSuccess: 'correct', secretFound: 'correct'
+                }[event.kind];
+                if (cue) this.audio.play(cue);
+                if (event.kind === 'levelComplete') this.triggerVictory();
+            }
+            if (this.adventure.phase === 'playing' && this.state === GameState.LEVEL_INTRO) {
+                this.state = GameState.PLAYING;
+                this.introLevelNumber = null;
+            }
+            this.input.update();
+            return;
+        }
         if (this.state === GameState.PLAYING || this.state === GameState.CHALLENGE) {
             this.runElapsed += dt;
         }
@@ -573,7 +652,11 @@ update(dt) {
             this.state === GameState.GAME_OVER
         );
 
-        if (renderWorld) {
+        if (this.adventure && this.levelNumber === 1 &&
+            (this.state === GameState.LEVEL_INTRO || this.state === GameState.PLAYING ||
+                this.state === GameState.TRANSITION)) {
+            this.adventureView.render(this.ctx);
+        } else if (renderWorld) {
             this.renderer.time += this.fixedTimeStep;
             this.ctx.save();
             this.ctx.translate(-this.camera.x + (this.camera.offsetX || 0), -this.camera.y + (this.camera.offsetY || 0));
@@ -636,9 +719,11 @@ update(dt) {
             this.ctx.restore();
         }
 
-        this.hud.setCampaignStatus(DIFFICULTIES[this.difficulty].label, this.encounters,
-            this.door?.state === 'open', this.attackFx, this.bossDefeatFx);
-        this.hud.render(this.ctx);
+        if (!this.adventure || this.levelNumber !== 1) {
+            this.hud.setCampaignStatus(DIFFICULTIES[this.difficulty].label, this.encounters,
+                this.door?.state === 'open', this.attackFx, this.bossDefeatFx);
+            this.hud.render(this.ctx);
+        }
         if (this.bossEntranceFx > 0 && this.state === GameState.PLAYING) {
             this.renderer.renderBossEntrance(this.bossEntranceFx);
         }
@@ -675,12 +760,15 @@ update(dt) {
     }
 
     restartGame() {
+        this.audio.stopAdventureAmbience();
         window.clearTimeout(this.levelIntroTimer);
         window.clearTimeout(this.levelTransitionTimer);
         document.querySelector('#level-intro')?.remove();
         document.querySelector('#start-screen')?.remove();
         this.state = GameState.START;
         this.level = null;
+        this.adventure = null;
+        this.adventureView = null;
         this.entities = [];
         this.particles = [];
         this.resetCampaignState();
