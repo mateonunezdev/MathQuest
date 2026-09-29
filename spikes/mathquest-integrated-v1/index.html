@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="./game.css">
+    <title>MathQuest — Templo de los Números</title>
+    <script type="importmap">
+        { "imports": { "three": "../thirdperson-camera/vendor/three.module.min.js" } }
+    </script>
+</head>
+<body data-mode="integrated">
+    <canvas id="scene" aria-label="MathQuest: Templo de los Números"></canvas>
+    <div id="fallback">ABRIENDO LAS PUERTAS DEL TEMPLO…</div>
+
+    <main id="game-ui" aria-live="polite">
+        <section class="screen active" id="menu-screen">
+            <div class="brand-mark" aria-hidden="true"><i></i><b>Σ</b><i></i></div>
+            <p class="eyebrow">UNA AVENTURA MATEMÁTICA</p>
+            <h1>MATH<span>QUEST</span></h1>
+            <p class="tagline">ESCAPA <em>•</em> RESUELVE <em>•</em> DOMINA EL TEMPLO</p>
+            <p class="enter-prompt">PULSA <kbd>ENTER</kbd></p>
+        </section>
+
+        <section class="screen" id="difficulty-screen">
+            <p class="eyebrow">PREPARA TU EXPEDICIÓN</p>
+            <h2>ELIGE TU DIFICULTAD</h2>
+            <div class="choice-stack" role="listbox" aria-label="Dificultad">
+                <div class="choice selected" data-index="0"><b>EXPLORADOR</b><span>Más tiempo · Obstáculos suaves</span></div>
+                <div class="choice" data-index="1"><b>AVENTURERO</b><span>Experiencia equilibrada</span></div>
+                <div class="choice" data-index="2"><b>MAESTRO</b><span>Más velocidad · Mayor puntuación</span></div>
+            </div>
+            <p class="nav-hint">↑ ↓ ELEGIR &nbsp;·&nbsp; ENTER CONFIRMAR</p>
+        </section>
+
+        <section class="screen" id="controls-screen">
+            <p class="eyebrow">CONTROLES RÁPIDOS</p>
+            <h2>DOMINA EL RECORRIDO</h2>
+            <div class="control-ribbon">
+                <div><b>← →</b><span>MOVER</span></div>
+                <div><b>↑</b><span>SALTAR</span></div>
+                <div><b>↓</b><span>DESLIZAR</span></div>
+                <div><b>K</b><span>DASH</span></div>
+                <div><b>J</b><span>ATAQUE</span></div>
+                <div><b>L</b><span>PODER</span></div>
+                <div><b>ENTER</b><span>START</span></div>
+            </div>
+            <p class="enter-prompt small">ENTER PARA CONTINUAR</p>
+        </section>
+
+        <section class="screen cinematic" id="intro-screen">
+            <p class="eyebrow">NIVEL 1</p>
+            <h2>TEMPLO DE LOS NÚMEROS</h2>
+            <div class="objective"><span>OBJETIVO</span><b>ALCANZA EL PORTAL</b></div>
+            <p class="skip">ENTER PARA OMITIR</p>
+        </section>
+
+        <section class="screen countdown" id="countdown-screen"><strong id="countdown-value">3</strong></section>
+
+        <section id="hud" aria-label="Estado del juego">
+            <div class="hud-cluster lives" id="hud-lives">♥ ♥ ♥</div>
+            <div class="hud-cluster combo" id="hud-combo">COMBO <b>x1</b></div>
+            <div class="hud-cluster score" id="hud-score">0000</div>
+            <div class="energy"><span>ENERGÍA Σ</span><b id="hud-energy">○○○○○</b></div>
+            <div class="tutorial-prompt" id="tutorial-prompt"></div>
+            <div class="math-question" id="math-question"><span>ELIGE LA RUTA CORRECTA</span><b>18 ÷ 3 = ?</b></div>
+            <div class="toast" id="toast"></div>
+        </section>
+
+        <section class="screen overlay" id="pause-screen">
+            <p class="eyebrow">EXPEDICIÓN DETENIDA</p>
+            <h2>PAUSA</h2>
+            <div class="choice-stack compact" data-menu="pause">
+                <div class="choice selected"><b>CONTINUAR</b></div>
+                <div class="choice"><b>REINICIAR</b></div>
+                <div class="choice"><b>MENÚ PRINCIPAL</b></div>
+            </div>
+            <p class="nav-hint">↑ ↓ ELEGIR &nbsp;·&nbsp; ENTER CONFIRMAR</p>
+        </section>
+
+        <div id="portal-flash"></div>
+
+        <section class="screen result" id="result-screen">
+            <div class="brand-mark small-mark" aria-hidden="true"><i></i><b>Σ</b><i></i></div>
+            <p class="eyebrow">MATHQUEST</p>
+            <h2>RECORRIDO COMPLETADO</h2>
+            <div class="result-grid">
+                <span>TIEMPO</span><b id="result-time">00:00</b>
+                <span>PRECISIÓN</span><b id="result-accuracy">100%</b>
+                <span>COMBO MÁXIMO</span><b id="result-combo">x1</b>
+                <span>VIDAS</span><b id="result-lives">3</b>
+                <span>PUNTOS</span><b id="result-score">0000</b>
+            </div>
+            <div class="choice-stack compact" data-menu="result">
+                <div class="choice selected"><b>REINTENTAR</b></div>
+                <div class="choice"><b>MENÚ PRINCIPAL</b></div>
+            </div>
+            <p class="nav-hint">↑ ↓ ELEGIR &nbsp;·&nbsp; ENTER CONFIRMAR</p>
+        </section>
+    </main>
+
+    <script type="module" src="../mathquest-art-kit-v1/scene.js"></script>
+</body>
+</html>

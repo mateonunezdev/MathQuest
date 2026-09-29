@@ -1,0 +1,114 @@
+{
+  "acceptance": {
+    "phase": "RESULT",
+    "phaseTimer": 1.066499999999993,
+    "difficulty": "AVENTURERO",
+    "movementState": "DISABLED",
+    "distance": 73.74884202248406,
+    "lateral": -0.11657270018585338,
+    "jumpY": 0,
+    "slide": false,
+    "dash": false,
+    "lives": 3,
+    "score": 3156,
+    "combo": 5,
+    "maxCombo": 5,
+    "energy": 0,
+    "mathResolved": true,
+    "routeChoice": 0,
+    "tutorial": {
+      "move": true,
+      "jump": true,
+      "slide": true,
+      "dash": true
+    },
+    "gameplayTime": 23.710499999999882,
+    "performance": {
+      "fps": 40.688540524656176,
+      "frameTimeMs": 24.576944444444415,
+      "frameP95Ms": 50,
+      "renderTimeMs": 5.35638888877713,
+      "drawCalls": 32,
+      "triangles": 25104,
+      "geometries": 62,
+      "textures": 7
+    }
+  },
+  "performance": {
+    "phase": "PLAYING",
+    "phaseTimer": 4.182399999999996,
+    "difficulty": "AVENTURERO",
+    "movementState": "RUN",
+    "distance": 13.412607999999958,
+    "lateral": 0,
+    "jumpY": 0,
+    "slide": false,
+    "dash": false,
+    "lives": 3,
+    "score": 1250,
+    "combo": 1,
+    "maxCombo": 1,
+    "energy": 0,
+    "mathResolved": false,
+    "routeChoice": null,
+    "tutorial": {
+      "move": false,
+      "jump": false,
+      "slide": false,
+      "dash": false
+    },
+    "gameplayTime": 4.182399999999996,
+    "performance": {
+      "fps": 57.61382731855645,
+      "frameTimeMs": 17.356944444444444,
+      "frameP95Ms": 16.80000000000109,
+      "renderTimeMs": 4.435833333308498,
+      "drawCalls": 62,
+      "triangles": 27780,
+      "geometries": 60,
+      "textures": 7
+    }
+  },
+  "wrongRoute": {
+    "phase": "PLAYING",
+    "phaseTimer": 0.16669999999999982,
+    "difficulty": "AVENTURERO",
+    "movementState": "HIT",
+    "distance": 54.207558160000005,
+    "lateral": -2.2,
+    "jumpY": 0,
+    "slide": false,
+    "dash": false,
+    "lives": 3,
+    "score": 1100,
+    "combo": 1,
+    "maxCombo": 1,
+    "energy": 0,
+    "mathResolved": true,
+    "routeChoice": -1,
+    "tutorial": {
+      "move": false,
+      "jump": false,
+      "slide": false,
+      "dash": false
+    },
+    "gameplayTime": 0.16669999999999982,
+    "performance": {
+      "fps": 48.240969525826564,
+      "frameTimeMs": 20.729268292682928,
+      "frameP95Ms": 50,
+      "renderTimeMs": 9.599999999854623,
+      "drawCalls": 36,
+      "triangles": 26488,
+      "geometries": 36,
+      "textures": 5
+    }
+  },
+  "videoMetadata": {
+    "duration": 50.24,
+    "width": 1280,
+    "height": 800
+  },
+  "errors": [],
+  "failed": []
+}
