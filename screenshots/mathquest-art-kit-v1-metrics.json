@@ -1,0 +1,129 @@
+{
+  "overview": {
+    "distance": 0.8,
+    "routeLength": 73.94884202248406,
+    "elapsed": 0.7205666666666668,
+    "finished": false,
+    "shot": "overview",
+    "backplate": false,
+    "energy": true,
+    "materials": [
+      "STONE_PRIMARY",
+      "STONE_DAMAGED",
+      "GOLD_AGED",
+      "CYAN_EMISSIVE"
+    ],
+    "components": {
+      "columns": 4,
+      "arch": 1,
+      "bridgeModules": 3,
+      "portal": 1
+    },
+    "performance": {
+      "fps": 50.25125628140704,
+      "frameTimeMs": 19.9,
+      "frameP95Ms": 49.999999999999886,
+      "renderTimeMs": 2.9805555550588503,
+      "drawCalls": 32,
+      "triangles": 25128,
+      "geometries": 32,
+      "textures": 3
+    }
+  },
+  "frameOnly": {
+    "distance": 62.848842022484064,
+    "routeLength": 73.94884202248406,
+    "elapsed": 5.119366666666672,
+    "finished": false,
+    "shot": "portal",
+    "backplate": false,
+    "energy": false,
+    "materials": [
+      "STONE_PRIMARY",
+      "STONE_DAMAGED",
+      "GOLD_AGED",
+      "CYAN_EMISSIVE"
+    ],
+    "components": {
+      "columns": 4,
+      "arch": 1,
+      "bridgeModules": 3,
+      "portal": 1
+    },
+    "performance": {
+      "fps": 58.64873318736316,
+      "frameTimeMs": 17.050666666666665,
+      "frameP95Ms": 16.700000000000728,
+      "renderTimeMs": 1.8293333330750465,
+      "drawCalls": 31,
+      "triangles": 25104,
+      "geometries": 32,
+      "textures": 3
+    }
+  },
+  "performance": {
+    "distance": 33.97130999999983,
+    "routeLength": 73.94884202248406,
+    "elapsed": 4.1989,
+    "finished": false,
+    "shot": null,
+    "backplate": false,
+    "energy": true,
+    "materials": [
+      "STONE_PRIMARY",
+      "STONE_DAMAGED",
+      "GOLD_AGED",
+      "CYAN_EMISSIVE"
+    ],
+    "components": {
+      "columns": 4,
+      "arch": 1,
+      "bridgeModules": 3,
+      "portal": 1
+    },
+    "performance": {
+      "fps": 59.684666014556434,
+      "frameTimeMs": 16.75472222222222,
+      "frameP95Ms": 16.700000000000728,
+      "renderTimeMs": 1.7974999999420511,
+      "drawCalls": 32,
+      "triangles": 25128,
+      "geometries": 33,
+      "textures": 4
+    }
+  },
+  "end": {
+    "distance": 72.24884202248406,
+    "routeLength": 73.94884202248406,
+    "elapsed": 9.318366666666684,
+    "finished": true,
+    "shot": null,
+    "backplate": false,
+    "energy": true,
+    "materials": [
+      "STONE_PRIMARY",
+      "STONE_DAMAGED",
+      "GOLD_AGED",
+      "CYAN_EMISSIVE"
+    ],
+    "components": {
+      "columns": 4,
+      "arch": 1,
+      "bridgeModules": 3,
+      "portal": 1
+    },
+    "performance": {
+      "fps": 46.56456953642384,
+      "frameTimeMs": 21.475555555555555,
+      "frameP95Ms": 33.40000000000009,
+      "renderTimeMs": 2.882499999904798,
+      "drawCalls": 24,
+      "triangles": 24472,
+      "geometries": 32,
+      "textures": 3
+    }
+  },
+  "errors": [],
+  "failed": [],
+  "videoErrors": []
+}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>MathQuest Bespoke Art Kit V1</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #06131a; }
+        canvas { display: block; width: 100%; height: 100%; }
+        #fallback {
+            position: fixed; inset: 0; display: grid; place-items: center;
+            color: #93fff1; background: #06131a;
+            font: 650 13px/1.4 system-ui, sans-serif; letter-spacing: .15em;
+        }
+    </style>
+    <script type="importmap">
+        { "imports": { "three": "../thirdperson-camera/vendor/three.module.min.js" } }
+    </script>
+</head>
+<body>
+    <canvas id="scene" aria-label="MathQuest bespoke architecture kit showcase"></canvas>
+    <div id="fallback">FORGING THE MATHQUEST ART KIT…</div>
+    <script type="module" src="./scene.js"></script>
+</body>
+</html>
