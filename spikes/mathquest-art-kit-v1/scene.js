@@ -190,6 +190,23 @@ function stoneBlock(width, height, depth, position, material = MATERIALS.STONE_P
     return mesh(chamferedBox(width, height, depth, bevel), material, position);
 }
 
+// Lightweight camera collision volumes are captured before the authored kit is
+// baked by material. This keeps the render-efficient merged meshes while still
+// preserving per-piece obstruction data for the third-person camera.
+const cameraOccluderBoxes = [];
+function registerCameraOccluders(root, label) {
+    root.updateWorldMatrix(true, true);
+    let index = 0;
+    root.traverse(object => {
+        if (!object.isMesh || ![MATERIALS.STONE_PRIMARY, MATERIALS.STONE_DAMAGED, MATERIALS.GOLD_AGED].includes(object.material)) return;
+        if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+        const box = object.geometry.boundingBox.clone().applyMatrix4(object.matrixWorld).expandByScalar(.18);
+        const size = box.getSize(new THREE.Vector3());
+        if (Math.max(size.x, size.y, size.z) < .42) return;
+        cameraOccluderBoxes.push({ box, name: `${label}_${index++}` });
+    });
+}
+
 function addRingSegments(group, options) {
     const {
         inner, outer, depth, start = 0, end = Math.PI * 2, count = 12,
@@ -460,6 +477,7 @@ for (let distance = 0; distance < routeLength - 2; distance += 2.05) {
 const arch = createArch();
 placeAlong(arch, 9.0, 0, -.12);
 scene.add(arch);
+registerCameraOccluders(arch, 'ARCH');
 
 for (const [distance, offset, variant] of [[20.5, 6.8, 0], [27.2, 7.15, 1]]) {
     for (const side of [-1, 1]) {
@@ -467,6 +485,7 @@ for (const [distance, offset, variant] of [[20.5, 6.8, 0], [27.2, 7.15, 1]]) {
         placeAlong(column, distance + side * .3, side * offset, -.68);
         column.rotation.y += side * .06;
         scene.add(column);
+        registerCameraOccluders(column, `COLUMN_${distance}_${side}`);
     }
 }
 
@@ -474,12 +493,14 @@ for (const [distance, type] of [[35.2, 'start'], [43.1, 'middle'], [51.0, 'end']
     const bridge = createBridgeModule(type);
     placeAlong(bridge, distance, 0, -.48);
     scene.add(bridge);
+    registerCameraOccluders(bridge, `BRIDGE_${type}`);
 }
 
 const portalDistance = routeLength - 4.1;
 const portalData = createPortal(query.get('energy') !== '0');
 placeAlong(portalData.group, portalDistance, 0, -.72);
 scene.add(portalData.group);
+registerCameraOccluders(portalData.group, 'PORTAL_FRAME');
 const portalSample = sampleAtDistance(portalDistance);
 const portalLight = new THREE.PointLight(0x4ae3df, query.get('energy') === '0' ? 0 : 11, 25, 1.8);
 portalLight.position.copy(portalSample.point).addScaledVector(UP, 6.2);
@@ -543,14 +564,16 @@ explorerTexture.colorSpace = THREE.SRGBColorSpace;
 explorerTexture.wrapS = THREE.RepeatWrapping;
 explorerTexture.repeat.set(.25, 1);
 const explorer = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: explorerTexture, transparent: true, alphaTest: .07, depthWrite: false, fog: true
+    map: explorerTexture, transparent: true, alphaTest: .12, depthWrite: false, fog: true
 }));
 explorer.center.set(.5, .03);
 explorer.scale.set(3.55, 3.55, 1);
+explorer.renderOrder = 3;
 scene.add(explorer);
 const contactShadow = mesh(new THREE.CircleGeometry(.8, 24), new THREE.MeshBasicMaterial({
-    color: 0x010406, transparent: true, opacity: .52, depthWrite: false
+    color: 0x010406, alphaMap: softTexture, transparent: true, opacity: .62, depthWrite: false
 }), [0, 0, 0], [-Math.PI / 2, 0, 0]);
+contactShadow.renderOrder = 1;
 scene.add(contactShadow);
 
 const state = {
@@ -591,7 +614,10 @@ function createIntegratedGame() {
         resultAccuracy: document.querySelector('#result-accuracy'),
         resultCombo: document.querySelector('#result-combo'),
         resultLives: document.querySelector('#result-lives'),
-        resultScore: document.querySelector('#result-score')
+        resultScore: document.querySelector('#result-score'),
+        resultRank: document.querySelector('#result-rank'),
+        intro: document.querySelector('#intro-screen'),
+        energyPanel: document.querySelector('.energy')
     };
     const screenIds = {
         MENU: 'menu-screen', DIFFICULTY: 'difficulty-screen', CONTROLS: 'controls-screen',
@@ -605,12 +631,17 @@ function createIntegratedGame() {
     const game = {
         phase: 'MENU', phaseTimer: 0, difficulty: 1, selection: 1, menuSelection: 0,
         pausedFrom: 'PLAYING', keys: new Set(), lastCountdown: 4, toastTimer: 0,
-        routeChoice: null, audioReady: false, tutorialMessage: null, questionVisible: null
+        routeChoice: null, audioReady: false, tutorialMessage: null, questionVisible: null,
+        resultCount: 0, resultTarget: 0, portalRiseTimer: 0,
+        cameraArm: 6.45, cameraObstruction: null, fadedOccluders: [], cameraTeleports: 0
     };
     const runner = {
         state: 'DISABLED', lateral: 0, lateralVelocity: 0, targetLateral: null,
-        jumpY: 0, verticalVelocity: 0, slideTimer: 0, dashTimer: 0, dashCooldown: 0,
-        hitTimer: 0, landingTimer: 0, attackTimer: 0, shieldTimer: 0, stepTimer: 0,
+        jumpY: 0, verticalVelocity: 0, jumpAnticipation: 0, slideAnticipation: 0,
+        slideTimer: 0, dashTimer: 0, dashCooldown: 0, dashFlashTimer: 0,
+        hitTimer: 0, landingTimer: 0, attackTimer: 0, attackImpactTimer: 0,
+        shieldTimer: 0, powerActivationTimer: 0, stepTimer: 0, bodyLean: 0,
+        mathFeedbackTimer: 0, mathFeedbackLane: 0, mathFeedbackCorrect: true,
         gameplayTime: 0, lives: 3, score: 1250, combo: 1, maxCombo: 1, energy: 0,
         questions: 0, correct: 0, mathResolved: false, lastDistance: 1.2,
         obstacles: { jump: false, slide: false, dash: false },
@@ -669,12 +700,13 @@ function createIntegratedGame() {
         const c = document.createElement('canvas');
         c.width = c.height = 256;
         const x = c.getContext('2d');
-        x.fillStyle = '#0a242a'; x.fillRect(0, 0, 256, 256);
-        x.strokeStyle = '#c18b3c'; x.lineWidth = 13; x.strokeRect(14, 14, 228, 228);
-        x.strokeStyle = 'rgba(84,236,226,.42)'; x.lineWidth = 3;
-        x.beginPath(); x.arc(128, 128, 82, 0, Math.PI * 2); x.stroke();
-        x.fillStyle = '#ecfffb'; x.font = '700 122px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle';
-        x.fillText(value, 128, 138);
+        x.clearRect(0, 0, 256, 256);
+        x.font = '700 158px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.strokeStyle = 'rgba(8,35,37,.98)'; x.lineWidth = 20;
+        x.strokeText(value, 128, 139);
+        x.shadowColor = 'rgba(65,245,231,.82)'; x.shadowBlur = 22;
+        x.fillStyle = '#fff7db';
+        x.fillText(value, 128, 139);
         const texture = new THREE.CanvasTexture(c); texture.colorSpace = THREE.SRGBColorSpace;
         labelTextures.push(texture); return texture;
     }
@@ -689,12 +721,22 @@ function createIntegratedGame() {
 
     const slideHazard = new THREE.Group();
     for (const side of [-1, 1]) {
-        slideHazard.add(stoneBlock(1.15, 3.25, 1.4, [side * 3.55, 1.42, 0], MATERIALS.STONE_DAMAGED, .12));
-        slideHazard.add(stoneBlock(.1, 2.3, .08, [side * 3.03, 1.4, .76], MATERIALS.CYAN_EMISSIVE, .015));
+        slideHazard.add(
+            stoneBlock(1.0, 2.82, .82, [side * 3.18, 1.25, 0], MATERIALS.STONE_DAMAGED, .12),
+            stoneBlock(.1, 1.92, .07, [side * 2.72, 1.34, -.45], MATERIALS.CYAN_EMISSIVE, .015),
+            stoneBlock(1.3, .22, 1.02, [side * 3.18, 2.68, 0], MATERIALS.GOLD_AGED, .04)
+        );
     }
-    const beam = stoneBlock(7.65, .72, 1.45, [0, 2.05, 0], MATERIALS.STONE_PRIMARY, .13);
-    beam.rotation.z = -.035;
-    slideHazard.add(beam, stoneBlock(7.1, .14, 1.58, [0, 1.67, 0], MATERIALS.GOLD_AGED, .025));
+    const slideCanopy = new THREE.Group();
+    const beam = stoneBlock(6.35, .46, .62, [0, 2.31, 0], MATERIALS.STONE_PRIMARY, .1);
+    beam.rotation.z = -.018;
+    slideCanopy.add(
+        beam,
+        stoneBlock(5.85, .075, .68, [0, 2.06, -.015], MATERIALS.CYAN_EMISSIVE, .018),
+        stoneBlock(1.2, .13, .74, [-2.35, 2.58, 0], MATERIALS.GOLD_AGED, .025),
+        stoneBlock(1.2, .13, .74, [2.35, 2.58, 0], MATERIALS.GOLD_AGED, .025)
+    );
+    slideHazard.add(slideCanopy);
     placeCourse(slideHazard, 26.2, 0, -.18);
 
     const dashGate = new THREE.Group();
@@ -723,20 +765,64 @@ function createIntegratedGame() {
     }
     branchMesh.instanceMatrix.needsUpdate = true; course.add(branchMesh);
 
+    const edgeTrimGeometry = chamferedBox(.16, .1, 1.28, .025);
+    const edgeTrimDistances = Array.from({ length: 13 }, (_, index) => 4.5 + index * 4.45);
+    const edgeTrim = new THREE.InstancedMesh(edgeTrimGeometry, MATERIALS.GOLD_AGED, edgeTrimDistances.length * 2);
+    let edgeIndex = 0;
+    for (const distance of edgeTrimDistances) {
+        const sample = sampleAtDistance(distance);
+        for (const side of [-1, 1]) {
+            const position = sample.point.clone().addScaledVector(sample.lateral, side * 4.02).addScaledVector(UP, .06);
+            quaternion.setFromAxisAngle(UP, Math.atan2(sample.tangent.x, sample.tangent.z));
+            matrix.compose(position, quaternion, scale); edgeTrim.setMatrixAt(edgeIndex++, matrix);
+        }
+    }
+    edgeTrim.instanceMatrix.needsUpdate = true; course.add(edgeTrim);
+
     const mathSigns = [];
     for (const [lane, answer] of [[-1, '5'], [0, '6'], [1, '8']]) {
         const sign = new THREE.Group();
-        sign.add(stoneBlock(2.45, 2.4, .35, [0, 1.15, 0], MATERIALS.STONE_DAMAGED, .12));
-        const faceMaterial = new THREE.MeshBasicMaterial({ map: labelTexture(answer), side: THREE.DoubleSide, toneMapped: false });
-        const face = mesh(new THREE.PlaneGeometry(1.72, 1.72), faceMaterial, [0, 1.22, -.31], [0, Math.PI, 0]);
-        sign.add(face, stoneBlock(2.7, .18, .55, [0, -.03, 0], MATERIALS.GOLD_AGED, .035));
-        if (lane === 0) {
-            sign.add(
-                stoneBlock(.22, 3.2, .3, [-.82, -1.62, 0], MATERIALS.GOLD_AGED, .03),
-                stoneBlock(.22, 3.2, .3, [.82, -1.62, 0], MATERIALS.GOLD_AGED, .03)
+        const isCenter = lane === 0;
+        const gateStone = isCenter ? MATERIALS.STONE_PRIMARY : MATERIALS.STONE_DAMAGED;
+        for (const side of [-1, 1]) {
+            const pillar = stoneBlock(.58, isCenter ? 2.82 : 2.52, .82,
+                [side * 1.12, isCenter ? 1.36 : 1.22, 0], gateStone, .1);
+            if (!isCenter) pillar.rotation.z = side * (lane < 0 ? -.025 : .025);
+            sign.add(pillar,
+                stoneBlock(.92, .24, 1.0, [side * 1.12, .1, 0], MATERIALS.STONE_PRIMARY, .06),
+                stoneBlock(.09, 1.62, .07, [side * .79, 1.32, -.44], MATERIALS.CYAN_EMISSIVE, .015)
             );
         }
-        placeCourse(sign, 52.0, lane * 2.55, lane === 0 ? 3.2 : .12);
+        addRingSegments(sign, {
+            inner: .83, outer: 1.21, depth: .78, start: 0, end: Math.PI,
+            count: isCenter ? 9 : 7, gap: .035, material: gateStone,
+            position: [0, isCenter ? 2.75 : 2.48, 0], alternateDepth: isCenter ? .08 : .13
+        });
+        addRingSegments(sign, {
+            inner: .71, outer: .78, depth: .86, start: 0, end: Math.PI,
+            count: 9, gap: .025, material: MATERIALS.GOLD_AGED,
+            position: [0, isCenter ? 2.75 : 2.48, -.02]
+        });
+        const medallionY = isCenter ? 4.08 : 3.78;
+        const medallion = mesh(new THREE.CylinderGeometry(.56, .56, .18, 12), gateStone,
+            [0, medallionY, -.15], [Math.PI / 2, 0, 0]);
+        const runeRing = mesh(new THREE.TorusGeometry(.59, .055, 6, 18), MATERIALS.GOLD_AGED,
+            [0, medallionY, -.27]);
+        const faceMaterial = new THREE.MeshBasicMaterial({
+            map: labelTexture(answer), transparent: true, alphaTest: .04,
+            side: THREE.DoubleSide, toneMapped: false, depthWrite: false
+        });
+        const face = mesh(new THREE.PlaneGeometry(1.08, 1.08), faceMaterial,
+            [0, medallionY, -.31], [0, Math.PI, 0]);
+        face.renderOrder = 4;
+        face.userData.cameraFadeHard = true;
+        sign.add(medallion, runeRing, face,
+            stoneBlock(2.08, .075, .72, [0, .03, 0], MATERIALS.CYAN_EMISSIVE, .015));
+        if (isCenter) {
+            const crown = mesh(new THREE.OctahedronGeometry(.24, 0), MATERIALS.CYAN_EMISSIVE, [0, 4.78, 0]);
+            crown.scale.set(.72, 1.25, .42); sign.add(crown);
+        }
+        placeCourse(sign, 52.0, lane * 2.62, isCenter ? .18 : .02);
         mathSigns.push({ lane, sign, faceMaterial });
     }
 
@@ -755,13 +841,125 @@ function createIntegratedGame() {
         }));
         sprite.visible = false; scene.add(sprite); return sprite;
     });
-    const attackPulse = mesh(new THREE.TorusGeometry(1.05, .055, 6, 36), MATERIALS.CYAN_EMISSIVE);
+    const afterImages = Array.from({ length: 3 }, (_, index) => {
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: explorerTexture, color: index === 2 ? 0xd69c45 : 0x66fff3,
+            transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending
+        }));
+        sprite.center.copy(explorer.center); sprite.scale.copy(explorer.scale); sprite.visible = false; scene.add(sprite); return sprite;
+    });
+    const backpackGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: softTexture, color: 0x42e7df, transparent: true, opacity: .17,
+        depthWrite: false, blending: THREE.AdditiveBlending
+    }));
+    backpackGlow.scale.set(.72, .72, 1); backpackGlow.visible = false; scene.add(backpackGlow);
+    const attackPulse = mesh(new THREE.TorusGeometry(1.05, .055, 6, 36), new THREE.MeshBasicMaterial({
+        color: 0x55eee5, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending
+    }));
     attackPulse.visible = false; scene.add(attackPulse);
+    const attackImpact = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: softTexture, color: 0xffc86a, transparent: true, opacity: 0,
+        depthWrite: false, blending: THREE.AdditiveBlending
+    }));
+    attackImpact.visible = false; scene.add(attackImpact);
     const shield = mesh(new THREE.IcosahedronGeometry(1.55, 2), new THREE.MeshBasicMaterial({
         color: 0x55efe5, wireframe: true, transparent: true, opacity: .24,
         depthWrite: false, blending: THREE.AdditiveBlending
     }));
     shield.visible = false; scene.add(shield);
+    const powerRing = mesh(new THREE.TorusGeometry(1.22, .045, 6, 36), new THREE.MeshBasicMaterial({
+        color: 0xd69c45, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending
+    }), [0, 0, 0], [Math.PI / 2, 0, 0]);
+    powerRing.visible = false; scene.add(powerRing);
+    const mathWave = mesh(new THREE.TorusGeometry(.9, .055, 6, 36), new THREE.MeshBasicMaterial({
+        color: 0x66fff3, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending
+    }), [0, 0, 0], [Math.PI / 2, 0, 0]);
+    mathWave.visible = false; scene.add(mathWave);
+    const portalSpill = mesh(new THREE.CircleGeometry(4.8, 32), new THREE.MeshBasicMaterial({
+        color: 0x50ebe4, transparent: true, opacity: .11, depthWrite: false, blending: THREE.AdditiveBlending
+    }), [0, 0, 0], [-Math.PI / 2, 0, 0]);
+    portalSpill.position.copy(portalSample.point).addScaledVector(UP, .035);
+    scene.add(portalSpill);
+    const portalTint = new THREE.Color(0x61eee7);
+    const playerWarmTint = new THREE.Color(0xfff6e8);
+    const playerCyanTint = new THREE.Color(0xbdfdf5);
+    const playerFillLight = new THREE.PointLight(0x65e8df, .72, 6.5, 2);
+    scene.add(playerFillLight);
+
+    course.updateMatrixWorld(true);
+    const fadeGroups = [];
+    const fadeMeshes = [];
+    function registerFadeGroup(root, name) {
+        const meshes = [];
+        root.traverse(object => {
+            if (!object.isMesh) return;
+            if (Object.values(MATERIALS).includes(object.material)) object.material = object.material.clone();
+            object.material.transparent = true; object.material.opacity = 1;
+            object.userData.cameraFadeGroup = name;
+            meshes.push(object); fadeMeshes.push(object);
+        });
+        fadeGroups.push({
+            name, meshes, opacity: 1,
+            box: new THREE.Box3().setFromObject(root).expandByScalar(.28)
+        });
+    }
+    registerFadeGroup(slideCanopy, 'SLIDE_CANOPY');
+    registerFadeGroup(dashGate, 'DASH_GATE');
+    mathSigns.forEach(({ sign, lane }) => registerFadeGroup(sign, `MATH_GATE_${lane}`));
+    const visibilityRaycaster = new THREE.Raycaster();
+    const cameraRay = new THREE.Ray();
+    const cameraHit = new THREE.Vector3();
+    const cameraDirection = new THREE.Vector3();
+    const safeCameraTarget = new THREE.Vector3();
+
+    function resolveCameraObstruction(focus, desired, delta) {
+        cameraDirection.subVectors(desired, focus);
+        const desiredDistance = cameraDirection.length();
+        if (desiredDistance <= .01) return desired;
+        cameraDirection.multiplyScalar(1 / desiredDistance);
+        cameraRay.set(focus, cameraDirection);
+        let obstructionDistance = desiredDistance;
+        let obstruction = null;
+        for (const item of cameraOccluderBoxes) {
+            if (item.box.containsPoint(focus)) continue;
+            const hit = cameraRay.intersectBox(item.box, cameraHit);
+            if (!hit) continue;
+            const distance = focus.distanceTo(hit);
+            if (distance > .55 && distance < obstructionDistance) {
+                obstructionDistance = distance; obstruction = item.name;
+            }
+        }
+        const targetArm = obstruction ? Math.max(.82, obstructionDistance - .28) : desiredDistance;
+        game.cameraArm = THREE.MathUtils.damp(game.cameraArm, targetArm, obstruction ? 18 : 4.2, delta);
+        game.cameraArm = Math.min(game.cameraArm, desiredDistance);
+        game.cameraObstruction = obstruction;
+        return safeCameraTarget.copy(focus).addScaledVector(cameraDirection, game.cameraArm);
+    }
+
+    function updateOccluderFade(delta, focus) {
+        cameraDirection.subVectors(focus, camera.position);
+        const distance = cameraDirection.length();
+        const hitGroups = new Set();
+        if (distance > .3) {
+            visibilityRaycaster.set(camera.position, cameraDirection.multiplyScalar(1 / distance));
+            visibilityRaycaster.near = .2; visibilityRaycaster.far = distance - .18;
+            for (const hit of visibilityRaycaster.intersectObjects(fadeMeshes, false)) {
+                if (hit.object.userData.cameraFadeGroup) hitGroups.add(hit.object.userData.cameraFadeGroup);
+            }
+        }
+        const activeGroups = new Set(hitGroups);
+        for (const group of fadeGroups) {
+            const nearCamera = group.box.distanceToPoint(camera.position) < 4.1;
+            if (nearCamera) activeGroups.add(group.name);
+            const targetOpacity = nearCamera ? .025 : hitGroups.has(group.name) ? .16 : 1;
+            group.opacity = THREE.MathUtils.damp(group.opacity, targetOpacity, targetOpacity < 1 ? 18 : 5, delta);
+            for (const object of group.meshes) {
+                object.material.opacity = object.userData.cameraFadeHard ? Math.pow(group.opacity, 3) : group.opacity;
+                object.material.depthWrite = group.opacity > .72;
+            }
+        }
+        game.fadedOccluders = [...activeGroups];
+    }
 
     function showScreen(phase) {
         const id = screenIds[phase];
@@ -777,18 +975,31 @@ function createIntegratedGame() {
     function toast(message, duration = 1.25) {
         ui.toast.textContent = message; ui.toast.classList.add('active'); game.toastTimer = duration;
     }
+    function confirmSweep() {
+        ui.flash.classList.remove('active', 'confirm'); void ui.flash.offsetWidth;
+        ui.flash.classList.add('confirm');
+        setTimeout(() => ui.flash.classList.remove('confirm'), 520);
+    }
     function resetRunner() {
         Object.assign(runner, {
             state: 'DISABLED', lateral: 0, lateralVelocity: 0, targetLateral: null,
-            jumpY: 0, verticalVelocity: 0, slideTimer: 0, dashTimer: 0, dashCooldown: 0,
-            hitTimer: 0, landingTimer: 0, attackTimer: 0, shieldTimer: 0, stepTimer: 0,
+            jumpY: 0, verticalVelocity: 0, jumpAnticipation: 0, slideAnticipation: 0,
+            slideTimer: 0, dashTimer: 0, dashCooldown: 0, dashFlashTimer: 0,
+            hitTimer: 0, landingTimer: 0, attackTimer: 0, attackImpactTimer: 0,
+            shieldTimer: 0, powerActivationTimer: 0, stepTimer: 0, bodyLean: 0,
+            mathFeedbackTimer: 0, mathFeedbackLane: 0, mathFeedbackCorrect: true,
             gameplayTime: 0, lives: 3, score: 1250, combo: 1, maxCombo: 1, energy: 0,
             questions: 0, correct: 0, mathResolved: false, lastDistance: 1.2,
             obstacles: { jump: false, slide: false, dash: false },
             tutorial: { move: false, jump: false, slide: false, dash: false }
         });
         state.distance = 1.2; state.finished = false; state.shot = null;
+        game.routeChoice = null; game.portalRiseTimer = 0; game.cameraArm = 6.45;
+        game.cameraObstruction = null; game.fadedOccluders = [];
         explorer.scale.set(3.55, 3.55, 1); explorer.material.rotation = 0;
+        explorer.material.color.set(0xffffff); backpackGlow.visible = false;
+        afterImages.forEach(image => { image.visible = false; image.material.opacity = 0; });
+        mathWave.visible = false; powerRing.visible = false; attackImpact.visible = false;
         mathSigns.forEach(({ faceMaterial }) => faceMaterial.color.set(0xffffff));
         updateHud();
     }
@@ -798,14 +1009,17 @@ function createIntegratedGame() {
         showScreen(phase);
         ui.hud.classList.toggle('active', ['PLAYING', 'PORTAL'].includes(phase));
         ui.question.classList.remove('active'); ui.tutorial.classList.remove('active');
+        ui.intro.classList.remove('pre-title', 'title-only');
         if (phase === 'MENU') {
             explorer.visible = false; contactShadow.visible = false; runner.state = 'DISABLED'; state.distance = portalDistance - 7;
         } else if (phase === 'DIFFICULTY') {
             game.selection = game.difficulty; select(ui.difficultyChoices, game.selection);
         } else if (phase === 'INTRO') {
             resetRunner(); explorer.visible = true; contactShadow.visible = true; runner.state = 'DISABLED';
+            ui.intro.classList.add('pre-title');
         } else if (phase === 'COUNTDOWN') {
             explorer.visible = true; contactShadow.visible = true; runner.state = 'DISABLED'; ui.countdown.textContent = '3';
+            ui.countdown.classList.remove('go');
         } else if (phase === 'PLAYING') {
             runner.state = 'RUN'; explorer.visible = true; contactShadow.visible = true; state.paused = false;
         } else if (phase === 'RESULT') {
@@ -815,7 +1029,10 @@ function createIntegratedGame() {
             ui.resultTime.textContent = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
             ui.resultAccuracy.textContent = `${runner.questions ? Math.round(runner.correct / runner.questions * 100) : 0}%`;
             ui.resultCombo.textContent = `x${runner.maxCombo}`; ui.resultLives.textContent = runner.lives;
-            ui.resultScore.textContent = Math.round(runner.score).toString(); audio.cue('result');
+            game.resultTarget = Math.round(runner.score); game.resultCount = 0; ui.resultScore.textContent = '0000';
+            const accuracy = runner.questions ? runner.correct / runner.questions : 0;
+            const rank = accuracy >= 1 && runner.lives >= 2 ? 'ORO' : accuracy >= .5 ? 'PLATA' : 'BRONCE';
+            ui.resultRank.querySelector('b').textContent = rank; ui.resultRank.classList.remove('active'); audio.cue('result');
         }
     }
 
@@ -830,8 +1047,8 @@ function createIntegratedGame() {
     }
     function confirm() {
         audio.ensure();
-        if (game.phase === 'MENU') { audio.cue('start'); setPhase('DIFFICULTY'); }
-        else if (game.phase === 'DIFFICULTY') { game.difficulty = game.selection; audio.cue('confirm'); setPhase('CONTROLS'); }
+        if (game.phase === 'MENU') { confirmSweep(); audio.cue('start'); setPhase('DIFFICULTY'); }
+        else if (game.phase === 'DIFFICULTY') { confirmSweep(); game.difficulty = game.selection; audio.cue('confirm'); setPhase('CONTROLS'); }
         else if (game.phase === 'CONTROLS') { audio.cue('confirm'); setPhase('INTRO'); }
         else if (game.phase === 'INTRO') { audio.cue('confirm'); setPhase('COUNTDOWN'); }
         else if (game.phase === 'PLAYING') pause();
@@ -840,7 +1057,7 @@ function createIntegratedGame() {
             else if (game.menuSelection === 1) setPhase('INTRO');
             else setPhase('MENU');
         } else if (game.phase === 'RESULT') {
-            if (game.menuSelection === 0) setPhase('INTRO'); else setPhase('MENU');
+            if (game.menuSelection === 0) { confirmSweep(); resetRunner(); setPhase('COUNTDOWN'); } else setPhase('MENU');
         }
     }
     function pause() {
@@ -852,25 +1069,30 @@ function createIntegratedGame() {
         ui.hud.classList.add('active'); runner.state = runner.jumpY > 0 ? 'JUMP' : 'RUN';
     }
     function requestJump() {
-        if (runner.jumpY > .001 || runner.slideTimer > 0 || runner.hitTimer > 0) return;
-        runner.verticalVelocity = 8.45; runner.jumpY = .01; runner.state = 'JUMP'; runner.tutorial.jump = true; audio.cue('jump');
+        if (runner.jumpY > .001 || runner.jumpAnticipation > 0 || runner.slideTimer > 0 || runner.slideAnticipation > 0 || runner.hitTimer > 0) return;
+        runner.jumpAnticipation = .12; runner.state = 'JUMP'; runner.tutorial.jump = true;
     }
     function requestSlide() {
-        if (runner.jumpY > .01 || runner.slideTimer > 0 || runner.hitTimer > 0) return;
-        runner.slideTimer = .86; runner.state = 'SLIDE'; runner.tutorial.slide = true; audio.cue('slide');
+        if (runner.jumpY > .01 || runner.jumpAnticipation > 0 || runner.slideTimer > 0 || runner.slideAnticipation > 0 || runner.hitTimer > 0) return;
+        runner.slideAnticipation = .1; runner.state = 'SLIDE'; runner.tutorial.slide = true;
     }
     function requestDash() {
         if (runner.dashCooldown > 0 || runner.hitTimer > 0) return;
-        runner.dashTimer = .46; runner.dashCooldown = 2.5; runner.state = 'DASH'; runner.tutorial.dash = true;
+        runner.dashTimer = .46; runner.dashFlashTimer = .13; runner.dashCooldown = 2.5; runner.state = 'DASH'; runner.tutorial.dash = true;
         runner.score += Math.round(100 * profiles[game.difficulty].multiplier); audio.cue('dash'); updateHud();
     }
     function requestAttack() {
         if (runner.hitTimer > 0 || runner.attackTimer > 0) return;
-        runner.attackTimer = .38; attackPulse.visible = true; attackPulse.scale.setScalar(.4); audio.cue('attack');
+        runner.attackTimer = .42; runner.attackImpactTimer = .24; attackPulse.visible = true; attackPulse.scale.setScalar(.25); audio.cue('attack');
     }
     function requestPower() {
-        if (runner.energy <= 0) { toast('ENERGÍA Σ INSUFICIENTE'); audio.cue('wrong'); return; }
-        runner.energy--; runner.shieldTimer = 3.0; shield.visible = true; toast('ESCUDO Σ ACTIVADO'); audio.cue('power'); updateHud();
+        if (runner.energy <= 0) {
+            toast('ENERGÍA Σ INSUFICIENTE'); ui.energyPanel.classList.remove('denied'); void ui.energyPanel.offsetWidth;
+            ui.energyPanel.classList.add('denied'); setTimeout(() => ui.energyPanel.classList.remove('denied'), 700);
+            audio.cue('wrong'); return;
+        }
+        runner.energy--; runner.shieldTimer = 3.0; runner.powerActivationTimer = .55; shield.visible = true;
+        toast('ESCUDO Σ ACTIVADO'); audio.cue('power'); updateHud();
     }
     function onKeyDown(event) {
         const code = event.code;
@@ -912,17 +1134,26 @@ function createIntegratedGame() {
         cameraPose(portalDistance - 8.8, 7.0 + drift * .75, 2.0, 5.5 + drift * .18,
             portalDistance, 0, 5.7, 2.2, delta);
         camera.fov = THREE.MathUtils.damp(camera.fov, 52, 4, delta); camera.updateProjectionMatrix();
+        portalLight.intensity = 13 + Math.sin(state.elapsed * 1.7) * 1.8;
+        portalData.particles.material.opacity = .76 + Math.sin(state.elapsed * 1.35) * .08;
+        portalSpill.material.opacity = .15 + Math.sin(state.elapsed * 1.5) * .035;
     }
     function updateIntroCamera(delta) {
-        const progress = THREE.MathUtils.smoothstep(game.phaseTimer, .4, 3.0);
-        const start = sampleAtDistance(8); const ground = sampleAtDistance(1.2);
+        const introTime = game.phase === 'COUNTDOWN' ? 9 : game.phaseTimer;
+        const start = sampleAtDistance(8); const ground = sampleAtDistance(1.2); const portal = sampleAtDistance(portalDistance);
         const wide = start.point.clone().addScaledVector(start.lateral, 15).addScaledVector(start.tangent, -7).addScaledVector(UP, 10);
+        const landmark = sampleAtDistance(42).point.clone().addScaledVector(start.lateral, 10).addScaledVector(UP, 7.2);
         const chase = ground.point.clone().addScaledVector(ground.tangent, -6.2).addScaledVector(UP, 3.35);
-        const desired = wide.lerp(chase, progress);
-        const wideLook = sampleAtDistance(37).point.clone().addScaledVector(UP, 2.5);
+        const wideLook = sampleAtDistance(34).point.clone().addScaledVector(UP, 2.5);
+        const portalLook = portal.point.clone().addScaledVector(UP, 4.9);
         const chaseLook = ground.point.clone().addScaledVector(ground.tangent, 10).addScaledVector(UP, 1.65);
-        const look = wideLook.lerp(chaseLook, progress);
-        camera.position.lerp(desired, 1 - Math.exp(-2.6 * delta)); cameraLook.lerp(look, 1 - Math.exp(-3 * delta)); camera.lookAt(cameraLook);
+        let desired; let look;
+        if (introTime < .82) {
+            const p = THREE.MathUtils.smoothstep(introTime, 0, .82); desired = wide.clone().lerp(landmark, p); look = wideLook.clone().lerp(portalLook, p);
+        } else {
+            const p = THREE.MathUtils.smoothstep(introTime, .82, 2.45); desired = landmark.clone().lerp(chase, p); look = portalLook.clone().lerp(chaseLook, p);
+        }
+        camera.position.lerp(desired, 1 - Math.exp(-3.4 * delta)); cameraLook.lerp(look, 1 - Math.exp(-3.8 * delta)); camera.lookAt(cameraLook);
         camera.fov = THREE.MathUtils.damp(camera.fov, BASE_FOV, 4, delta); camera.updateProjectionMatrix();
         const sample = sampleAtDistance(1.2); explorer.position.copy(sample.point).addScaledVector(UP, .04); contactShadow.position.copy(sample.point).addScaledVector(UP, .04);
     }
@@ -943,17 +1174,56 @@ function createIntegratedGame() {
                 .addScaledVector(sample.lateral, (index % 2 ? 1 : -1) * (.28 + index * .035)).addScaledVector(UP, .45 + index * .09);
             sprite.scale.set(1.6 + index * .22, .07, 1);
         });
+        afterImages.forEach((image, index) => {
+            image.visible = runner.dashTimer > 0;
+            image.material.opacity = runner.dashTimer > 0 ? (.19 - index * .045) * Math.min(1, runner.dashTimer * 5) : 0;
+            image.position.copy(ground).addScaledVector(sample.tangent, -.38 - index * .5)
+                .addScaledVector(sample.lateral, -runner.lateralVelocity * .018).addScaledVector(UP, .04 + runner.jumpY);
+            image.scale.set(3.55, 3.55, 1); image.material.rotation = explorer.material.rotation;
+        });
+        backpackGlow.visible = explorer.visible;
+        if (backpackGlow.visible) {
+            const glowTarget = ground.clone().addScaledVector(sample.tangent, -.12)
+                .addScaledVector(sample.lateral, -.28 - runner.lateralVelocity * .018).addScaledVector(UP, 1.72 + runner.jumpY);
+            backpackGlow.position.lerp(glowTarget, 1 - Math.exp(-9 * delta));
+            backpackGlow.material.opacity = .13 + Math.sin(state.elapsed * 8) * .035 + (runner.dashTimer > 0 ? .23 : 0);
+        }
         if (runner.attackTimer > 0) {
-            const progress = 1 - runner.attackTimer / .38;
-            attackPulse.visible = true; attackPulse.position.copy(ground).addScaledVector(UP, 1.05);
-            attackPulse.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
-            attackPulse.scale.setScalar(.6 + progress * 2.5); attackPulse.material.opacity = 1 - progress;
+            const progress = 1 - runner.attackTimer / .42;
+            attackPulse.visible = progress > .12; attackPulse.position.copy(ground).addScaledVector(sample.tangent, .65 + progress * 1.7).addScaledVector(UP, 1.12);
+            attackPulse.rotation.set(0, Math.atan2(sample.tangent.x, sample.tangent.z), 0);
+            attackPulse.scale.setScalar(.38 + progress * 2.3); attackPulse.material.opacity = Math.max(0, 1 - progress * 1.05);
         } else attackPulse.visible = false;
+        attackImpact.visible = runner.attackImpactTimer > 0 && runner.attackTimer < .31;
+        if (attackImpact.visible) {
+            const impactProgress = 1 - runner.attackImpactTimer / .24;
+            attackImpact.position.copy(ground).addScaledVector(sample.tangent, 2.15).addScaledVector(UP, 1.14);
+            attackImpact.scale.setScalar(.25 + impactProgress * 1.55); attackImpact.material.opacity = (1 - impactProgress) * .72;
+        }
         shield.visible = runner.shieldTimer > 0 || game.phase === 'PORTAL';
         if (shield.visible) {
             shield.position.copy(ground).addScaledVector(UP, 1.25); shield.rotation.y += delta * .75; shield.rotation.x += delta * .28;
             shield.material.opacity = game.phase === 'PORTAL' ? .42 : .16 + Math.sin(state.elapsed * 7) * .06;
         }
+        powerRing.visible = runner.powerActivationTimer > 0;
+        if (powerRing.visible) {
+            const p = 1 - runner.powerActivationTimer / .55;
+            powerRing.position.copy(ground).addScaledVector(UP, .08); powerRing.scale.setScalar(.45 + p * 2.35);
+            powerRing.material.opacity = (1 - p) * .72; powerRing.rotation.z += delta * 1.8;
+        }
+        mathWave.visible = runner.mathFeedbackTimer > 0;
+        if (mathWave.visible) {
+            const laneSign = mathSigns.find(item => item.lane === runner.mathFeedbackLane) || mathSigns[1];
+            const p = 1 - runner.mathFeedbackTimer / .65;
+            mathWave.position.copy(laneSign.sign.position).addScaledVector(UP, 1.9);
+            mathWave.scale.setScalar(.5 + p * 3.4); mathWave.material.opacity = (1 - p) * .72;
+            mathWave.material.color.set(runner.mathFeedbackCorrect ? 0x66fff3 : 0xff9b5d);
+        }
+        const portalApproach = THREE.MathUtils.clamp((state.distance - 55) / Math.max(1, portalDistance - 55), 0, 1);
+        portalLight.intensity = 11 + portalApproach * 10;
+        portalData.particles.material.opacity = .68 + portalApproach * .25;
+        portalData.particles.material.size = .42 + portalApproach * .08;
+        portalSpill.material.opacity = .1 + portalApproach * .22; portalSpill.scale.setScalar(1 + portalApproach * .26);
     }
     function hit(message) {
         if (runner.hitTimer > 0 || runner.shieldTimer > 0) return;
@@ -989,9 +1259,11 @@ function createIntegratedGame() {
                 runner.maxCombo = Math.max(runner.maxCombo, runner.combo);
                 runner.score += Math.round(750 * profiles[game.difficulty].multiplier);
                 mathSigns[1].faceMaterial.color.set(0x7ffff4); toast('RUTA CORRECTA · +ENERGÍA Σ', 1.8); audio.cue('correct');
+                runner.mathFeedbackTimer = .65; runner.mathFeedbackLane = lane; runner.mathFeedbackCorrect = true;
             } else {
                 runner.combo = 1; runner.hitTimer = .65; runner.score = Math.max(0, runner.score - 150);
                 mathSigns[lane < 0 ? 0 : 2].faceMaterial.color.set(0xff875f); toast('18 ÷ 3 = 6 · RECUPERA EL RITMO', 1.8); audio.cue('wrong');
+                runner.mathFeedbackTimer = .65; runner.mathFeedbackLane = lane; runner.mathFeedbackCorrect = false;
             }
             runner.targetLateral = null; updateHud();
         }
@@ -1012,11 +1284,32 @@ function createIntegratedGame() {
             game.questionVisible = questionVisible; ui.question.classList.toggle('active', questionVisible);
         }
     }
+    function syncCameraToRunner() {
+        const sample = sampleAtDistance(state.distance);
+        const ground = sample.point.clone().addScaledVector(sample.lateral, runner.lateral);
+        camera.position.copy(ground).addScaledVector(sample.tangent, -6.2).addScaledVector(UP, 3.35);
+        cameraLook.copy(ground).addScaledVector(sample.tangent, 10.2).addScaledVector(UP, 1.65);
+        camera.lookAt(cameraLook); camera.fov = BASE_FOV; camera.updateProjectionMatrix();
+        game.cameraArm = camera.position.distanceTo(ground.clone().addScaledVector(UP, 1.42));
+    }
     function updateRunner(delta) {
         const profile = profiles[game.difficulty]; runner.gameplayTime += delta;
+        const jumpAnticipationBefore = runner.jumpAnticipation;
+        const slideAnticipationBefore = runner.slideAnticipation;
+        runner.jumpAnticipation = Math.max(0, runner.jumpAnticipation - delta);
+        runner.slideAnticipation = Math.max(0, runner.slideAnticipation - delta);
+        if (jumpAnticipationBefore > 0 && runner.jumpAnticipation === 0) {
+            runner.verticalVelocity = 9.0; runner.jumpY = .01; audio.cue('jump');
+        }
+        if (slideAnticipationBefore > 0 && runner.slideAnticipation === 0) {
+            runner.slideTimer = .78; audio.cue('slide');
+        }
         runner.slideTimer = Math.max(0, runner.slideTimer - delta); runner.dashTimer = Math.max(0, runner.dashTimer - delta);
+        runner.dashFlashTimer = Math.max(0, runner.dashFlashTimer - delta);
         runner.dashCooldown = Math.max(0, runner.dashCooldown - delta); runner.hitTimer = Math.max(0, runner.hitTimer - delta);
-        runner.attackTimer = Math.max(0, runner.attackTimer - delta); runner.shieldTimer = Math.max(0, runner.shieldTimer - delta);
+        runner.attackTimer = Math.max(0, runner.attackTimer - delta); runner.attackImpactTimer = Math.max(0, runner.attackImpactTimer - delta);
+        runner.shieldTimer = Math.max(0, runner.shieldTimer - delta); runner.powerActivationTimer = Math.max(0, runner.powerActivationTimer - delta);
+        runner.mathFeedbackTimer = Math.max(0, runner.mathFeedbackTimer - delta);
         runner.landingTimer = Math.max(0, runner.landingTimer - delta);
         const steerInput = (game.keys.has('ArrowRight') || game.keys.has('KeyD') ? 1 : 0) -
             (game.keys.has('ArrowLeft') || game.keys.has('KeyA') ? 1 : 0);
@@ -1033,10 +1326,12 @@ function createIntegratedGame() {
         }
         runner.lateral = THREE.MathUtils.clamp(runner.lateral + runner.lateralVelocity * delta, -3.25, 3.25);
         if (Math.abs(runner.lateral) >= 3.24) runner.lateralVelocity *= .35;
+        runner.bodyLean = THREE.MathUtils.damp(runner.bodyLean, THREE.MathUtils.clamp(-runner.lateralVelocity * .014, -.09, .09), 9, delta);
 
+        let landed = false;
         if (runner.jumpY > 0 || runner.verticalVelocity > 0) {
-            runner.verticalVelocity -= 24.5 * delta; runner.jumpY += runner.verticalVelocity * delta;
-            if (runner.jumpY <= 0) { runner.jumpY = 0; runner.verticalVelocity = 0; runner.landingTimer = .18; audio.cue('land'); }
+            runner.verticalVelocity -= 27 * delta; runner.jumpY += runner.verticalVelocity * delta;
+            if (runner.jumpY <= 0) { runner.jumpY = 0; runner.verticalVelocity = 0; runner.landingTimer = .22; landed = true; audio.cue('land'); }
         }
         let speed = profile.speed + (state.distance > 55 ? .48 : 0) + (runner.dashTimer > 0 ? 4.65 : 0) - (runner.hitTimer > 0 ? 1.25 : 0);
         if (state.distance > 43.5 && state.distance < 54.2) speed *= game.difficulty === 0 ? .84 : game.difficulty === 2 ? 1.08 : .94;
@@ -1045,33 +1340,62 @@ function createIntegratedGame() {
 
         if (runner.hitTimer > 0) runner.state = 'HIT';
         else if (runner.dashTimer > 0) runner.state = 'DASH';
-        else if (runner.slideTimer > 0) runner.state = 'SLIDE';
-        else if (runner.jumpY > 0) runner.state = 'JUMP';
+        else if (runner.slideTimer > 0 || runner.slideAnticipation > 0) runner.state = 'SLIDE';
+        else if (runner.jumpY > 0 || runner.jumpAnticipation > 0) runner.state = 'JUMP';
         else if (Math.abs(runner.lateralVelocity) > .35) runner.state = 'STEER';
         else runner.state = 'RUN';
 
         const sample = sampleAtDistance(state.distance);
         const ground = sample.point.clone().addScaledVector(sample.lateral, runner.lateral);
-        const bob = runner.jumpY === 0 && runner.slideTimer <= 0 ? Math.sin(runner.gameplayTime * (7.5 + speed * .45)) * .055 : 0;
-        const slideProgress = runner.slideTimer > 0 ? Math.sin(Math.min(1, (1 - runner.slideTimer / .86) * 1.7) * Math.PI / 2) : 0;
-        const landing = runner.landingTimer > 0 ? Math.sin(runner.landingTimer / .18 * Math.PI) * .12 : 0;
-        explorer.position.copy(ground).addScaledVector(UP, .04 + runner.jumpY + bob - slideProgress * .52 - landing);
-        explorer.scale.set(3.55 + slideProgress * .45, 3.55 - slideProgress * .85 + landing * 1.2, 1);
-        explorer.material.rotation = -slideProgress * .055 + THREE.MathUtils.clamp(runner.lateralVelocity * -.006, -.035, .035);
+        const runCycle = runner.gameplayTime * (7.8 + speed * .52);
+        const bob = runner.jumpY === 0 && runner.slideTimer <= 0 ? Math.sin(runCycle) * .085 : 0;
+        const torso = runner.jumpY === 0 && runner.slideTimer <= 0 ? Math.sin(runCycle * .5) * .012 : 0;
+        const slideT = runner.slideTimer > 0 ? 1 - runner.slideTimer / .78 : 0;
+        const slideProgress = runner.slideTimer > 0 ? Math.pow(Math.sin(Math.PI * THREE.MathUtils.clamp(slideT, 0, 1)), .62) : 0;
+        const jumpPrep = runner.jumpAnticipation > 0 ? Math.sin((1 - runner.jumpAnticipation / .12) * Math.PI / 2) : 0;
+        const slidePrep = runner.slideAnticipation > 0 ? Math.sin((1 - runner.slideAnticipation / .1) * Math.PI / 2) : 0;
+        const landing = runner.landingTimer > 0 ? Math.sin(runner.landingTimer / .22 * Math.PI) * .16 : 0;
+        const jumpPitch = runner.jumpY > 0 ? THREE.MathUtils.clamp(-runner.verticalVelocity * .008, -.06, .065) : 0;
+        const attackRecoil = runner.attackTimer > 0 ? Math.sin((1 - runner.attackTimer / .42) * Math.PI) * -.07 : 0;
+        explorer.position.copy(ground).addScaledVector(sample.lateral, torso).addScaledVector(UP,
+            .04 + runner.jumpY + bob - slideProgress * .58 - jumpPrep * .2 - slidePrep * .18 - landing);
+        explorer.scale.set(3.55 + slideProgress * .52 + landing * .65,
+            3.55 - slideProgress * .98 - jumpPrep * .38 - slidePrep * .28 + landing * 1.35, 1);
+        explorer.material.rotation = runner.bodyLean - slideProgress * .105 + jumpPitch + attackRecoil;
         explorerTexture.offset.x = (Math.floor(runner.gameplayTime * (8 + speed * .85)) % 4) * .25;
         contactShadow.position.copy(ground).addScaledVector(UP, .045); contactShadow.scale.setScalar(1 - Math.min(.38, runner.jumpY * .14));
-        contactShadow.material.opacity = .52 - Math.min(.3, runner.jumpY * .12);
+        contactShadow.material.opacity = .58 - Math.min(.34, runner.jumpY * .13);
+        const portalApproach = THREE.MathUtils.clamp((state.distance - 55) / Math.max(1, portalDistance - 55), 0, 1);
+        explorer.material.color.copy(playerWarmTint).lerp(playerCyanTint, portalApproach * .32);
+        playerFillLight.position.copy(ground).addScaledVector(sample.tangent, -.25).addScaledVector(UP, 1.45 + runner.jumpY * .4);
+        playerFillLight.intensity = .62 + portalApproach * .55;
         runner.stepTimer -= delta;
+        if (landed) { spawnDust(ground, sample); spawnDust(ground.clone().addScaledVector(sample.lateral, .35), sample); }
         if (runner.jumpY === 0 && runner.slideTimer <= 0 && runner.stepTimer <= 0) {
             runner.stepTimer = THREE.MathUtils.clamp(.39 - speed * .025, .21, .34); spawnDust(ground, sample); audio.cue('foot');
         }
         updateEffects(delta, ground, sample);
 
-        const desiredCamera = ground.clone().addScaledVector(sample.tangent, -6.2).addScaledVector(UP, 3.35 + runner.jumpY * .17 - slideProgress * .08);
-        const desiredLook = ground.clone().addScaledVector(sample.tangent, 10.2).addScaledVector(UP, 1.65 + runner.jumpY * .14);
-        camera.position.lerp(desiredCamera, 1 - Math.exp(-5.4 * delta)); cameraLook.lerp(desiredLook, 1 - Math.exp(-6.2 * delta)); camera.lookAt(cameraLook);
-        const targetFov = runner.dashTimer > 0 ? 65 : state.distance > 43.5 && state.distance < 54.2 ? 62 : BASE_FOV;
+        const gait = runner.jumpY === 0 ? Math.sin(runCycle) * .027 : 0;
+        const approach = portalApproach;
+        const desiredCamera = ground.clone().addScaledVector(sample.tangent, -7.05 - approach * 2.15)
+            .addScaledVector(sample.lateral, -runner.lateralVelocity * .018)
+            .addScaledVector(UP, 3.35 + gait + runner.jumpY * .17 - slideProgress * .11 - landing * .4);
+        const portalFocus = portalSample.point.clone().addScaledVector(UP, 4.2);
+        const desiredLook = ground.clone().addScaledVector(sample.tangent, 10.2).addScaledVector(UP, 1.65 + runner.jumpY * .14).lerp(portalFocus, approach * .14);
+        const cameraFocus = ground.clone().addScaledVector(UP, 1.42 + runner.jumpY - slideProgress * .44);
+        const resolvedCamera = resolveCameraObstruction(cameraFocus, desiredCamera, delta);
+        if (camera.position.distanceTo(resolvedCamera) > 14) {
+            camera.position.copy(resolvedCamera); game.cameraTeleports++;
+        } else camera.position.lerp(resolvedCamera, 1 - Math.exp(-5.4 * delta));
+        cameraLook.lerp(desiredLook, 1 - Math.exp(-6.2 * delta)); camera.lookAt(cameraLook);
+        updateOccluderFade(delta, cameraFocus);
+        const targetFov = runner.dashTimer > 0 ? 65 : approach > .05 ? 64 : state.distance > 43.5 && state.distance < 54.2 ? 61 : BASE_FOV;
         camera.fov = THREE.MathUtils.damp(camera.fov, targetFov, runner.dashTimer > 0 ? 13 : 6, delta); camera.updateProjectionMatrix();
+        if (approach > .25) {
+            game.portalRiseTimer -= delta;
+            if (game.portalRiseTimer <= 0) { audio.tone(170 + approach * 170, .22, 'sine', .014, 90); game.portalRiseTimer = 1.05 - approach * .32; }
+        }
         if (state.distance >= portalDistance - .38) {
             runner.state = 'DISABLED'; game.phase = 'PORTAL'; game.phaseTimer = 0; ui.tutorial.classList.remove('active'); ui.question.classList.remove('active');
             ui.flash.classList.remove('active'); void ui.flash.offsetWidth; ui.flash.classList.add('active'); audio.cue('portal');
@@ -1082,11 +1406,21 @@ function createIntegratedGame() {
         const sample = sampleAtDistance(state.distance); const ground = sample.point.clone().addScaledVector(sample.lateral, runner.lateral * (1 - game.phaseTimer * .6));
         explorer.visible = game.phaseTimer < 1.05; explorer.position.copy(ground).addScaledVector(UP, .15 + game.phaseTimer * .5);
         explorer.scale.setScalar(3.55 * Math.max(.2, 1 - game.phaseTimer * .58)); contactShadow.visible = game.phaseTimer < .7;
+        explorer.material.color.lerp(portalTint, 1 - Math.exp(-3 * delta));
+        playerFillLight.position.copy(ground).addScaledVector(UP, 1.5); playerFillLight.intensity = 1.2;
         updateEffects(delta, ground, sample);
-        const desired = ground.clone().addScaledVector(sample.tangent, -7.3 - game.phaseTimer * 1.8).addScaledVector(UP, 3.8);
-        camera.position.lerp(desired, 1 - Math.exp(-4 * delta)); cameraLook.lerp(ground.clone().addScaledVector(sample.tangent, 2).addScaledVector(UP, 2.3), 1 - Math.exp(-5 * delta));
-        camera.lookAt(cameraLook); camera.fov = THREE.MathUtils.damp(camera.fov, 66, 5, delta); camera.updateProjectionMatrix();
+        const desired = ground.clone().addScaledVector(sample.tangent, -7.3 - game.phaseTimer * 1.8).addScaledVector(UP, 3.8 - game.phaseTimer * .18);
+        const portalCenter = portalSample.point.clone().addScaledVector(UP, 4.65);
+        camera.position.lerp(desired, 1 - Math.exp(-4 * delta)); cameraLook.lerp(portalCenter, 1 - Math.exp(-5 * delta));
+        camera.lookAt(cameraLook); updateOccluderFade(delta, ground.clone().addScaledVector(UP, 1.25));
+        camera.fov = THREE.MathUtils.damp(camera.fov, 64, 5, delta); camera.updateProjectionMatrix();
         if (game.phaseTimer >= 1.45) setPhase('RESULT');
+    }
+    function updateResult() {
+        const progress = THREE.MathUtils.smoothstep(game.phaseTimer, .18, 1.28);
+        game.resultCount = Math.round(game.resultTarget * progress);
+        ui.resultScore.textContent = game.resultCount.toString().padStart(4, '0');
+        ui.resultRank.classList.toggle('active', game.phaseTimer > .72);
     }
     function update(delta) {
         state.elapsed += delta; game.phaseTimer += delta;
@@ -1095,18 +1429,27 @@ function createIntegratedGame() {
         if (game.toastTimer > 0) { game.toastTimer -= delta; if (game.toastTimer <= 0) ui.toast.classList.remove('active'); }
         if (game.phase === 'MENU' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS' || game.phase === 'RESULT' || game.phase === 'PAUSED') {
             updateAttractCamera(delta);
-            if (game.phase === 'CONTROLS' && game.phaseTimer > 3.2) setPhase('INTRO');
+            if (game.phase === 'RESULT') updateResult();
+            if (game.phase === 'CONTROLS' && game.phaseTimer > 3.0) setPhase('INTRO');
             return;
         }
         if (game.phase === 'INTRO') {
-            updateIntroCamera(delta); if (game.phaseTimer > 3.15) setPhase('COUNTDOWN'); return;
+            updateIntroCamera(delta);
+            ui.intro.classList.toggle('pre-title', game.phaseTimer < .72);
+            ui.intro.classList.toggle('title-only', game.phaseTimer >= .72 && game.phaseTimer < 1.58);
+            if (game.phaseTimer > 2.65) setPhase('COUNTDOWN'); return;
         }
         if (game.phase === 'COUNTDOWN') {
             updateIntroCamera(delta);
             const count = Math.max(0, 3 - Math.floor(game.phaseTimer));
             const label = count > 0 ? String(count) : '¡CORRE!'; ui.countdown.textContent = label;
-            if (count !== game.lastCountdown) { audio.cue(count > 0 ? 'count' : 'go'); game.lastCountdown = count; }
-            if (game.phaseTimer > 3.45) setPhase('PLAYING'); return;
+            ui.countdown.classList.toggle('go', count === 0);
+            if (count !== game.lastCountdown) {
+                ui.countdown.classList.remove('pulse'); void ui.countdown.offsetWidth; ui.countdown.classList.add('pulse');
+                audio.cue(count > 0 ? 'count' : 'go'); game.lastCountdown = count;
+                camera.position.addScaledVector(UP, count > 0 ? .035 : .075);
+            }
+            if (game.phaseTimer > 3.28) setPhase('PLAYING'); return;
         }
         if (game.phase === 'PLAYING') updateRunner(delta);
         else if (game.phase === 'PORTAL') updatePortal(delta);
@@ -1118,7 +1461,11 @@ function createIntegratedGame() {
             slide: runner.slideTimer > 0, dash: runner.dashTimer > 0, lives: runner.lives,
             score: Math.round(runner.score), combo: runner.combo, maxCombo: runner.maxCombo,
             energy: runner.energy, mathResolved: runner.mathResolved, routeChoice: game.routeChoice,
-            tutorial: { ...runner.tutorial }, gameplayTime: runner.gameplayTime
+            tutorial: { ...runner.tutorial }, gameplayTime: runner.gameplayTime,
+            camera: {
+                obstruction: game.cameraObstruction, faded: [...game.fadedOccluders],
+                arm: game.cameraArm, teleports: game.cameraTeleports
+            }
         };
     }
     function dispose() {
@@ -1126,7 +1473,7 @@ function createIntegratedGame() {
         labelTextures.forEach(texture => texture.dispose());
     }
     setPhase('MENU'); updateHud();
-    return { update, snapshot, dispose, setPhase, runner, game };
+    return { update, snapshot, dispose, setPhase, syncCameraToRunner, runner, game };
 }
 
 const integratedGame = INTEGRATED ? createIntegratedGame() : null;
@@ -1263,6 +1610,7 @@ if (integratedGame) {
             setDistance: distance => {
                 state.distance = THREE.MathUtils.clamp(distance, 0, routeLength - .7);
                 integratedGame.runner.lastDistance = state.distance;
+                integratedGame.syncCameraToRunner();
             },
             setLateral: lateral => {
                 integratedGame.runner.lateral = THREE.MathUtils.clamp(lateral, -3.2, 3.2);

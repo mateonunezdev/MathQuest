@@ -44,7 +44,6 @@
                 <div><b>K</b><span>DASH</span></div>
                 <div><b>J</b><span>ATAQUE</span></div>
                 <div><b>L</b><span>PODER</span></div>
-                <div><b>ENTER</b><span>START</span></div>
             </div>
             <p class="enter-prompt small">ENTER PARA CONTINUAR</p>
         </section>
@@ -59,9 +58,9 @@
         <section class="screen countdown" id="countdown-screen"><strong id="countdown-value">3</strong></section>
 
         <section id="hud" aria-label="Estado del juego">
-            <div class="hud-cluster lives" id="hud-lives">♥ ♥ ♥</div>
+            <div class="hud-cluster lives" id="hud-lives" data-label="VIDAS">♥ ♥ ♥</div>
             <div class="hud-cluster combo" id="hud-combo">COMBO <b>x1</b></div>
-            <div class="hud-cluster score" id="hud-score">0000</div>
+            <div class="hud-cluster score" id="hud-score" data-label="PUNTOS">0000</div>
             <div class="energy"><span>ENERGÍA Σ</span><b id="hud-energy">○○○○○</b></div>
             <div class="tutorial-prompt" id="tutorial-prompt"></div>
             <div class="math-question" id="math-question"><span>ELIGE LA RUTA CORRECTA</span><b>18 ÷ 3 = ?</b></div>
@@ -85,12 +84,13 @@
             <div class="brand-mark small-mark" aria-hidden="true"><i></i><b>Σ</b><i></i></div>
             <p class="eyebrow">MATHQUEST</p>
             <h2>RECORRIDO COMPLETADO</h2>
+            <div class="result-rank" id="result-rank"><span>RANGO</span><b>ORO</b></div>
             <div class="result-grid">
                 <span>TIEMPO</span><b id="result-time">00:00</b>
                 <span>PRECISIÓN</span><b id="result-accuracy">100%</b>
                 <span>COMBO MÁXIMO</span><b id="result-combo">x1</b>
                 <span>VIDAS</span><b id="result-lives">3</b>
-                <span>PUNTOS</span><b id="result-score">0000</b>
+                <span>PUNTOS</span><b id="result-score" class="best">0000</b>
             </div>
             <div class="choice-stack compact" data-menu="result">
                 <div class="choice selected"><b>REINTENTAR</b></div>
