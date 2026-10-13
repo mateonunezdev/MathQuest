@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-artifact-class="OFFICIAL_3D_CANDIDATE">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="./game.css">
-    <title>MathQuest — Templo de los Números</title>
+    <meta name="mathquest-artifact-class" content="OFFICIAL_3D_CANDIDATE">
+    <title>MathQuest 3.0 — Official 3D Candidate</title>
     <script type="importmap">
         { "imports": { "three": "../thirdperson-camera/vendor/three.module.min.js" } }
     </script>
@@ -16,36 +17,168 @@
 
     <main id="game-ui" aria-live="polite">
         <section class="screen active" id="menu-screen">
+            <p class="candidate-label">CAMPAÑA OFICIAL 3D · TRES MUNDOS JUGABLES</p>
             <div class="brand-mark" aria-hidden="true"><i></i><b>Σ</b><i></i></div>
             <p class="eyebrow">UNA AVENTURA MATEMÁTICA</p>
             <h1>MATH<span>QUEST</span></h1>
-            <p class="tagline">ESCAPA <em>•</em> RESUELVE <em>•</em> DOMINA EL TEMPLO</p>
-            <p class="enter-prompt">PULSA <kbd>ENTER</kbd></p>
+            <p class="tagline">EXPLORA <em>•</em> RESUELVE <em>•</em> COMBATE <em>•</em> DOMINA</p>
+            <div class="campaign-worlds" aria-label="Mundos de la campaña">
+                <span class="waterfall"><b>I</b>SANTUARIO<small>CASCADAS</small></span>
+                <i>→</i>
+                <span class="observatory"><b>II</b>OBSERVATORIO<small>FRACCIONES</small></span>
+                <i>→</i>
+                <span class="forge"><b>III</b>FORJA<small>ÁLGEBRA</small></span>
+            </div>
+            <div class="menu-options" role="menu" aria-label="Opciones principales">
+                <button class="menu-option" type="button" data-menu-action="play" role="menuitem">
+                    <b>JUGAR</b><span>Iniciar expedición</span>
+                </button>
+                <button class="menu-option" type="button" data-menu-action="leaderboard" role="menuitem">
+                    <b>CLASIFICACIÓN</b><span>Ver récords y puntajes</span>
+                </button>
+                <button class="menu-option" type="button" data-menu-action="history" role="menuitem">
+                    <b>HISTORIAL</b><span>Partidas anteriores</span>
+                </button>
+                <button class="menu-option" type="button" data-menu-action="settings" role="menuitem">
+                    <b>AJUSTES</b><span>Audio, gráficos, controles</span>
+                </button>
+                <button class="menu-option" type="button" data-menu-action="controls" role="menuitem">
+                    <b>CONTROLES</b><span>Referencia de botones</span>
+                </button>
+            </div>
+            <p class="enter-prompt">PULSA <kbd>ENTER</kbd> O <kbd>START</kbd> EN EL MANDO</p>
+        </section>
+
+        <section class="screen player-setup" id="session-screen">
+            <p class="eyebrow">CONFIGURA LA EXPEDICIÓN</p>
+            <h2>¿QUIÉNES ENTRAN AL TEMPLO?</h2>
+            <div class="session-mode-grid" role="radiogroup" aria-label="Modo de jugadores">
+                <button class="session-mode selected" type="button" data-session-mode="solo" aria-pressed="true">
+                    <b>SOLO</b><span>Un explorador · Récord personal</span>
+                </button>
+                <button class="session-mode" type="button" data-session-mode="duel" aria-pressed="false">
+                    <b>PAREJA 2J</b><span>Dos exploradores · Respuestas y tiempos propios</span>
+                </button>
+                <button class="session-mode" type="button" data-session-mode="team" aria-pressed="false">
+                    <b>EQUIPO 2J</b><span>Corren juntos · El primero espera al compañero</span>
+                </button>
+            </div>
+            <form id="session-form" class="session-form" autocomplete="off">
+                <label><span>EXPLORADOR 1</span><input id="player-one-name" maxlength="14" value="EXPLORADOR 1" aria-label="Nombre del explorador 1"></label>
+                <label id="player-two-field"><span>EXPLORADOR 2</span><input id="player-two-name" maxlength="14" value="EXPLORADOR 2" aria-label="Nombre del explorador 2"></label>
+                <button class="session-start" type="submit">CONTINUAR <i>→</i></button>
+            </form>
+            <p class="nav-hint">AMBOS RESPONDEN · EL PRIMERO AVANZA Y ESPERA · EL SEGUNDO RECIBE OTRO RETO</p>
         </section>
 
         <section class="screen" id="difficulty-screen">
             <p class="eyebrow">PREPARA TU EXPEDICIÓN</p>
             <h2>ELIGE TU DIFICULTAD</h2>
             <div class="choice-stack" role="listbox" aria-label="Dificultad">
-                <div class="choice selected" data-index="0"><b>EXPLORADOR</b><span>Más tiempo · Obstáculos suaves</span></div>
-                <div class="choice" data-index="1"><b>AVENTURERO</b><span>Experiencia equilibrada</span></div>
-                <div class="choice" data-index="2"><b>MAESTRO</b><span>Más velocidad · Mayor puntuación</span></div>
+                <div class="choice selected" data-index="0"><b>EXPLORADOR</b><span>Guía reforzada · Ventanas amplias · Matemática base</span></div>
+                <div class="choice" data-index="1"><b>AVENTURERO</b><span>Experiencia estándar · Retos combinados</span></div>
+                <div class="choice" data-index="2"><b>MAESTRO</b><span>Mayor velocidad · Matemática avanzada · Más puntos</span></div>
             </div>
-            <p class="nav-hint">↑ ↓ ELEGIR &nbsp;·&nbsp; ENTER CONFIRMAR</p>
+            <p class="nav-hint">ELIGE CON TU CONTROL Y CONFIRMA · LA RUTA SIEMPRE SERÁ JUSTA</p>
         </section>
 
         <section class="screen" id="controls-screen">
             <p class="eyebrow">CONTROLES RÁPIDOS</p>
             <h2>DOMINA EL RECORRIDO</h2>
             <div class="control-ribbon">
-                <div><b>← →</b><span>MOVER</span></div>
-                <div><b>↑</b><span>SALTAR</span></div>
-                <div><b>↓</b><span>DESLIZAR</span></div>
-                <div><b>K</b><span>DASH</span></div>
-                <div><b>J</b><span>ATAQUE</span></div>
-                <div><b>L</b><span>PODER</span></div>
+                <div data-action="MOVE_LEFT MOVE_RIGHT"><b>← →</b><span>MOVER</span></div>
+                <div data-action="JUMP"><b>↑</b><span>SALTAR</span></div>
+                <div data-action="SLIDE"><b>↓</b><span>DESLIZAR <small>2J: P1 ↓ · P2 N</small></span></div>
+                <div data-action="DASH"><b>⚡</b><span>DASH <small>K</small></span></div>
+                <div data-action="ATTACK"><b>◆</b><span>ATACAR <small>J</small></span></div>
+                <div data-action="POWER"><b>Σ</b><span>PODER <small>L</small></span></div>
+                <div data-action="CONFIRM PAUSE"><b>✓ Ⅱ</b><span>CONFIRMAR / PAUSA</span></div>
             </div>
-            <p class="enter-prompt small">ENTER PARA CONTINUAR</p>
+            <p class="enter-prompt small">CONTROL, BOTONES FÍSICOS O TECLADO · CONFIRMA PARA CONTINUAR</p>
+        </section>
+
+        <section class="screen" id="leaderboard-screen">
+            <p class="eyebrow">CLASIFICACIÓN</p>
+            <h2>MEJORES PUNTAJES</h2>
+            <div class="leaderboard-tabs" role="tablist" aria-label="Filtros de clasificación">
+                <button class="leaderboard-tab selected" role="tab" data-filter="all" aria-selected="true">TODOS</button>
+                <button class="leaderboard-tab" role="tab" data-filter="solo" aria-selected="false">SOLO</button>
+                <button class="leaderboard-tab" role="tab" data-filter="duel" aria-selected="false">PAREJA 2J</button>
+                <button class="leaderboard-tab" role="tab" data-filter="team" aria-selected="false">EQUIPO 2J</button>
+            </div>
+            <div class="leaderboard-list" id="leaderboard-list" role="listbox" aria-label="Lista de récords"></div>
+            <p class="nav-hint">↑ ↓ NAVEGAR &nbsp;·&nbsp; ENTER VOLVER</p>
+        </section>
+
+        <section class="screen" id="history-screen">
+            <p class="eyebrow">HISTORIAL</p>
+            <h2>PARTIDAS JUGADAS</h2>
+            <div class="history-list" id="history-list" role="listbox" aria-label="Historial de partidas"></div>
+            <p class="nav-hint">↑ ↓ NAVEGAR &nbsp;·&nbsp; ENTER VOLVER</p>
+        </section>
+
+        <section class="screen" id="settings-screen">
+            <p class="eyebrow">AJUSTES</p>
+            <h2>CONFIGURACIÓN</h2>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <h3>AUDIO</h3>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="setting-audio-enabled" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Audio activado</span>
+                    </label>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="setting-music-enabled" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Música</span>
+                    </label>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="setting-sfx-enabled" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Efectos de sonido</span>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <h3>GRÁFICOS</h3>
+                    <label class="setting-select">
+                        <span>Calidad</span>
+                        <select id="setting-graphics-quality">
+                            <option value="high">Alta</option>
+                            <option value="medium" selected>Media</option>
+                            <option value="low">Baja</option>
+                        </select>
+                    </label>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="setting-shadows" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Sombras</span>
+                    </label>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="setting-particles" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Partículas</span>
+                    </label>
+                </div>
+                <div class="setting-group">
+                    <h3>CONTROLES</h3>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="setting-vibration" checked>
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Vibración del mando</span>
+                    </label>
+                    <label class="setting-select">
+                        <span>Sensibilidad</span>
+                        <select id="setting-sensitivity">
+                            <option value="low">Baja</option>
+                            <option value="medium" selected>Media</option>
+                            <option value="high">Alta</option>
+                        </select>
+                    </label>
+                    <button class="setting-btn" id="setting-test-gamepad">PROBAR MANDO</button>
+                </div>
+            </div>
+            <p class="nav-hint">↑ ↓ NAVEGAR &nbsp;·&nbsp; ENTER VOLVER</p>
         </section>
 
         <section class="screen cinematic" id="intro-screen">
@@ -60,11 +193,37 @@
         <section id="hud" aria-label="Estado del juego">
             <div class="hud-cluster lives" id="hud-lives" data-label="VIDAS">♥ ♥ ♥</div>
             <div class="hud-cluster combo" id="hud-combo">COMBO <b>x1</b></div>
+            <div class="hud-campaign" id="hud-campaign">NIVEL 1/3 · AVENTURERO</div>
             <div class="hud-cluster score" id="hud-score" data-label="PUNTOS">0000</div>
+            <div class="hud-players" id="hud-players" aria-label="Puntajes de jugadores"></div>
             <div class="energy"><span>ENERGÍA Σ</span><b id="hud-energy">○○○○○</b></div>
             <div class="tutorial-prompt" id="tutorial-prompt"></div>
             <div class="math-question" id="math-question"><span>ELIGE LA RUTA CORRECTA</span><b>18 ÷ 3 = ?</b></div>
+            <div class="duo-math" id="duo-math" aria-label="Reto matemático para dos exploradores">
+                <article data-duo-player="0"><span>JUGADOR 1 · A / B / C</span><b>—</b><small>PREPARADO</small></article>
+                <article data-duo-player="1"><span>JUGADOR 2 · U / I / O</span><b>—</b><small>PREPARADO</small></article>
+            </div>
             <div class="toast" id="toast"></div>
+            <button class="audio-toggle" id="audio-toggle" type="button" aria-label="Silenciar audio" aria-pressed="false"><b>♪</b><span>AUDIO</span></button>
+            <button class="touch-pause" type="button" data-touch-command="pause" aria-label="Pausar">Ⅱ</button>
+            <div class="touch-controls" id="touch-controls" aria-label="Controles táctiles">
+                <div class="touch-navigation" aria-label="Movimiento">
+                    <button type="button" data-touch-code="ArrowUp" aria-label="Avanzar o saltar">↑</button>
+                    <button type="button" data-touch-code="ArrowLeft" aria-label="Mover a la izquierda">←</button>
+                    <button type="button" data-touch-code="ArrowDown" aria-label="Retroceder o deslizar">↓</button>
+                    <button type="button" data-touch-code="ArrowRight" aria-label="Mover a la derecha">→</button>
+                </div>
+                <div class="touch-actions" aria-label="Acciones">
+                    <button type="button" data-touch-code="KeyJ"><b>J</b><span>ATAQUE</span></button>
+                    <button type="button" data-touch-code="KeyK"><b>K</b><span>DASH</span></button>
+                    <button type="button" data-touch-code="KeyL"><b>L</b><span>PODER</span></button>
+                </div>
+                <div class="touch-answers" aria-label="Respuestas matemáticas">
+                    <button type="button" data-touch-code="KeyA"><b>A</b><span>IZQUIERDA</span></button>
+                    <button type="button" data-touch-code="KeyB"><b>B</b><span>CENTRO</span></button>
+                    <button type="button" data-touch-code="KeyC"><b>C</b><span>DERECHA</span></button>
+                </div>
+            </div>
         </section>
 
         <section class="screen overlay" id="pause-screen">
@@ -90,8 +249,9 @@
                 <span>PRECISIÓN</span><b id="result-accuracy">100%</b>
                 <span>COMBO MÁXIMO</span><b id="result-combo">x1</b>
                 <span>VIDAS</span><b id="result-lives">3</b>
-                <span>PUNTOS</span><b id="result-score" class="best">0000</b>
+                <span>PUNTAJE CAMPAÑA</span><b id="result-score" class="best">0000</b>
             </div>
+            <div class="result-players" id="result-players" aria-label="Resultado de jugadores"></div>
             <div class="choice-stack compact" data-menu="result">
                 <div class="choice selected"><b>REINTENTAR</b></div>
                 <div class="choice"><b>MENÚ PRINCIPAL</b></div>

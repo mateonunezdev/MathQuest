@@ -1,0 +1,78 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for GitHub Pages
+        run: |
+          # Create deployment directory
+          mkdir -p deploy
+          
+          # Copy the integrated game
+          cp -r spikes/mathquest-integrated-v1/* deploy/
+          
+          # Copy thirdperson-camera vendor files
+          mkdir -p deploy/vendor
+          cp spikes/thirdperson-camera/vendor/three.module.min.js deploy/vendor/
+          cp spikes/thirdperson-camera/vendor/three.core.min.js deploy/vendor/
+          
+          # Copy production-art vendor files
+          mkdir -p deploy/vendor
+          cp spikes/production-art/vendor/GLTFLoader.js deploy/vendor/
+          cp spikes/production-art/vendor/BufferGeometryUtils.js deploy/vendor/
+          
+          # Copy mathquest-art-kit-v1 content
+          mkdir -p deploy/content
+          cp -r spikes/mathquest-art-kit-v1/content/* deploy/content/
+          
+          # Copy math-label-renderer
+          cp spikes/mathquest-art-kit-v1/math-label-renderer.js deploy/
+          
+          # Update importmap in index.html for GitHub Pages base path
+          sed -i 's|"three": "\.\./thirdperson-camera/vendor/three.module.min.js"|"three": "./vendor/three.module.min.js"|g' deploy/index.html
+          
+          # Update scene.js imports for production
+          # The scene.js uses relative imports that should work from the same directory
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: deploy
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
