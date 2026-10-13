@@ -4009,7 +4009,6 @@ function createIntegratedGame() {
             // Both players can now proceed to the portal
             toast('¡EL GIGANTE LEVANTA LA MANO · PASO LIBRE!', 2);
             audio.cue('correct');
-            });
             guardianCoreRunes.forEach((rune, runeIndex) => {
                 rune.visible = runeIndex < game.guardianCombat.health; rune.scale.setScalar(1);
             });
