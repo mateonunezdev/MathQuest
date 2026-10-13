@@ -2582,6 +2582,25 @@ function createIntegratedGame() {
         });
     }
 
+    // Update 3D math signs for duo mode when second player gets a new question
+    function updateDuoMathSigns(context) {
+        if (!duoEnabled()) return;
+        const waitingPlayerIndex = duoRace.players.findIndex(p => p.status === 'ANSWERING');
+        if (waitingPlayerIndex < 0) return;
+        
+        const racePlayer = duoRace.players[waitingPlayerIndex];
+        if (!racePlayer?.problem) return;
+        
+        const problem = racePlayer.problem;
+        mathSigns.forEach(({ faceMaterial }, index) => {
+            if (index < problem.choices.length) {
+                faceMaterial.map = mathLabelRenderer.texture(problem.choices[index], index);
+                faceMaterial.needsUpdate = true;
+                faceMaterial.color.set(0xffffff);
+            }
+        });
+    }
+
     const guardianPalette = LEVEL.theme === 'volcano'
         ? { stone: 0x5d2f35, accent: 0xff713d, metal: 0xd69a42 }
         : LEVEL.theme === 'mountain'
@@ -4040,6 +4059,8 @@ function createIntegratedGame() {
             racePlayer.wrongFlash = .6; racePlayer.problem = duoProblem(context, true, racePlayer.problem);
             player.score = Math.max(0, player.score - 80); runner.score = Math.max(0, runner.score - 80); runner.combo = 1;
             toast(`${player.name} · RESPUESTA INCORRECTA · NUEVO RETO`, 1.25); audio.cue('wrong'); updateHud();
+            // Update 3D math signs for the new question
+            updateDuoMathSigns(context);
             return false;
         }
         const first = duoRace.order.length === 0;
@@ -4062,6 +4083,8 @@ function createIntegratedGame() {
             // includes the time spent at the original gate.
             other.problem = duoProblem(context, true, other.problem);
             session.activeIndex = otherIndex;
+            // Update 3D math signs for the second player's new question
+            updateDuoMathSigns(context);
             // Activate progressive penalty for the waiting player
             duoRace.penaltyActive = true;
             duoRace.penaltyTimer = 0;
@@ -4725,7 +4748,6 @@ function createIntegratedGame() {
         }
         
         // Check for cancel (START button held for 2 seconds)
-        const gp = calibrationState.gamepad;
         if (gp.buttons[9] && gp.buttons[9].pressed) {
             calibrationState.cancelHoldTime = (calibrationState.cancelHoldTime || 0) + delta;
             if (calibrationState.cancelHoldTime >= 2) {
