@@ -43,13 +43,6 @@ jobs:
           mkdir -p deploy/mathquest-art-kit-v1
           cp -r spikes/mathquest-art-kit-v1/* deploy/mathquest-art-kit-v1/
           
-          # Debug: check if assets folder exists in source
-          ls -la spikes/mathquest-art-kit-v1/
-          ls -la spikes/mathquest-art-kit-v1/assets/ || echo "assets folder not found in source"
-          
-          # Debug: check if assets folder was copied
-          ls -la deploy/mathquest-art-kit-v1/
-          
           # Copy thirdperson-camera vendor files (Three.js)
           mkdir -p deploy/vendor
           cp spikes/thirdperson-camera/vendor/three.module.min.js deploy/vendor/
