@@ -11,6 +11,7 @@ import { MathLabelRenderer } from './math-label-renderer.js';
 const canvas = document.querySelector('#scene');
 const fallback = document.querySelector('#fallback');
 const query = new URLSearchParams(location.search);
+const artAssetUrl = relativePath => new URL(`./assets/${relativePath}`, import.meta.url).href;
 const INTEGRATED = document.body.dataset.mode === 'integrated' || query.get('integrated') === '1';
 const EMBEDDED_SPLIT_PLAYER = query.get('embedded') === '1';
 // The integrated build now opens on the premium campaign by default. Every
@@ -771,10 +772,10 @@ function createProductionWorld() {
             meshes: 0, materials: new Set(), triangles: 0, waterMaterial: null
         };
         const worldAssetUrl = PREMIUM_V2_LEVEL_ONE
-            ? '../mathquest-art-kit-v1/assets/premium-waterfall-v2/premium-waterfall-sanctuary-v2.glb'
+            ? artAssetUrl('premium-waterfall-v2/premium-waterfall-sanctuary-v2.glb')
             : PREMIUM_WATERFALL_REQUESTED
-                ? '../mathquest-art-kit-v1/assets/premium-waterfall-v1/premium-waterfall-sanctuary-v1.glb'
-                : '../mathquest-art-kit-v1/assets/production-v1/waterfall-sanctuary-production-v1.glb';
+                ? artAssetUrl('premium-waterfall-v1/premium-waterfall-sanctuary-v1.glb')
+                : artAssetUrl('production-v1/waterfall-sanctuary-production-v1.glb');
         new GLTFLoader().loadAsync(worldAssetUrl)
             .then(gltf => {
                 asset.root = gltf.scene;
@@ -1402,7 +1403,10 @@ valleyPlate.visible = !INTEGRATED && query.get('backplate') === '1';
 valleyPlate.renderOrder = -10;
 if (!WATERFALL_PRODUCTION_ENABLED) scene.add(valleyPlate);
 
-const explorerTexture = new THREE.TextureLoader().load('../../assets/fair/player/run-up.png');
+const explorerTextureUrl = INTEGRATED && !location.pathname.includes('/spikes/mathquest-integrated-v1/')
+    ? './assets/fair/player/run-up.png'
+    : '../../assets/fair/player/run-up.png';
+const explorerTexture = new THREE.TextureLoader().load(explorerTextureUrl);
 explorerTexture.colorSpace = THREE.SRGBColorSpace;
 explorerTexture.wrapS = THREE.RepeatWrapping;
 explorerTexture.repeat.set(.25, 1);
@@ -3086,8 +3090,8 @@ function createIntegratedGame() {
         if (partnerController.mode === 'rigged') return Promise.resolve({ ok: true, cached: true });
         if (partnerLoadPromise) return partnerLoadPromise;
         const characterAssetUrl = PREMIUM_V2_RIG_ENABLED
-            ? '../mathquest-art-kit-v1/assets/premium-waterfall-v2/math-explorer-quaternius-ranger-v2.glb'
-            : '../mathquest-art-kit-v1/assets/premium-character-v1/math-explorer-quaternius-ranger-v1.glb';
+            ? artAssetUrl('premium-waterfall-v2/math-explorer-quaternius-ranger-v2.glb')
+            : artAssetUrl('premium-character-v1/math-explorer-quaternius-ranger-v1.glb');
         partnerLoadPromise = partnerController.load(characterAssetUrl, { scale: 1.35, position: [0, -.29, 0], rotationY: 0 })
             .then(result => {
                 if (result.ok) {
@@ -3119,8 +3123,8 @@ function createIntegratedGame() {
     scene.add(partnerCore);
     if (PREMIUM_RIG_REQUESTED) {
         const characterAssetUrl = PREMIUM_V2_RIG_ENABLED
-            ? '../mathquest-art-kit-v1/assets/premium-waterfall-v2/math-explorer-quaternius-ranger-v2.glb'
-            : '../mathquest-art-kit-v1/assets/premium-character-v1/math-explorer-quaternius-ranger-v1.glb';
+            ? artAssetUrl('premium-waterfall-v2/math-explorer-quaternius-ranger-v2.glb')
+            : artAssetUrl('premium-character-v1/math-explorer-quaternius-ranger-v1.glb');
         motionController.load(characterAssetUrl, {
             scale: 1.35,
             position: [0, -.29, 0],
@@ -3135,7 +3139,7 @@ function createIntegratedGame() {
             console.error('Premium Math Explorer rig failed to load', error);
         });
     } else if (WATERFALL_PRODUCTION_ENABLED) {
-        motionController.load('../mathquest-art-kit-v1/assets/production-v1/math-explorer-rig-v1.glb', {
+        motionController.load(artAssetUrl('production-v1/math-explorer-rig-v1.glb'), {
             scale: 1.34,
             rotationY: Math.PI
         }).then(result => {
@@ -3417,11 +3421,15 @@ function createIntegratedGame() {
     const HISTORY_KEY = 'mathquest-history-v1';
     const MAX_LEADERBOARD_ENTRIES = 50;
     const MAX_HISTORY_ENTRIES = 100;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[character]);
     
     function loadLeaderboard() {
         try {
             const data = localStorage.getItem(LEADERBOARD_KEY);
-            return data ? JSON.parse(data) : [];
+            const parsed = data ? JSON.parse(data) : [];
+            return Array.isArray(parsed) ? parsed.filter(entry => entry && typeof entry === 'object') : [];
         } catch { return []; }
     }
     
@@ -3434,7 +3442,8 @@ function createIntegratedGame() {
     function loadHistory() {
         try {
             const data = localStorage.getItem(HISTORY_KEY);
-            return data ? JSON.parse(data) : [];
+            const parsed = data ? JSON.parse(data) : [];
+            return Array.isArray(parsed) ? parsed.filter(entry => entry && typeof entry === 'object' && Array.isArray(entry.players)) : [];
         } catch { return []; }
     }
     
@@ -3557,11 +3566,11 @@ function createIntegratedGame() {
         ui.leaderboardList.innerHTML = filtered.map((entry, index) => `
             <div class="leaderboard-entry ${index < 3 ? `rank-${index + 1}` : ''}" role="option">
                 <span class="rank">${index + 1}.</span>
-                <span class="name">${entry.playerName}</span>
-                <span class="score">${String(entry.score).padStart(5, '0')}</span>
+                <span class="name">${escapeHtml(entry.playerName)}</span>
+                <span class="score">${escapeHtml(String(Math.max(0, Number(entry.score) || 0)).padStart(5, '0'))}</span>
                 <span class="meta">
-                    <span class="mode">${entry.modeLabel}</span>
-                    <span class="difficulty">${entry.difficulty}</span>
+                    <span class="mode">${escapeHtml(entry.modeLabel)}</span>
+                    <span class="difficulty">${escapeHtml(entry.difficulty)}</span>
                 </span>
             </div>
         `).join('');
@@ -3576,23 +3585,23 @@ function createIntegratedGame() {
         }
         ui.historyList.innerHTML = history.map(entry => `
             <div class="history-entry" role="option">
-                <span class="date">${entry.date}</span>
+                <span class="date">${escapeHtml(entry.date)}</span>
                 <div class="info">
                     <div class="players">
                         ${entry.players.map((p, i) => `
                             <span class="player ${entry.isTie ? '' : (p.name === entry.winner ? 'winner' : '')}">
-                                <span class="name">${p.name}</span>
-                                <span class="score">${p.score}</span>
+                                <span class="name">${escapeHtml(p.name)}</span>
+                                <span class="score">${escapeHtml(Math.max(0, Number(p.score) || 0))}</span>
                             </span>
                         `).join('')}
                         ${entry.isTie ? '<span class="player" style="color:var(--cyan);">EMPATE</span>' : ''}
                     </div>
                     <div class="details">
-                        <span class="badge">${entry.modeLabel}</span>
-                        <span class="badge">${entry.difficulty}</span>
-                        <span class="badge">${entry.levelName}</span>
+                        <span class="badge">${escapeHtml(entry.modeLabel)}</span>
+                        <span class="badge">${escapeHtml(entry.difficulty)}</span>
+                        <span class="badge">${escapeHtml(entry.levelName)}</span>
                         ${entry.campaignCompleted ? '<span class="badge campaign">CAMPAÑA COMPLETA</span>' : ''}
-                        <span>Total: ${entry.totalScore}</span>
+                        <span>Total: ${escapeHtml(Math.max(0, Number(entry.totalScore) || 0))}</span>
                     </div>
                 </div>
             </div>
@@ -3870,7 +3879,30 @@ function createIntegratedGame() {
     function requestAttack() {
         if (runner.hitTimer > 0 || runner.attackTimer > 0) return;
         runner.attackTimer = .42; runner.attackImpactTimer = .24; attackPulse.visible = true; attackPulse.scale.setScalar(.25); audio.cue('attack');
-        if (!strikeStalkerCore()) strikeGuardianCore();
+        if (!strikeStalkerCore() && !strikeGuardianBlocker()) strikeGuardianCore();
+    }
+
+    function strikeGuardianBlocker() {
+        const combat = game.guardianCombat;
+        if (!game.stalker.resolved || game.guardianResolved || game.guardianActive ||
+            state.distance < guardianStopDistance - 1.15 || !['BLOCKING', 'BLOCK_STAGGER'].includes(combat.phase)) return false;
+        combat.hits = Math.min(3, combat.hits + 1);
+        combat.health = Math.max(0, 3 - combat.hits);
+        combat.phase = combat.hits >= 3 ? 'QUESTION' : 'BLOCK_STAGGER';
+        combat.timer = combat.hits >= 3 ? 0 : .34;
+        runner.score += Math.round(90 * profiles[game.difficulty].multiplier);
+        guardianCoreRunes.forEach((rune, index) => { rune.visible = index < combat.health; });
+        guardianLight.color.set(0xffd36a); guardianLight.intensity = 8.2;
+        if (combat.hits >= 3) {
+            game.guardianActive = true;
+            toast('TRES SELLOS ROTOS · RESPONDE PARA QUE EL GIGANTE LIBERE EL PASO', 2.1);
+            audio.cue('correct');
+        } else {
+            toast(`GOLPE ${combat.hits}/3 · ROMPE LOS SELLOS DEL GIGANTE`, 1.05);
+            audio.cue('attack');
+        }
+        updateHud();
+        return true;
     }
 
     function strikeStalkerCore() {
@@ -3932,48 +3964,29 @@ function createIntegratedGame() {
             correctIndex: context === 'ROUTE' ? problem.correctLane + 1 : problem.correctIndex
         };
     }
-    function duoProblem(context, alternate = false, previousProblem = null) {
-        const source = alternate ? MATH_REPLAY_SETS[LEVEL_INDEX] : ACTIVE_MATH;
-        
+    function duoProblemCandidates(context) {
+        const replay = MATH_REPLAY_SETS[LEVEL_INDEX];
+        const alternateMath = ACTIVE_MATH === LEVEL ? replay : LEVEL;
         if (context.startsWith('MASTERY_')) {
             const index = Number(context.split('_')[1]);
-            const problem = index === 0
-                ? (alternate ? ACTIVE_MATH.altarQuestions[2] : MATH_REPLAY_SETS[LEVEL_INDEX].questions[2])
-                : (alternate ? ACTIVE_MATH.guardianQuestions[2] : MATH_REPLAY_SETS[LEVEL_INDEX].altarQuestions[2]);
-            return normalizedProblem(problem, index === 0 && !alternate ? 'ROUTE' : 'ALTAR');
+            return index === 0
+                ? [
+                    normalizedProblem(replay.questions[2], 'ROUTE'),
+                    normalizedProblem(LEVEL.altarQuestions[2], 'ALTAR')
+                ]
+                : [
+                    normalizedProblem(replay.altarQuestions[2], 'ALTAR'),
+                    normalizedProblem(LEVEL.guardianQuestions[2], 'ALTAR')
+                ];
         }
-        
-        let problem;
-        if (context === 'ROUTE') {
-            const questions = source.questions[game.difficulty];
-            if (alternate && previousProblem) {
-                // Find a different question from the same difficulty
-                const allQuestions = [...ACTIVE_MATH.questions[game.difficulty], ...MATH_REPLAY_SETS[LEVEL_INDEX].questions[game.difficulty]];
-                const available = allQuestions.filter(q => q.prompt !== previousProblem.prompt);
-                problem = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : questions;
-            } else {
-                problem = questions;
-            }
-        } else if (context === 'ALTAR') {
-            const questions = source.altarQuestions[game.difficulty];
-            if (alternate && previousProblem) {
-                const allQuestions = [...ACTIVE_MATH.altarQuestions[game.difficulty], ...MATH_REPLAY_SETS[LEVEL_INDEX].altarQuestions[game.difficulty]];
-                const available = allQuestions.filter(q => q.prompt !== previousProblem.prompt);
-                problem = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : questions;
-            } else {
-                problem = questions;
-            }
-        } else { // GUARDIAN
-            const questions = source.guardianQuestions[game.difficulty];
-            if (alternate && previousProblem) {
-                const allQuestions = [...ACTIVE_MATH.guardianQuestions[game.difficulty], ...MATH_REPLAY_SETS[LEVEL_INDEX].guardianQuestions[game.difficulty]];
-                const available = allQuestions.filter(q => q.prompt !== previousProblem.prompt);
-                problem = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : questions;
-            } else {
-                problem = questions;
-            }
-        }
-        return normalizedProblem(problem, context);
+        const key = context === 'ROUTE' ? 'questions' : context === 'ALTAR' ? 'altarQuestions' : 'guardianQuestions';
+        return [ACTIVE_MATH[key][game.difficulty], alternateMath[key][game.difficulty]]
+            .map(problem => normalizedProblem(problem, context));
+    }
+    function duoProblem(context, alternate = false, previousProblem = null) {
+        const candidates = duoProblemCandidates(context);
+        if (!alternate || !previousProblem) return candidates[0];
+        return candidates.find(problem => problem.prompt !== previousProblem.prompt) || candidates[0];
     }
     function beginDuoChallenge(context) {
         if (!duoEnabled() || duoRace.context === context) return;
@@ -4005,6 +4018,7 @@ function createIntegratedGame() {
         } else if (context === 'GUARDIAN') {
             game.guardianResolved = true; game.guardianActive = false;
             game.guardianFeedback = 'correct'; game.guardianTimer = 1.55;
+            game.guardianCombat.phase = 'RELEASED';
             // Giant lifts hand animation - no combat phase needed
             // Both players can now proceed to the portal
             toast('¡EL GIGANTE LEVANTA LA MANO · PASO LIBRE!', 2);
@@ -4030,7 +4044,7 @@ function createIntegratedGame() {
         // Clear any pending penalty timer
         duoRace.penaltyTimer = 0;
         duoRace.penaltyActive = false;
-        toast(context === 'GUARDIAN' ? 'AMBOS SELLOS ROTOS · COMBATE DESBLOQUEADO' : 'EQUIPO COMPLETO · MECANISMO DESBLOQUEADO', 2);
+        toast(context === 'GUARDIAN' ? 'AMBOS EXPLORADORES PASAN · RUTA LIBERADA' : 'EQUIPO COMPLETO · MECANISMO DESBLOQUEADO', 2);
         audio.cue('correct'); updateHud();
     }
     function resolveDuoAnswer(context, playerIndex, answerIndex) {
@@ -4110,6 +4124,7 @@ function createIntegratedGame() {
             game.guardianResolved = true;
             game.guardianActive = false;
             game.guardianFeedback = 'correct'; game.guardianTimer = 1.55;
+            game.guardianCombat.phase = 'RELEASED';
             // Giant lifts hand - no combat phase
             toast('¡EL GIGANTE LEVANTA LA MANO · PASO LIBRE!', 2);
             audio.cue('correct');
@@ -4518,24 +4533,17 @@ function createIntegratedGame() {
             }
             
             // Analog stick (axes 0=left/right, 1=up/down for left stick)
-            const axisX = gp.axes[0] || 0;
-            const axisY = gp.axes[1] || 0;
             const deadzone = 0.3;
+            const stickX = gp.axes[0] || 0;
+            const stickY = gp.axes[1] || 0;
+            const hatX = gp.axes[4] || 0;
+            const hatY = gp.axes[5] || 0;
+            const axisX = Math.abs(stickX) > deadzone ? stickX : hatX;
+            const axisY = Math.abs(stickY) > deadzone ? stickY : hatY;
             
             // Horizontal movement (left/right)
-            if (Math.abs(axisX) > deadzone) {
-                if (axisX < -deadzone) {
-                    dispatchAction(ACTIONS.MOVE_LEFT, `gamepad-p${player+1}`);
-                } else if (axisX > deadzone) {
-                    dispatchAction(ACTIONS.MOVE_RIGHT, `gamepad-p${player+1}`);
-                }
-            } else {
-                // Release horizontal if centered
-                if (Math.abs(prevAxes[0] || 0) > deadzone) {
-                    releaseGamepadAction(ACTIONS.MOVE_LEFT);
-                    releaseGamepadAction(ACTIONS.MOVE_RIGHT);
-                }
-            }
+            setGamepadHeldAction(player, ACTIONS.MOVE_LEFT, axisX < -deadzone);
+            setGamepadHeldAction(player, ACTIONS.MOVE_RIGHT, axisX > deadzone);
             
             // Vertical movement (up/down) - Jump/Slide
             if (Math.abs(axisY) > deadzone) {
@@ -4567,19 +4575,22 @@ function createIntegratedGame() {
             if (buttonIndex === mapping.answerA) {
                 // Answer A
                 if (game.phase === 'PLAYING' && answerContextActive()) {
-                    dispatchPlayerAnswer(player, 0);
+                    if (duoEnabled()) dispatchPlayerAnswer(player, 0);
+                    else dispatchAction(ACTIONS.ANSWER_A, `gamepad-p${player + 1}`);
                 } else if (game.phase === 'MENU') {
                     confirm();
                 }
             } else if (buttonIndex === mapping.answerB) {
                 // Answer B
                 if (game.phase === 'PLAYING' && answerContextActive()) {
-                    dispatchPlayerAnswer(player, 1);
+                    if (duoEnabled()) dispatchPlayerAnswer(player, 1);
+                    else dispatchAction(ACTIONS.ANSWER_B, `gamepad-p${player + 1}`);
                 }
             } else if (buttonIndex === mapping.answerC) {
                 // Answer C
                 if (game.phase === 'PLAYING' && answerContextActive()) {
-                    dispatchPlayerAnswer(player, 2);
+                    if (duoEnabled()) dispatchPlayerAnswer(player, 2);
+                    else dispatchAction(ACTIONS.ANSWER_C, `gamepad-p${player + 1}`);
                 }
             } else if (buttonIndex === mapping.attack) {
                 // Attack/Action (Button 3)
@@ -4608,13 +4619,16 @@ function createIntegratedGame() {
         }
     }
     
-    function releaseGamepadAction(action) {
-        // Find and release the action if it was from gamepad
-        for (const [code, act] of game.actionByCode) {
-            if (act === action && String(code).startsWith('gamepad')) {
-                releaseCode(code);
-                break;
-            }
+    function setGamepadHeldAction(player, action, pressed) {
+        const code = `gamepad-p${player + 1}-${action}`;
+        const alreadyPressed = game.actionByCode.get(code) === action;
+        if (pressed && !alreadyPressed) {
+            game.actionByCode.set(code, action);
+            game.actions.add(action);
+            recordInputAction(action, `gamepad-p${player + 1}`);
+        } else if (!pressed && alreadyPressed) {
+            game.actionByCode.delete(code);
+            if (![...game.actionByCode.values()].includes(action)) game.actions.delete(action);
         }
     }
     
@@ -4881,6 +4895,10 @@ function createIntegratedGame() {
             }
         });
         const combat = game.guardianCombat;
+        if (!combat.active && combat.timer > 0) {
+            combat.timer = Math.max(0, combat.timer - delta);
+            if (combat.timer <= 0 && combat.phase === 'BLOCK_STAGGER') combat.phase = 'BLOCKING';
+        }
         if (combat.active) {
             combat.timer = Math.max(0, combat.timer - delta);
             guardianSigils.forEach(({ group }) => { group.visible = false; });
@@ -5006,8 +5024,10 @@ function createIntegratedGame() {
         } else {
             guardianLight.color.set(0x63eee7); guardianLight.intensity = 3.6;
             guardianRoot.position.copy(guardianBasePosition);
-            guardianBody.rotation.x = THREE.MathUtils.damp(guardianBody.rotation.x, Math.abs(breathe) * .018, 4, delta);
-            guardianBody.rotation.z = THREE.MathUtils.damp(guardianBody.rotation.z, breathe * .018, 4, delta);
+            const blockerRecoil = combat.phase === 'BLOCK_STAGGER' ? Math.sin((1 - combat.timer / .34) * Math.PI) : 0;
+            guardianRoot.position.addScaledVector(guardianSample.tangent, blockerRecoil * .38);
+            guardianBody.rotation.x = THREE.MathUtils.damp(guardianBody.rotation.x, Math.abs(breathe) * .018 + blockerRecoil * .08, 4, delta);
+            guardianBody.rotation.z = THREE.MathUtils.damp(guardianBody.rotation.z, breathe * .018 + blockerRecoil * .045, 4, delta);
             guardianHead.rotation.y = THREE.MathUtils.damp(guardianHead.rotation.y, Math.sin(state.elapsed * 1.1) * .12, 4, delta);
             guardianLeftArm.rotation.z = THREE.MathUtils.damp(guardianLeftArm.rotation.z, -.18 + breathe * .045, 5, delta);
             // The right forearm forms the visible physical bar across the route.
@@ -5391,22 +5411,17 @@ function createIntegratedGame() {
         runner.mathFeedbackTimer = Math.max(0, runner.mathFeedbackTimer - delta);
         runner.landingTimer = Math.max(0, runner.landingTimer - delta);
         
-        // Progressive penalty for second player in duo mode
+        // Progressive penalty for the explorer who is still answering. Apply
+        // directly from frame delta so low FPS cannot discard elapsed time.
         if (duoEnabled() && duoRace.penaltyActive && duoRace.context) {
             duoRace.penaltyTimer += delta;
-            // Apply penalty every 0.5 seconds
-            if (duoRace.penaltyTimer >= 0.5) {
-                duoRace.penaltyTimer = 0;
-                // Penalty applies to the player who is still ANSWERING (hasn't answered correctly yet)
-                // The player who answered first is in 'WAITING' status and should NOT be penalized
-                const answeringPlayerIndex = duoRace.players.findIndex(p => p.status === 'ANSWERING');
-                if (answeringPlayerIndex >= 0) {
-                    const player = session.players[answeringPlayerIndex];
-                    const penalty = duoRace.penaltyRate * 0.5;
-                    player.score = Math.max(0, player.score - penalty);
-                    runner.score = Math.max(0, runner.score - penalty);
-                    updateHud();
-                }
+            const answeringPlayerIndex = duoRace.players.findIndex(player => player.status === 'ANSWERING');
+            if (answeringPlayerIndex >= 0) {
+                const player = session.players[answeringPlayerIndex];
+                player.score = Math.max(0, player.score - duoRace.penaltyRate * delta);
+                updateHud();
+            } else {
+                duoRace.penaltyActive = false;
             }
         }
         
@@ -5461,7 +5476,20 @@ function createIntegratedGame() {
             toast(`${stalkerNames[LEVEL_INDEX]} · ESQUIVA LA CARGA Y ATACA CON J`, 2.0);
             audio.cue('confirm');
         }
-        if (game.stalker.resolved && !game.guardianResolved && !game.guardianFeedback && state.distance >= guardianStopDistance - .25) game.guardianActive = true;
+        if (game.stalker.resolved && !game.guardianResolved && !game.guardianFeedback && state.distance >= guardianStopDistance - .25 && game.guardianCombat.phase === 'LOCKED') {
+            Object.assign(game.guardianCombat, {
+                active: false, phase: 'BLOCKING', timer: 0, health: 3, maxHealth: 3,
+                strikes: 0, hits: 0, dodges: 0, damageTaken: 0,
+                contactResolved: false, recoveryHit: false
+            });
+            guardianCoreRunes.forEach((rune, index) => { rune.visible = index < 3; rune.scale.setScalar(1); });
+            toast(`${LEVEL.guardian} BLOQUEA EL PASO · GOLPEA 3 VECES`, 2.0);
+            audio.cue('confirm');
+        }
+        if (game.stalker.resolved && !game.guardianResolved && !game.guardianFeedback &&
+            state.distance >= guardianStopDistance - .25 && game.guardianCombat.phase === 'QUESTION') {
+            game.guardianActive = true;
+        }
         const stalkerHolding = STALKER_ENABLED && (game.stalker.active || (game.stalker.resolved && game.stalker.timer > .18));
         const guardianHolding = game.guardianCombat.active ||
             (!game.guardianResolved && state.distance >= guardianStopDistance) ||
@@ -5941,11 +5969,21 @@ function createIntegratedGame() {
                 duoRace: duoEnabled() ? {
                     context: duoRace.context, order: [...duoRace.order],
                     rejoin: duoRace.rejoin ? { ...duoRace.rejoin } : null,
+                    penaltyActive: duoRace.penaltyActive,
+                    penaltyElapsed: duoRace.penaltyTimer,
+                    penaltyRate: duoRace.penaltyRate,
                     players: duoRace.players.map(player => ({ ...player, problem: player.problem ? { ...player.problem } : null }))
                 } : null
             },
             audio: { ready: game.audioReady, muted: audio.muted, activeVoices: audio.activeVoices, maxVoices: audio.maxVoices },
-            input: { actions: { ...ACTIONS }, held: [...game.actions] },
+            input: {
+                actions: { ...ACTIONS }, held: [...game.actions],
+                gamepads: gamepadState.connected.map((connected, index) => ({
+                    connected, index: gamepadState.indices[index],
+                    id: gamepadState.controllers[index]?.id || null,
+                    pressed: gamepadState.prevButtons[index].map((pressed, button) => pressed ? button : -1).filter(button => button >= 0)
+                }))
+            },
             mathLabels: {
                 ...mathLabelRenderer.snapshot(),
                 routeProjectedHeights: mathSigns.map(({ face }) => projectedHeight(face)),
@@ -6006,9 +6044,16 @@ function createIntegratedGame() {
         setPhase('COUNTDOWN');
         return snapshot();
     }
+    function setPlayerScore(playerIndex, score) {
+        const player = session.players[Number(playerIndex)];
+        if (!player) return false;
+        player.score = Math.max(0, Number(score) || 0);
+        updateHud();
+        return true;
+    }
     setPhase(CAMPAIGN_MODE && LEVEL_INDEX > 0 ? 'INTRO' : 'MENU'); updateHud();
     return {
-        update, snapshot, dispose, setPhase, syncCameraToRunner, triggerAction, startArcade,
+        update, snapshot, dispose, setPhase, syncCameraToRunner, triggerAction, startArcade, setPlayerScore,
         setAbstractAction, setPlayerAction, playtestReport, selectRouteAnswer, resolveAltarAnswer, resolveGuardianAnswer,
         motionController, partnerController, runner, game
     };
@@ -6164,6 +6209,7 @@ if (integratedGame) {
                 integratedGame.runner.lateralVelocity = 0;
             },
             setEnergy: energy => { integratedGame.runner.energy = THREE.MathUtils.clamp(energy, 0, 5); },
+            setPlayerScore: (playerIndex, score) => integratedGame.setPlayerScore(playerIndex, score),
             resolveRouteForView: () => {
                 integratedGame.runner.mathResolved = true;
                 integratedGame.game.routeChoice = integratedGame.snapshot().problem.correctLane;
@@ -6227,6 +6273,23 @@ if (integratedGame) {
                 integratedGame.runner.hitTimer = 0;
             },
             resolveStalker: () => {
+                Object.assign(integratedGame.game.stalker, {
+                    active: false, resolved: true, phase: 'DEFEATED', timer: 0,
+                    health: 0, contactResolved: true, recoveryHit: true
+                });
+            },
+            prepareGuardian: () => {
+                integratedGame.runner.mathResolved = true;
+                integratedGame.game.altarActive = false;
+                integratedGame.game.altarResolved = true;
+                integratedGame.game.exploration.active = false;
+                integratedGame.game.exploration.completed = true;
+                integratedGame.game.masteryActive = null;
+                integratedGame.game.mastery.forEach(mechanism => {
+                    mechanism.active = false;
+                    mechanism.resolved = true;
+                    mechanism.open = 1;
+                });
                 Object.assign(integratedGame.game.stalker, {
                     active: false, resolved: true, phase: 'DEFEATED', timer: 0,
                     health: 0, contactResolved: true, recoveryHit: true
