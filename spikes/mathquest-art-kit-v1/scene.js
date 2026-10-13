@@ -50,7 +50,7 @@ const MATH_SET = THREE.MathUtils.clamp(Number.parseInt(query.get('mathSet') || '
 const ACTIVE_MATH = MATH_SET === 0 ? LEVEL : MATH_REPLAY_SETS[LEVEL_INDEX];
 const CAMPAIGN_MODE = query.get('campaign') === '1';
 const CAMPAIGN_SCORE = Math.max(0, Number.parseInt(query.get('campaignScore') || '1250', 10) || 1250);
-const SESSION_MODES = new Set(['solo', 'duel', 'team']);
+const SESSION_MODES = new Set(['solo', 'duel']);
 const INITIAL_SESSION_MODE = SESSION_MODES.has(query.get('sessionMode')) ? query.get('sessionMode') : 'solo';
 function safePlayerName(value, fallback) {
     const cleaned = String(value || '').replace(/[^\p{L}\p{N} _-]/gu, '').trim().replace(/\s+/g, ' ').slice(0, 14);
@@ -3261,7 +3261,7 @@ function createIntegratedGame() {
     function select(items, index) { items.forEach((item, itemIndex) => item.classList.toggle('selected', itemIndex === index)); }
     function participatingPlayers() { return session.mode === 'solo' ? session.players.slice(0, 1) : session.players; }
     function duoEnabled() { return session.mode !== 'solo'; }
-    function sessionModeLabel() { return session.mode === 'team' ? 'EQUIPO 2J' : session.mode === 'duel' ? 'PAREJA 2J' : 'SOLO'; }
+    function sessionModeLabel() { return session.mode === 'duel' ? 'DOS JUGADORES' : 'UN JUGADOR'; }
     function setSessionMode(mode) {
         if (!SESSION_MODES.has(mode)) return;
         session.mode = mode;
@@ -3317,9 +3317,7 @@ function createIntegratedGame() {
             const accuracy = player.answers ? Math.round(player.correct / player.answers * 100) : 0;
             const winner = duoEnabled() && player.responseMs === bestTime && bestTime > 0;
             return `<div class="result-player-row ${winner ? 'winner' : ''}"><span>${winner ? '◆ MÁS RÁPIDO · ' : ''}${player.name}</span><small>${player.correct}/${player.answers} · ${accuracy}% · ${(player.responseMs / 1000).toFixed(1)}s</small><b>${player.score}</b></div>`;
-        }).join('') + (session.mode === 'team'
-            ? `<div class="team-total">TOTAL DEL EQUIPO · ${players.reduce((sum, player) => sum + player.score, 0)}</div>`
-            : '');
+        }).join('');
     }
     function writeSessionQuery(url, includeScores = true) {
         url.searchParams.set('sessionMode', session.mode);
@@ -3530,33 +3528,14 @@ function createIntegratedGame() {
             addLeaderboardEntry(lbEntry);
         }
         
-        // Also add team entry for team mode
-        if (session.mode === 'team') {
-            const teamEntry = {
-                playerName: players.map(p => p.name).join(' + '),
-                score: players.reduce((sum, p) => sum + p.score, 0),
-                mode: 'team',
-                modeLabel: 'EQUIPO 2J',
-                difficulty: difficultyName,
-                difficultyId: profiles[game.difficulty].id,
-                timestamp,
-                date: historyEntry.date,
-                level: LEVEL.number,
-                correct: players.reduce((sum, p) => sum + p.correct, 0),
-                answers: players.reduce((sum, p) => sum + p.answers, 0),
-                responseMs: players.reduce((sum, p) => sum + p.responseMs, 0),
-                challengeWins: players.reduce((sum, p) => sum + p.challengeWins, 0)
-            };
-            addLeaderboardEntry(teamEntry);
         }
-    }
     
     function renderLeaderboard() {
         if (!ui.leaderboardList) return;
         const leaderboard = loadLeaderboard();
         let filtered = leaderboard;
         if (currentLeaderboardFilter !== 'all') {
-            const modeMap = { solo: 'solo', duel: 'duel', team: 'team' };
+            const modeMap = { solo: 'solo', duel: 'duel' };
             filtered = leaderboard.filter(e => e.mode === modeMap[currentLeaderboardFilter]);
         }
         if (filtered.length === 0) {
@@ -4425,6 +4404,22 @@ function createIntegratedGame() {
         toast(`Mandos: ${connected}`, 2);
         audio.cue('confirm');
     });
+    ui.settingsCalibrateGamepad?.addEventListener('click', () => {
+        // Find first connected gamepad to calibrate
+        let calibrated = false;
+        for (let player = 0; player < 2; player++) {
+            if (gamepadState.connected[player]) {
+                if (startCalibration(player)) {
+                    calibrated = true;
+                    break;
+                }
+            }
+        }
+        if (!calibrated) {
+            toast('No hay mandos conectados para calibrar', 2);
+        }
+        audio.cue('confirm');
+    });
 
     // Gamepad support for UCOM USB controllers
     const gamepadState = {
@@ -4432,39 +4427,107 @@ function createIntegratedGame() {
         prevButtons: [[], []],
         prevAxes: [[], []],
         connected: [false, false],
-        indices: [-1, -1] // Gamepad API indices
+        indices: [-1, -1], // Gamepad API indices
+        // Calibration data per player
+        calibration: [null, null] // Stores { answerA, answerB, answerC, attack, start, deviceId }
     };
     
-    // UCOM button mapping (physical button number -> action)
+    // Default UCOM button mapping (fallback if no calibration)
     // Button 4 = A (Answer A), Button 1 = B (Answer B), Button 2 = C (Answer C), Button 3 = Action/Attack
     // Standard gamepad mapping may differ, so we map by observed UCOM layout
-    const UCOM_BUTTON_MAP = {
-        // UCOM physical buttons (1-indexed as user specified)
-        // We'll detect and map at runtime
-        0: 'FACE_1',    // Typically Button 1 (B/Cross)
-        1: 'FACE_2',    // Typically Button 2 (A/Circle)
-        2: 'FACE_3',    // Typically Button 3 (X/Square)
-        3: 'FACE_4',    // Typically Button 4 (Y/Triangle)
-        4: 'L1', 5: 'R1', 6: 'L2', 7: 'R2',
-        8: 'SELECT', 9: 'START', 10: 'L3', 11: 'R3',
-        12: 'DPAD_UP', 13: 'DPAD_DOWN', 14: 'DPAD_LEFT', 15: 'DPAD_RIGHT',
-        16: 'HOME'
+    const DEFAULT_UCOM_MAPPING = {
+        answerA: 3,   // Button 4 (Triangle/Y)
+        answerB: 0,   // Button 1 (Cross/A)
+        answerC: 1,   // Button 2 (Circle/B)
+        attack: 2,    // Button 3 (Square/X)
+        start: 9      // START
     };
     
-    function mapUCOMButtons(gamepad) {
-        // UCOM controllers typically report buttons in standard order
-        // Physical button 4 (Triangle/Y) = index 3 = Answer A
-        // Physical button 1 (Cross/A) = index 0 = Answer B
-        // Physical button 2 (Circle/B) = index 1 = Answer C
-        // Physical button 3 (Square/X) = index 2 = Attack/Action
-        // START = index 9 = Start Game
-        return {
-            answerA: 3,   // Button 4 (Triangle/Y)
-            answerB: 0,   // Button 1 (Cross/A)
-            answerC: 1,   // Button 2 (Circle/B)
-            attack: 2,    // Button 3 (Square/X)
-            start: 9      // START
+    // Load calibration from localStorage
+    function loadGamepadCalibration(deviceId) {
+        try {
+            const data = localStorage.getItem(`mathquest-gamepad-calibration-${deviceId}`);
+            return data ? JSON.parse(data) : null;
+        } catch { return null; }
+    }
+    
+    function saveGamepadCalibration(deviceId, calibration) {
+        try {
+            localStorage.setItem(`mathquest-gamepad-calibration-${deviceId}`, JSON.stringify(calibration));
+        } catch {}
+    }
+    
+    // Get calibrated mapping for a gamepad, or use default
+    function getGamepadMapping(gamepad) {
+        if (!gamepad) return DEFAULT_UCOM_MAPPING;
+        const deviceId = gamepad.id || 'unknown';
+        const calibration = loadGamepadCalibration(deviceId);
+        if (calibration && calibration.mapping) {
+            console.log(`[Gamepad] Using calibrated mapping for ${deviceId}`);
+            return calibration.mapping;
+        }
+        console.log(`[Gamepad] Using default mapping for ${deviceId}`);
+        return DEFAULT_UCOM_MAPPING;
+    }
+    
+    // Calibration state
+    const calibrationState = {
+        active: false,
+        player: 0,
+        step: 0,
+        steps: ['answerA', 'answerB', 'answerC', 'attack', 'start'],
+        stepLabels: ['Botón 4 (Respuesta A)', 'Botón 1 (Respuesta B)', 'Botón 2 (Respuesta C)', 'Botón 3 (Golpear/Acción)', 'START'],
+        pressedButton: null,
+        gamepad: null
+    };
+    
+    function startCalibration(player) {
+        const gp = gamepadState.controllers[player];
+        if (!gp) return false;
+        
+        calibrationState.active = true;
+        calibrationState.player = player;
+        calibrationState.step = 0;
+        calibrationState.pressedButton = null;
+        calibrationState.gamepad = gp;
+        
+        // Show calibration UI
+        showCalibrationUI();
+        return true;
+    }
+    
+    function cancelCalibration() {
+        calibrationState.active = false;
+        calibrationState.player = 0;
+        calibrationState.step = 0;
+        calibrationState.pressedButton = null;
+        calibrationState.gamepad = null;
+        hideCalibrationUI();
+    }
+    
+    function completeCalibration() {
+        if (!calibrationState.gamepad) return;
+        
+        const deviceId = calibrationState.gamepad.id || 'unknown';
+        const mapping = {
+            answerA: calibrationState.calibration.answerA,
+            answerB: calibrationState.calibration.answerB,
+            answerC: calibrationState.calibration.answerC,
+            attack: calibrationState.calibration.attack,
+            start: calibrationState.calibration.start
         };
+        
+        saveGamepadCalibration(deviceId, {
+            deviceId,
+            mapping,
+            calibratedAt: Date.now()
+        });
+        
+        // Update gamepad state
+        gamepadState.calibration[calibrationState.player] = { ...mapping, deviceId };
+        
+        console.log(`[Gamepad] Calibration saved for ${deviceId}`, mapping);
+        cancelCalibration();
     }
     
     function pollGamepads() {
@@ -4505,11 +4568,17 @@ function createIntegratedGame() {
     function processGamepadInput(delta) {
         pollGamepads();
         
+        // Handle calibration input first
+        if (calibrationState.active) {
+            processCalibrationInput(delta);
+            return;
+        }
+        
         for (let player = 0; player < 2; player++) {
             const gp = gamepadState.controllers[player];
             if (!gp) continue;
             
-            const mapping = mapUCOMButtons(gp);
+            const mapping = getGamepadMapping(gp);
             const prevButtons = gamepadState.prevButtons[player];
             const prevAxes = gamepadState.prevAxes[player];
             
@@ -4541,24 +4610,44 @@ function createIntegratedGame() {
             const axisX = Math.abs(stickX) > deadzone ? stickX : hatX;
             const axisY = Math.abs(stickY) > deadzone ? stickY : hatY;
             
-            // Horizontal movement (left/right)
-            setGamepadHeldAction(player, ACTIONS.MOVE_LEFT, axisX < -deadzone);
-            setGamepadHeldAction(player, ACTIONS.MOVE_RIGHT, axisX > deadzone);
+            // Menu navigation with D-pad/analog stick (for all menu phases)
+            const menuPhases = ['MENU', 'SESSION', 'DIFFICULTY', 'CONTROLS', 'LEADERBOARD', 'HISTORY', 'SETTINGS', 'PAUSED', 'RESULT'];
+            if (menuPhases.includes(game.phase)) {
+                // Horizontal navigation (left/right) - for changing options in some menus
+                if (axisX < -deadzone && Math.abs(prevAxes[0] || 0) <= deadzone) {
+                    navigateMenu(-1);
+                } else if (axisX > deadzone && Math.abs(prevAxes[0] || 0) <= deadzone) {
+                    navigateMenu(1);
+                }
+                
+                // Vertical navigation (up/down) - for menu navigation
+                if (axisY < -deadzone && Math.abs(prevAxes[1] || 0) <= deadzone) {
+                    navigateMenu(-1);
+                } else if (axisY > deadzone && Math.abs(prevAxes[1] || 0) <= deadzone) {
+                    navigateMenu(1);
+                }
+            }
             
-            // Vertical movement (up/down) - Jump/Slide
-            if (Math.abs(axisY) > deadzone) {
-                if (axisY < -deadzone) {
-                    // Up = Jump
-                    if (Math.abs(prevAxes[1] || 0) <= deadzone) {
-                        dispatchAction(ACTIONS.JUMP, `gamepad-p${player+1}`);
-                    }
-                } else if (axisY > deadzone) {
-                    // Down = Slide
-                    if (Math.abs(prevAxes[1] || 0) <= deadzone) {
-                        if (duoEnabled()) {
-                            requestPlayerSlide(player);
-                        } else {
-                            dispatchAction(ACTIONS.SLIDE, `gamepad-p${player+1}`);
+            // Horizontal movement (left/right) - only in PLAYING phase
+            if (game.phase === 'PLAYING') {
+                setGamepadHeldAction(player, ACTIONS.MOVE_LEFT, axisX < -deadzone);
+                setGamepadHeldAction(player, ACTIONS.MOVE_RIGHT, axisX > deadzone);
+                
+                // Vertical movement (up/down) - Jump/Slide
+                if (Math.abs(axisY) > deadzone) {
+                    if (axisY < -deadzone) {
+                        // Up = Jump
+                        if (Math.abs(prevAxes[1] || 0) <= deadzone) {
+                            dispatchAction(ACTIONS.JUMP, `gamepad-p${player+1}`);
+                        }
+                    } else if (axisY > deadzone) {
+                        // Down = Slide
+                        if (Math.abs(prevAxes[1] || 0) <= deadzone) {
+                            if (duoEnabled()) {
+                                requestPlayerSlide(player);
+                            } else {
+                                dispatchAction(ACTIONS.SLIDE, `gamepad-p${player+1}`);
+                            }
                         }
                     }
                 }
@@ -4573,11 +4662,11 @@ function createIntegratedGame() {
         if (pressed) {
             // Button pressed
             if (buttonIndex === mapping.answerA) {
-                // Answer A
+                // Answer A / Button 4 - also acts as confirm in menus
                 if (game.phase === 'PLAYING' && answerContextActive()) {
                     if (duoEnabled()) dispatchPlayerAnswer(player, 0);
                     else dispatchAction(ACTIONS.ANSWER_A, `gamepad-p${player + 1}`);
-                } else if (game.phase === 'MENU') {
+                } else if (['MENU', 'SESSION', 'DIFFICULTY', 'CONTROLS', 'LEADERBOARD', 'HISTORY', 'SETTINGS', 'PAUSED', 'RESULT'].includes(game.phase)) {
                     confirm();
                 }
             } else if (buttonIndex === mapping.answerB) {
@@ -4596,26 +4685,87 @@ function createIntegratedGame() {
                 // Attack/Action (Button 3)
                 if (game.phase === 'PLAYING') {
                     dispatchAction(ACTIONS.ATTACK, `gamepad-p${player+1}`);
-                } else if (game.phase === 'MENU') {
-                    confirm();
                 }
             } else if (buttonIndex === mapping.start) {
-                // START button
-                if (game.phase === 'MENU' || game.phase === 'SESSION' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS') {
+                // START button - confirms in all menu phases
+                if (game.phase === 'MENU' || game.phase === 'SESSION' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS' || game.phase === 'LEADERBOARD' || game.phase === 'HISTORY' || game.phase === 'SETTINGS' || game.phase === 'PAUSED' || game.phase === 'RESULT') {
                     confirm();
-                } else if (game.phase === 'PAUSED') {
-                    if (game.menuSelection === 0) resume();
-                    else if (game.menuSelection === 1) setPhase('INTRO');
-                    else setPhase('MENU');
-                } else if (game.phase === 'RESULT') {
-                    if (game.menuSelection === 0) {
-                        // Retry/Next level handled by confirm()
-                        confirm();
-                    } else {
-                        setPhase('MENU');
-                    }
                 }
             }
+        }
+    }
+    
+    // Calibration input processing
+    function processCalibrationInput(delta) {
+        if (!calibrationState.active || !calibrationState.gamepad) return;
+        
+        const gp = calibrationState.gamepad;
+        
+        // Check for button presses
+        for (let i = 0; i < gp.buttons.length; i++) {
+            if (gp.buttons[i].pressed && !calibrationState.pressedButton) {
+                calibrationState.pressedButton = i;
+                const currentStep = calibrationState.steps[calibrationState.step];
+                
+                if (!calibrationState.calibration) calibrationState.calibration = {};
+                calibrationState.calibration[currentStep] = i;
+                
+                console.log(`[Calibration] ${calibrationState.stepLabels[calibrationState.step]} = button index ${i}`);
+                
+                calibrationState.step++;
+                
+                if (calibrationState.step >= calibrationState.steps.length) {
+                    completeCalibration();
+                } else {
+                    updateCalibrationUI();
+                }
+                
+                break;
+            }
+        }
+        
+        // Check for cancel (START button held for 2 seconds)
+        const gp = calibrationState.gamepad;
+        if (gp.buttons[9] && gp.buttons[9].pressed) {
+            calibrationState.cancelHoldTime = (calibrationState.cancelHoldTime || 0) + delta;
+            if (calibrationState.cancelHoldTime >= 2) {
+                cancelCalibration();
+            }
+        } else {
+            calibrationState.cancelHoldTime = 0;
+        }
+    }
+    
+    // Calibration UI functions
+    let calibrationUI = null;
+    
+    function showCalibrationUI() {
+        const calibrationUI = document.getElementById('calibration-ui');
+        if (!calibrationUI) return;
+        
+        calibrationUI.style.display = 'flex';
+        calibrationUI.innerHTML = `
+            <h2 style="margin-bottom: 20px;">CALIBRAR MANDO UCOM</h2>
+            <div id="calibration-step" style="font-size: 28px; margin-bottom: 20px;">Presiona: Botón 4 (Respuesta A)</div>
+            <div id="calibration-progress" style="font-size: 18px; color: #888;">Paso 1 de 5</div>
+            <div style="margin-top: 30px; font-size: 14px; color: #666;">
+                Mantén START 2 segundos para cancelar
+            </div>
+        `;
+    }
+    
+    function updateCalibrationUI() {
+        const stepEl = document.getElementById('calibration-step');
+        const progressEl = document.getElementById('calibration-progress');
+        if (stepEl) stepEl.textContent = `Presiona: ${calibrationState.stepLabels[calibrationState.step]}`;
+        if (progressEl) progressEl.textContent = `Paso ${calibrationState.step + 1} de ${calibrationState.steps.length}`;
+    }
+    
+    function hideCalibrationUI() {
+        const calibrationUI = document.getElementById('calibration-ui');
+        if (calibrationUI) {
+            calibrationUI.style.display = 'none';
+            calibrationUI.innerHTML = '';
         }
     }
     

@@ -9,15 +9,17 @@
     <title>MathQuest 3.0 — Official 3D Candidate</title>
     <script type="importmap">
         { "imports": { 
-            "three": "./vendor/three.module.min.js",
-            "mergeGeometries": "./vendor/BufferGeometryUtils.js",
-            "GLTFLoader": "./vendor/GLTFLoader.js"
+            "three": "../thirdperson-camera/vendor/three.module.min.js",
+            "mergeGeometries": "../production-art/vendor/BufferGeometryUtils.js",
+            "GLTFLoader": "../production-art/vendor/GLTFLoader.js"
         } }
     </script>
 </head>
 <body data-mode="integrated">
     <canvas id="scene" aria-label="MathQuest: Templo de los Números"></canvas>
     <div id="fallback">ABRIENDO LAS PUERTAS DEL TEMPLO…</div>
+    <div id="calibration-ui" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-family: system-ui; font-size: 24px;"></div>
+    <div id="calibration-ui" style="display: none;"></div>
 
     <main id="game-ui" aria-live="polite">
         <section class="screen active" id="menu-screen">
@@ -58,13 +60,10 @@
             <h2>¿QUIÉNES ENTRAN AL TEMPLO?</h2>
             <div class="session-mode-grid" role="radiogroup" aria-label="Modo de jugadores">
                 <button class="session-mode selected" type="button" data-session-mode="solo" aria-pressed="true">
-                    <b>SOLO</b><span>Un explorador · Récord personal</span>
+                    <b>UN JUGADOR</b><span>Un explorador · Récord personal</span>
                 </button>
                 <button class="session-mode" type="button" data-session-mode="duel" aria-pressed="false">
-                    <b>PAREJA 2J</b><span>Dos exploradores · Respuestas y tiempos propios</span>
-                </button>
-                <button class="session-mode" type="button" data-session-mode="team" aria-pressed="false">
-                    <b>EQUIPO 2J</b><span>Corren juntos · El primero espera al compañero</span>
+                    <b>DOS JUGADORES</b><span>Competencia matemática · Avance sincronizado</span>
                 </button>
             </div>
             <form id="session-form" class="session-form" autocomplete="off">
@@ -106,9 +105,8 @@
             <h2>MEJORES PUNTAJES</h2>
             <div class="leaderboard-tabs" role="tablist" aria-label="Filtros de clasificación">
                 <button class="leaderboard-tab selected" role="tab" data-filter="all" aria-selected="true">TODOS</button>
-                <button class="leaderboard-tab" role="tab" data-filter="solo" aria-selected="false">SOLO</button>
-                <button class="leaderboard-tab" role="tab" data-filter="duel" aria-selected="false">PAREJA 2J</button>
-                <button class="leaderboard-tab" role="tab" data-filter="team" aria-selected="false">EQUIPO 2J</button>
+                <button class="leaderboard-tab" role="tab" data-filter="solo" aria-selected="false">UN JUGADOR</button>
+                <button class="leaderboard-tab" role="tab" data-filter="duel" aria-selected="false">DOS JUGADORES</button>
             </div>
             <div class="leaderboard-list" id="leaderboard-list" role="listbox" aria-label="Lista de récords"></div>
             <p class="nav-hint">↑ ↓ NAVEGAR &nbsp;·&nbsp; ENTER VOLVER</p>
@@ -180,6 +178,7 @@
                         </select>
                     </label>
                     <button class="setting-btn" id="setting-test-gamepad">PROBAR MANDO</button>
+                    <button class="setting-btn" id="setting-calibrate-gamepad">CALIBRAR MANDO UCOM</button>
                 </div>
             </div>
             <p class="nav-hint">↑ ↓ NAVEGAR &nbsp;·&nbsp; ENTER VOLVER</p>
