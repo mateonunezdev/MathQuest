@@ -3932,8 +3932,9 @@ function createIntegratedGame() {
             correctIndex: context === 'ROUTE' ? problem.correctLane + 1 : problem.correctIndex
         };
     }
-    function duoProblem(context, alternate = false) {
+    function duoProblem(context, alternate = false, previousProblem = null) {
         const source = alternate ? MATH_REPLAY_SETS[LEVEL_INDEX] : ACTIVE_MATH;
+        
         if (context.startsWith('MASTERY_')) {
             const index = Number(context.split('_')[1]);
             const problem = index === 0
@@ -3941,7 +3942,37 @@ function createIntegratedGame() {
                 : (alternate ? ACTIVE_MATH.guardianQuestions[2] : MATH_REPLAY_SETS[LEVEL_INDEX].altarQuestions[2]);
             return normalizedProblem(problem, index === 0 && !alternate ? 'ROUTE' : 'ALTAR');
         }
-        const problem = context === 'ROUTE' ? source.questions[game.difficulty] : context === 'ALTAR' ? source.altarQuestions[game.difficulty] : source.guardianQuestions[game.difficulty];
+        
+        let problem;
+        if (context === 'ROUTE') {
+            const questions = source.questions[game.difficulty];
+            if (alternate && previousProblem) {
+                // Find a different question from the same difficulty
+                const allQuestions = [...ACTIVE_MATH.questions[game.difficulty], ...MATH_REPLAY_SETS[LEVEL_INDEX].questions[game.difficulty]];
+                const available = allQuestions.filter(q => q.prompt !== previousProblem.prompt);
+                problem = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : questions;
+            } else {
+                problem = questions;
+            }
+        } else if (context === 'ALTAR') {
+            const questions = source.altarQuestions[game.difficulty];
+            if (alternate && previousProblem) {
+                const allQuestions = [...ACTIVE_MATH.altarQuestions[game.difficulty], ...MATH_REPLAY_SETS[LEVEL_INDEX].altarQuestions[game.difficulty]];
+                const available = allQuestions.filter(q => q.prompt !== previousProblem.prompt);
+                problem = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : questions;
+            } else {
+                problem = questions;
+            }
+        } else { // GUARDIAN
+            const questions = source.guardianQuestions[game.difficulty];
+            if (alternate && previousProblem) {
+                const allQuestions = [...ACTIVE_MATH.guardianQuestions[game.difficulty], ...MATH_REPLAY_SETS[LEVEL_INDEX].guardianQuestions[game.difficulty]];
+                const available = allQuestions.filter(q => q.prompt !== previousProblem.prompt);
+                problem = available.length > 0 ? available[Math.floor(Math.random() * available.length)] : questions;
+            } else {
+                problem = questions;
+            }
+        }
         return normalizedProblem(problem, context);
     }
     function beginDuoChallenge(context) {
@@ -3973,12 +4004,11 @@ function createIntegratedGame() {
             altarSigils.forEach(({ faceMaterial }, index) => faceMaterial.color.set(index === altarQuestion.correctIndex ? 0x79fff2 : 0xffffff));
         } else if (context === 'GUARDIAN') {
             game.guardianResolved = true; game.guardianActive = false;
-            game.guardianFeedback = 'combat'; game.guardianTimer = 0;
-            Object.assign(game.guardianCombat, {
-                active: true, phase: 'TELEGRAPH', timer: profiles[game.difficulty].guardianTelegraph,
-                maxHealth: 2 + game.difficulty, health: 2 + game.difficulty,
-                strikes: 0, hits: 0, dodges: 0, damageTaken: 0,
-                contactResolved: false, recoveryHit: false
+            game.guardianFeedback = 'correct'; game.guardianTimer = 1.55;
+            // Giant lifts hand animation - no combat phase needed
+            // Both players can now proceed to the portal
+            toast('¡EL GIGANTE LEVANTA LA MANO · PASO LIBRE!', 2);
+            audio.cue('correct');
             });
             guardianCoreRunes.forEach((rune, runeIndex) => {
                 rune.visible = runeIndex < game.guardianCombat.health; rune.scale.setScalar(1);
@@ -4015,7 +4045,7 @@ function createIntegratedGame() {
         player.answers++; runner.questions++;
         const correct = answerIndex === racePlayer.problem.correctIndex;
         if (!correct) {
-            racePlayer.wrongFlash = .6; racePlayer.problem = duoProblem(context, true);
+            racePlayer.wrongFlash = .6; racePlayer.problem = duoProblem(context, true, racePlayer.problem);
             player.score = Math.max(0, player.score - 80); runner.score = Math.max(0, runner.score - 80); runner.combo = 1;
             toast(`${player.name} · RESPUESTA INCORRECTA · NUEVO RETO`, 1.25); audio.cue('wrong'); updateHud();
             return false;
@@ -4038,7 +4068,7 @@ function createIntegratedGame() {
             // Keep the shared challenge clock running. The remaining explorer
             // receives a fresh question, but their total response time still
             // includes the time spent at the original gate.
-            other.problem = duoProblem(context, true);
+            other.problem = duoProblem(context, true, other.problem);
             session.activeIndex = otherIndex;
             // Activate progressive penalty for the waiting player
             duoRace.penaltyActive = true;
@@ -4080,26 +4110,16 @@ function createIntegratedGame() {
         if (correct) {
             game.guardianResolved = true;
             game.guardianActive = false;
-            game.guardianFeedback = 'combat';
-            game.guardianTimer = 0;
-            Object.assign(game.guardianCombat, {
-                active: true, phase: 'TELEGRAPH', timer: profiles[game.difficulty].guardianTelegraph,
-                maxHealth: 2 + game.difficulty, health: 2 + game.difficulty,
-                strikes: 0, hits: 0, dodges: 0, damageTaken: 0,
-                contactResolved: false, recoveryHit: false
-            });
-            guardianCoreRunes.forEach((rune, runeIndex) => {
-                rune.visible = runeIndex < game.guardianCombat.health;
-                rune.scale.setScalar(1);
-            });
+            game.guardianFeedback = 'correct'; game.guardianTimer = 1.55;
+            // Giant lifts hand - no combat phase
+            toast('¡EL GIGANTE LEVANTA LA MANO · PASO LIBRE!', 2);
+            audio.cue('correct');
             runner.correct++;
             runner.energy = Math.min(5, runner.energy + 1);
             runner.combo++;
             runner.maxCombo = Math.max(runner.maxCombo, runner.combo);
             const points = Math.round(1100 * profiles[game.difficulty].multiplier);
             runner.score += points; recordMathAttempt(true, points);
-            toast(`${respondent} ROMPIÓ EL SELLO · DASH PARA ESQUIVAR · ATACA EL NÚCLEO`, 2.4);
-            audio.cue('correct');
         } else {
             recordMathAttempt(false);
             game.guardianActive = false;
@@ -5378,9 +5398,11 @@ function createIntegratedGame() {
             // Apply penalty every 0.5 seconds
             if (duoRace.penaltyTimer >= 0.5) {
                 duoRace.penaltyTimer = 0;
-                const waitingPlayerIndex = duoRace.players.findIndex(p => p.status === 'WAITING');
-                if (waitingPlayerIndex >= 0) {
-                    const player = session.players[waitingPlayerIndex];
+                // Penalty applies to the player who is still ANSWERING (hasn't answered correctly yet)
+                // The player who answered first is in 'WAITING' status and should NOT be penalized
+                const answeringPlayerIndex = duoRace.players.findIndex(p => p.status === 'ANSWERING');
+                if (answeringPlayerIndex >= 0) {
+                    const player = session.players[answeringPlayerIndex];
                     const penalty = duoRace.penaltyRate * 0.5;
                     player.score = Math.max(0, player.score - penalty);
                     runner.score = Math.max(0, runner.score - penalty);

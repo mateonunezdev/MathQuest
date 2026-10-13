@@ -33,33 +33,51 @@ jobs:
       - name: Build for GitHub Pages
         run: |
           # Create deployment directory
+          rm -rf deploy
           mkdir -p deploy
           
-          # Copy the integrated game
+          # Copy the integrated game (index.html, game.css)
           cp -r spikes/mathquest-integrated-v1/* deploy/
           
-          # Copy thirdperson-camera vendor files
+          # Copy all mathquest-art-kit-v1 files (scene.js and its dependencies)
+          mkdir -p deploy/mathquest-art-kit-v1
+          cp -r spikes/mathquest-art-kit-v1/* deploy/mathquest-art-kit-v1/
+          
+          # Copy thirdperson-camera vendor files (Three.js)
           mkdir -p deploy/vendor
           cp spikes/thirdperson-camera/vendor/three.module.min.js deploy/vendor/
           cp spikes/thirdperson-camera/vendor/three.core.min.js deploy/vendor/
           
           # Copy production-art vendor files
-          mkdir -p deploy/vendor
           cp spikes/production-art/vendor/GLTFLoader.js deploy/vendor/
           cp spikes/production-art/vendor/BufferGeometryUtils.js deploy/vendor/
           
-          # Copy mathquest-art-kit-v1 content
-          mkdir -p deploy/content
-          cp -r spikes/mathquest-art-kit-v1/content/* deploy/content/
-          
-          # Copy math-label-renderer
-          cp spikes/mathquest-art-kit-v1/math-label-renderer.js deploy/
-          
-          # Update importmap in index.html for GitHub Pages base path
+          # Fix importmap in index.html for GitHub Pages base path
+          # The scene.js is now at ./mathquest-art-kit-v1/scene.js
           sed -i 's|"three": "\.\./thirdperson-camera/vendor/three.module.min.js"|"three": "./vendor/three.module.min.js"|g' deploy/index.html
           
-          # Update scene.js imports for production
-          # The scene.js uses relative imports that should work from the same directory
+          # Fix script src in index.html to point to the new location
+          sed -i 's|src="\.\./mathquest-art-kit-v1/scene.js"|src="./mathquest-art-kit-v1/scene.js"|g' deploy/index.html
+          
+          # Fix scene.js imports - they use relative paths like '../production-art/vendor/GLTFLoader.js'
+          # These need to be updated to work from the deployed location
+          cd deploy/mathquest-art-kit-v1
+          # Fix production-art vendor imports
+          sed -i "s|'\.\./production-art/vendor/GLTFLoader.js'|'../../vendor/GLTFLoader.js'|g" scene.js
+          sed -i 's|"\.\./production-art/vendor/GLTFLoader.js"|"../../vendor/GLTFLoader.js"|g' scene.js
+          sed -i "s|'\.\./production-art/vendor/BufferGeometryUtils.js'|'../../vendor/BufferGeometryUtils.js'|g" scene.js
+          sed -i 's|"\.\./production-art/vendor/BufferGeometryUtils.js"|"../../vendor/BufferGeometryUtils.js"|g' scene.js
+          # Fix thirdperson-camera vendor imports
+          sed -i "s|'\.\./thirdperson-camera/vendor/three.module.min.js'|'../../vendor/three.module.min.js'|g" scene.js
+          sed -i 's|"\.\./thirdperson-camera/vendor/three.module.min.js"|"../../vendor/three.module.min.js"|g' scene.js
+          sed -i "s|'\.\./thirdperson-camera/vendor/three.core.min.js'|'../../vendor/three.core.min.js'|g" scene.js
+          sed -i 's|"\.\./thirdperson-camera/vendor/three.core.min.js"|"../../vendor/three.core.min.js"|g' scene.js
+          cd ../..
+          
+          # Verify key files exist
+          ls -la deploy/
+          ls -la deploy/mathquest-art-kit-v1/
+          ls -la deploy/vendor/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

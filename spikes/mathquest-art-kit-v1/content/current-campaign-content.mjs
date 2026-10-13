@@ -121,8 +121,8 @@ const LEGACY_REPLAY_SETS = [
 ];
 
 export const DIFFICULTY_PROFILES = Object.freeze([
-    Object.freeze({ id: 'explorador', name: 'EXPLORADOR', speed: 3.5, steer: 8.0, acceleration: 30, obstacleThreshold: .4, mazeTolerance: 1.14, stalkerTelegraph: 1.12, stalkerRecovery: 1.42, guardianTelegraph: 1.3, guardianRecovery: 1.58, hesitationSeconds: 9, guidance: 'REFORZADA', multiplier: 1 }),
-    Object.freeze({ id: 'aventurero', name: 'AVENTURERO', speed: 4.2, steer: 9.0, acceleration: 35, obstacleThreshold: .55, mazeTolerance: 1, stalkerTelegraph: .85, stalkerRecovery: 1.12, guardianTelegraph: 1, guardianRecovery: 1.25, hesitationSeconds: 7, guidance: 'ESTÁNDAR', multiplier: 1.25 }),
+    Object.freeze({ id: 'explorador', name: 'EXPLORADORES', speed: 3.5, steer: 8.0, acceleration: 30, obstacleThreshold: .4, mazeTolerance: 1.14, stalkerTelegraph: 1.12, stalkerRecovery: 1.42, guardianTelegraph: 1.3, guardianRecovery: 1.58, hesitationSeconds: 9, guidance: 'REFORZADA', multiplier: 1 }),
+    Object.freeze({ id: 'aventurero', name: 'INTERMEDIO', speed: 4.2, steer: 9.0, acceleration: 35, obstacleThreshold: .55, mazeTolerance: 1, stalkerTelegraph: .85, stalkerRecovery: 1.12, guardianTelegraph: 1, guardianRecovery: 1.25, hesitationSeconds: 7, guidance: 'ESTÁNDAR', multiplier: 1.25 }),
     Object.freeze({ id: 'maestro', name: 'MAESTRO', speed: 5.0, steer: 10.0, acceleration: 40, obstacleThreshold: .68, mazeTolerance: .9, stalkerTelegraph: .7, stalkerRecovery: .94, guardianTelegraph: .82, guardianRecovery: 1, hesitationSeconds: 5.5, guidance: 'ESENCIAL', multiplier: 1.6 })
 ]);
 
