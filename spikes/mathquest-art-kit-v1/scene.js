@@ -2592,13 +2592,43 @@ function createIntegratedGame() {
         if (!racePlayer?.problem) return;
         
         const problem = racePlayer.problem;
-        mathSigns.forEach(({ faceMaterial }, index) => {
-            if (index < problem.choices.length) {
-                faceMaterial.map = mathLabelRenderer.texture(problem.choices[index], index);
-                faceMaterial.needsUpdate = true;
-                faceMaterial.color.set(0xffffff);
-            }
-        });
+        console.log('[updateDuoMathSigns] context:', context, 'player:', waitingPlayerIndex, 'problem:', problem.prompt, 'choices:', problem.choices);
+        
+        if (context === 'ROUTE') {
+            mathSigns.forEach(({ faceMaterial }, index) => {
+                if (index < problem.choices.length) {
+                    const texture = mathLabelRenderer.texture(problem.choices[index], index);
+                    console.log('[updateDuoMathSigns] ROUTE sign', index, 'choice:', problem.choices[index], 'texture:', texture);
+                    faceMaterial.map = texture;
+                    faceMaterial.needsUpdate = true;
+                    faceMaterial.color.set(0xffffff);
+                }
+            });
+        } else if (context === 'ALTAR') {
+            altarSigils.forEach(({ faceMaterial }, index) => {
+                if (index < problem.choices.length) {
+                    faceMaterial.map = mathLabelRenderer.texture(problem.choices[index], index);
+                    faceMaterial.needsUpdate = true;
+                    faceMaterial.color.set(0xffffff);
+                }
+            });
+        } else if (context === 'GUARDIAN') {
+            guardianSigils.forEach(({ faceMaterial }, index) => {
+                if (index < problem.choices.length) {
+                    faceMaterial.map = mathLabelRenderer.texture(problem.choices[index], index);
+                    faceMaterial.needsUpdate = true;
+                    faceMaterial.color.set(0xffffff);
+                }
+            });
+        } else if (context.startsWith('MASTERY_')) {
+            mathSigns.forEach(({ faceMaterial }, index) => {
+                if (index < problem.choices.length) {
+                    faceMaterial.map = mathLabelRenderer.texture(problem.choices[index], index);
+                    faceMaterial.needsUpdate = true;
+                    faceMaterial.color.set(0xffffff);
+                }
+            });
+        }
     }
 
     const guardianPalette = LEVEL.theme === 'volcano'
@@ -3330,13 +3360,17 @@ function createIntegratedGame() {
     function renderResultPlayers() {
         const players = participatingPlayers();
         const bestScore = Math.max(...players.map(player => player.score));
-        const completedTimes = players.filter(player => player.responseMs > 0).map(player => player.responseMs);
-        const bestTime = completedTimes.length ? Math.min(...completedTimes) : 0;
+        const winners = players.filter(player => player.score === bestScore);
+        const isTie = winners.length > 1;
+        const isDuel = duoEnabled();
         ui.resultPlayers.innerHTML = players.map(player => {
             const accuracy = player.answers ? Math.round(player.correct / player.answers * 100) : 0;
-            const winner = duoEnabled() && player.responseMs === bestTime && bestTime > 0;
-            return `<div class="result-player-row ${winner ? 'winner' : ''}"><span>${winner ? '◆ MÁS RÁPIDO · ' : ''}${player.name}</span><small>${player.correct}/${player.answers} · ${accuracy}% · ${(player.responseMs / 1000).toFixed(1)}s</small><b>${player.score}</b></div>`;
-        }).join('');
+            const isWinner = player.score === bestScore && bestScore > 0;
+            const winnerPrefix = isDuel && isWinner && !isTie ? '◆ GANADOR · ' : isTie && isWinner ? '◆ EMPATE · ' : '';
+            return `<div class="result-player-row ${isWinner ? 'winner' : ''}">${winnerPrefix}<span>${player.name}</span><small>${player.correct}/${player.answers} · ${accuracy}% · ${(player.responseMs / 1000).toFixed(1)}s</small><b>${Math.round(player.score)}</b></div>`;
+        }).join('') + (session.mode === 'team' && duoEnabled()
+            ? `<div class="team-total">TOTAL DEL EQUIPO · ${participatingPlayers().reduce((sum, player) => sum + player.score, 0)}</div>`
+            : '');
     }
     function writeSessionQuery(url, includeScores = true) {
         url.searchParams.set('sessionMode', session.mode);
@@ -4060,6 +4094,7 @@ function createIntegratedGame() {
             player.score = Math.max(0, player.score - 80); runner.score = Math.max(0, runner.score - 80); runner.combo = 1;
             toast(`${player.name} · RESPUESTA INCORRECTA · NUEVO RETO`, 1.25); audio.cue('wrong'); updateHud();
             // Update 3D math signs for the new question
+            console.log('[resolveDuoAnswer] incorrect answer, new problem:', racePlayer.problem?.prompt, 'choices:', racePlayer.problem?.choices);
             updateDuoMathSigns(context);
             return false;
         }
@@ -4084,6 +4119,7 @@ function createIntegratedGame() {
             other.problem = duoProblem(context, true, other.problem);
             session.activeIndex = otherIndex;
             // Update 3D math signs for the second player's new question
+            console.log('[resolveDuoAnswer] first correct, other player:', otherIndex, 'new problem:', other.problem?.prompt, 'choices:', other.problem?.choices);
             updateDuoMathSigns(context);
             // Activate progressive penalty for the waiting player
             duoRace.penaltyActive = true;
