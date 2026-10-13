@@ -51,10 +51,20 @@ jobs:
           # Copy production-art vendor files
           cp spikes/production-art/vendor/GLTFLoader.js deploy/vendor/
           cp spikes/production-art/vendor/BufferGeometryUtils.js deploy/vendor/
+
+          # Preserve the procedural fallback texture used while the rig loads.
+          mkdir -p deploy/assets/fair/player
+          cp assets/fair/player/run-up.png deploy/assets/fair/player/
+          
+          # Copy ALL assets including GLB models and textures for production
+          mkdir -p deploy/assets
+          cp -r assets/* deploy/assets/
           
           # Fix importmap in index.html for GitHub Pages base path
           # The scene.js is now at ./mathquest-art-kit-v1/scene.js
           sed -i 's|"three": "\.\./thirdperson-camera/vendor/three.module.min.js"|"three": "./vendor/three.module.min.js"|g' deploy/index.html
+          sed -i 's|"mergeGeometries": "\.\./production-art/vendor/BufferGeometryUtils.js"|"mergeGeometries": "./vendor/BufferGeometryUtils.js"|g' deploy/index.html
+          sed -i 's|"GLTFLoader": "\.\./production-art/vendor/GLTFLoader.js"|"GLTFLoader": "./vendor/GLTFLoader.js"|g' deploy/index.html
           
           # Fix script src in index.html to point to the new location
           sed -i 's|src="\.\./mathquest-art-kit-v1/scene.js"|src="./mathquest-art-kit-v1/scene.js"|g' deploy/index.html
