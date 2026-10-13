@@ -59,19 +59,20 @@ jobs:
           # Fix script src in index.html to point to the new location
           sed -i 's|src="\.\./mathquest-art-kit-v1/scene.js"|src="./mathquest-art-kit-v1/scene.js"|g' deploy/index.html
           
-          # Fix scene.js imports - they use relative paths like '../production-art/vendor/GLTFLoader.js'
-          # These need to be updated to work from the deployed location
+          # Fix all .js files in mathquest-art-kit-v1 to use correct vendor paths
           cd deploy/mathquest-art-kit-v1
-          # Fix production-art vendor imports
-          sed -i "s|'\.\./production-art/vendor/GLTFLoader.js'|'../../vendor/GLTFLoader.js'|g" scene.js
-          sed -i 's|"\.\./production-art/vendor/GLTFLoader.js"|"../../vendor/GLTFLoader.js"|g' scene.js
-          sed -i "s|'\.\./production-art/vendor/BufferGeometryUtils.js'|'../../vendor/BufferGeometryUtils.js'|g" scene.js
-          sed -i 's|"\.\./production-art/vendor/BufferGeometryUtils.js"|"../../vendor/BufferGeometryUtils.js"|g' scene.js
-          # Fix thirdperson-camera vendor imports
-          sed -i "s|'\.\./thirdperson-camera/vendor/three.module.min.js'|'../../vendor/three.module.min.js'|g" scene.js
-          sed -i 's|"\.\./thirdperson-camera/vendor/three.module.min.js"|"../../vendor/three.module.min.js"|g' scene.js
-          sed -i "s|'\.\./thirdperson-camera/vendor/three.core.min.js'|'../../vendor/three.core.min.js'|g" scene.js
-          sed -i 's|"\.\./thirdperson-camera/vendor/three.core.min.js"|"../../vendor/three.core.min.js"|g' scene.js
+          # Fix production-art vendor imports in all .js files
+          for f in *.js; do
+            sed -i "s|'\.\./production-art/vendor/GLTFLoader.js'|'../../vendor/GLTFLoader.js'|g" "$f"
+            sed -i 's|"\.\./production-art/vendor/GLTFLoader.js"|"../../vendor/GLTFLoader.js"|g' "$f"
+            sed -i "s|'\.\./production-art/vendor/BufferGeometryUtils.js'|'../../vendor/BufferGeometryUtils.js'|g" "$f"
+            sed -i 's|"\.\./production-art/vendor/BufferGeometryUtils.js"|"../../vendor/BufferGeometryUtils.js"|g' "$f"
+            # Fix thirdperson-camera vendor imports
+            sed -i "s|'\.\./thirdperson-camera/vendor/three.module.min.js'|'../../vendor/three.module.min.js'|g" "$f"
+            sed -i 's|"\.\./thirdperson-camera/vendor/three.module.min.js"|"../../vendor/three.module.min.js"|g' "$f"
+            sed -i "s|'\.\./thirdperson-camera/vendor/three.core.min.js'|'../../vendor/three.core.min.js'|g" "$f"
+            sed -i 's|"\.\./thirdperson-camera/vendor/three.core.min.js"|"../../vendor/three.core.min.js"|g' "$f"
+          done
           cd ../..
           
           # Verify key files exist
