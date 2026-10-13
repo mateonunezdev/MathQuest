@@ -8,7 +8,11 @@
     <meta name="mathquest-artifact-class" content="OFFICIAL_3D_CANDIDATE">
     <title>MathQuest 3.0 — Official 3D Candidate</title>
     <script type="importmap">
-        { "imports": { "three": "../thirdperson-camera/vendor/three.module.min.js" } }
+        { "imports": { 
+            "three": "./vendor/three.module.min.js",
+            "mergeGeometries": "./vendor/BufferGeometryUtils.js",
+            "GLTFLoader": "./vendor/GLTFLoader.js"
+        } }
     </script>
 </head>
 <body data-mode="integrated">

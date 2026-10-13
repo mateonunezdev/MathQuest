@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { mergeGeometries } from '../production-art/vendor/BufferGeometryUtils.js';
-import { GLTFLoader } from '../production-art/vendor/GLTFLoader.js';
+import { mergeGeometries } from 'mergeGeometries';
+import { GLTFLoader } from 'GLTFLoader';
 import { CharacterController, verifySyntheticRigPipeline } from './character-controller.js';
 import { ProceduralExplorer } from './procedural-explorer.js';
 import { CURRENT_CAMPAIGN_ADAPTER } from './content/current-campaign-content.mjs';

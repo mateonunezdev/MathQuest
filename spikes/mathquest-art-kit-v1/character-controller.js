@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from '../production-art/vendor/GLTFLoader.js';
+import { GLTFLoader } from 'GLTFLoader';
 
 export const MOTION_STATES = Object.freeze([
     'IDLE', 'RUN', 'RUN_LEFT', 'RUN_RIGHT',
