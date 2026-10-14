@@ -3805,6 +3805,12 @@ function createIntegratedGame() {
             ui.menuOptions.forEach((opt, i) => opt.classList.toggle('selected', i === game.menuSelection));
             audio.cue('confirm'); return;
         }
+        if (game.phase === 'SESSION') {
+            game.menuSelection = (game.menuSelection + direction + ui.sessionModes.length) % ui.sessionModes.length;
+            const mode = ui.sessionModes[game.menuSelection].dataset.sessionMode;
+            setSessionMode(mode);
+            audio.cue('confirm'); return;
+        }
         if (game.phase === 'LEADERBOARD') {
             // Navigate leaderboard entries
             const entries = ui.leaderboardList.querySelectorAll('.leaderboard-entry');
@@ -4029,6 +4035,7 @@ function createIntegratedGame() {
         }));
         session.activeIndex = 0;
         updateHud();
+        updateDuoMathSigns(context);
     }
     function duoCrossingLead(context) {
         if (context === 'ROUTE') return 7.15;
@@ -4244,9 +4251,11 @@ function createIntegratedGame() {
         if (code === 'KeyM') return ACTIONS.TOGGLE_AUDIO;
         if (code === 'Enter') return ACTIONS.CONFIRM;
         if (code === 'Escape') return ACTIONS.PAUSE;
-        if (['MENU', 'DIFFICULTY', 'PAUSED', 'RESULT'].includes(game.phase)) {
+        if (['MENU', 'SESSION', 'DIFFICULTY', 'PAUSED', 'RESULT'].includes(game.phase)) {
             if (code === 'ArrowUp' || code === 'KeyW') return ACTIONS.NAV_PREVIOUS;
             if (code === 'ArrowDown' || code === 'KeyS') return ACTIONS.NAV_NEXT;
+            if (code === 'ArrowLeft' || code === 'KeyA') return ACTIONS.NAV_PREVIOUS;
+            if (code === 'ArrowRight' || code === 'KeyD') return ACTIONS.NAV_NEXT;
         }
         if (game.phase === 'PLAYING' && answerContextActive()) {
             if (code === 'KeyA') return ACTIONS.ANSWER_A;
