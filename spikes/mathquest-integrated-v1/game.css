@@ -15,7 +15,7 @@ canvas { display: block; width: 100%; height: 100%; }
 #game-ui::after { content: ""; position: absolute; inset: 0; z-index: 30; pointer-events: none; box-shadow: inset 0 0 90px rgba(0,7,10,.48), inset 0 -60px 100px rgba(0,7,10,.2); }
 .screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; opacity: 0; visibility: hidden; transform: scale(1.015); transition: opacity .45s ease, transform .65s cubic-bezier(.2,.8,.2,1), visibility .45s; }
 .screen::before { content: ""; position: absolute; inset: 0; z-index: -1; background: radial-gradient(circle at 50% 58%, rgba(7,45,52,.14), rgba(1,8,12,.76) 67%, rgba(1,5,8,.9)); }
-.screen.active { opacity: 1; visibility: visible; transform: scale(1); }
+.screen.active { opacity: 1; visibility: visible; transform: scale(1); pointer-events: auto; }
 #menu-screen.active h1 { animation: titleSettle .75s cubic-bezier(.16,.84,.24,1) both; }
 #menu-screen.active .brand-mark { animation: sigilFloat 3.4s ease-in-out infinite; }
 .candidate-label { margin: 0 0 16px; padding: 6px 13px; border-top: 1px solid rgba(214,156,69,.48); border-bottom: 1px solid rgba(106,244,235,.3); color: #b8cbc7; background: linear-gradient(90deg, transparent, rgba(3,16,22,.64), transparent); font-size: 8px; font-weight: 850; letter-spacing: .24em; }
@@ -71,6 +71,17 @@ kbd { padding: 7px 12px; margin-left: 8px; border: 1px solid rgba(106,244,235,.6
 .session-start { height: 48px; padding: 0 20px; border: 1px solid var(--gold); color: #f6ead3; background: linear-gradient(135deg, #614018, #1e201d); font: 850 10px system-ui; letter-spacing: .16em; cursor: pointer; }
 .session-start i { margin-left: 8px; color: var(--cyan); font-style: normal; }
 .nav-hint, .skip { margin: 27px 0 0; color: #8ca09e; font-size: 10px; font-weight: 750; letter-spacing: .2em; }
+
+.help-content { width: min(720px, 88vw); max-height: 60vh; overflow-y: auto; padding: 0 16px; text-align: left; color: #cfe8e4; font-size: 13px; line-height: 1.6; }
+.help-content h3 { margin: 18px 0 8px; color: var(--gold); font: 700 14px Georgia, serif; letter-spacing: .08em; border-bottom: 1px solid rgba(106,244,235,.25); padding-bottom: 4px; }
+.help-content h4 { margin: 14px 0 6px; color: var(--cyan); font: 700 13px Georgia, serif; }
+.help-content ul { margin: 6px 0 10px 20px; padding: 0; }
+.help-content li { margin: 4px 0; }
+.help-content .key { display: inline-block; padding: 2px 6px; border: 1px solid rgba(106,244,235,.45); border-radius: 2px; background: rgba(5,27,32,.66); color: var(--cyan); font: 700 10px monospace; margin-right: 6px; }
+.help-content .key-small { font-size: 9px; }
+.help-content p { margin: 8px 0; }
+.help-content .note { color: var(--gold); font-size: 11px; font-style: italic; }
+.help-content .duo-note { background: rgba(214,156,69,.12); border-left: 3px solid var(--gold); padding: 8px 12px; margin: 10px 0; border-radius: 2px; }
 .control-ribbon { display: flex; flex-wrap: wrap; justify-content: center; width: min(930px, 88vw); border-top: 1px solid rgba(214,156,69,.35); border-bottom: 1px solid rgba(214,156,69,.35); background: rgba(2,13,17,.64); }
 .control-ribbon div { min-width: 118px; padding: 24px 17px; border-right: 1px solid rgba(106,244,235,.11); }
 .control-ribbon b { display: block; min-height: 31px; color: var(--cyan); font-size: 22px; }
@@ -161,7 +172,7 @@ kbd { padding: 7px 12px; margin-left: 8px; border: 1px solid rgba(106,244,235,.6
 .result-players { display: grid; width: min(450px, 82vw); gap: 6px; margin: -11px 0 16px; }
 .result-player-row { display: grid; grid-template-columns: 1fr auto auto; gap: 18px; padding: 8px 13px; border-left: 2px solid var(--cyan); background: rgba(4,22,27,.66); text-align: left; }
 .result-player-row.winner { border-color: var(--gold); box-shadow: inset 0 0 20px rgba(214,156,69,.08); }
-.result-player-row span { overflow: hidden; color: #e5efec; font: 650 12px Georgia, serif; text-overflow: ellipsis; white-space: nowrap; }
+.result-player-row span { color: #e5efec; font: 650 12px Georgia, serif; white-space: normal; word-break: break-word; }
 .result-player-row small { color: #829693; font-size: 8px; letter-spacing: .1em; }
 .result-player-row b { color: var(--gold); font: 650 16px Georgia, serif; }
 .team-total { padding: 8px 13px; border-top: 1px solid rgba(214,156,69,.4); color: var(--cyan); font-size: 10px; font-weight: 850; letter-spacing: .15em; text-align: right; }

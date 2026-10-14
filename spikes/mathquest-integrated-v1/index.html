@@ -203,7 +203,7 @@
             <div class="math-question" id="math-question"><span>ELIGE LA RUTA CORRECTA</span><b>18 ÷ 3 = ?</b></div>
             <div class="duo-math" id="duo-math" aria-label="Reto matemático para dos exploradores">
                 <article data-duo-player="0"><span>JUGADOR 1 · A / B / C</span><b>—</b><small>PREPARADO</small></article>
-                <article data-duo-player="1"><span>JUGADOR 2 · U / I / O</span><b>—</b><small>PREPARADO</small></article>
+                <article data-duo-player="1"><span>JUGADOR 2 · A / B / C</span><b>—</b><small>PREPARADO</small></article>
             </div>
             <div class="toast" id="toast"></div>
             <button class="audio-toggle" id="audio-toggle" type="button" aria-label="Silenciar audio" aria-pressed="false"><b>♪</b><span>AUDIO</span></button>
@@ -233,10 +233,18 @@
             <h2>PAUSA</h2>
             <div class="choice-stack compact" data-menu="pause">
                 <div class="choice selected"><b>CONTINUAR</b></div>
+                <div class="choice"><b>AYUDA</b></div>
                 <div class="choice"><b>REINICIAR</b></div>
                 <div class="choice"><b>MENÚ PRINCIPAL</b></div>
             </div>
             <p class="nav-hint">↑ ↓ ELEGIR &nbsp;·&nbsp; ENTER CONFIRMAR</p>
+        </section>
+
+        <section class="screen overlay" id="help-screen">
+            <p class="eyebrow">AYUDA CONTEXTUAL</p>
+            <h2 id="help-title">INSTRUCCIONES</h2>
+            <div class="help-content" id="help-content"></div>
+            <p class="nav-hint">ENTER VOLVER A PAUSA</p>
         </section>
 
         <div id="portal-flash"></div>

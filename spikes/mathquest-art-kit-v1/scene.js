@@ -679,6 +679,148 @@ const EXPLORATION_CONFIG = LEVEL_RUNTIME ? {
     loopComplete: `${LEVEL_RUNTIME.zone} · MECANISMO ALINEADO`,
     exitComplete: `${LEVEL_RUNTIME.zone} · RUTA RESTAURADA`
 } : EXPLORATION_CONFIGS[LEVEL_INDEX];
+
+// Help content for each level
+const HELP_CONTENT = [
+    {
+        title: 'SANTUARIO DE LAS CASCADAS — NIVEL 1',
+        theme: 'Aritmética y agua',
+        objective: 'Desciende por el valle, redirige el agua en la esclusa y despierta al Coloso para alcanzar el portal.',
+        obstacles: [
+            { name: 'Ruptura 1', key: '<span class="key">↑ / W</span>', desc: 'Salta sobre el hueco en el camino' },
+            { name: 'Arco bajo 1', key: '<span class="key">↓ / S</span>', desc: 'Deslízate bajo el arco de piedra' },
+            { name: 'Puerta de energía 1', key: '<span class="key">K</span>', desc: 'Usa Dash para cruzar la línea de energía' },
+            { name: 'Ruptura 2', key: '<span class="key">↑ / W</span>', desc: 'Segunda ruptura — salta de nuevo' },
+            { name: 'Arco bajo 2', key: '<span class="key">↓ / S</span>', desc: 'Segundo arco — deslízate a tiempo' },
+            { name: 'Línea del guardián', key: '<span class="key">K</span>', desc: 'Dash para romper la barrera final' }
+        ],
+        math: 'Tres rutas (Izquierda/Centro/Derecha) con operaciones de aritmética: división, multiplicación y combinadas. Elige la ruta correcta (A/B/C).',
+        altar: 'Pregunta de aritmética en el altar. Respuesta correcta abre el mecanismo de agua.',
+        guardian: 'Golpea 3 veces al Coloso con <span class="key">J</span> (Ataque). Tras el 3er golpe, responde su pregunta. Si aciertas, el gigante levanta la mano y libera el paso.',
+        labyrinth: 'Laberinto de 3 puertas: busca el paso iluminado (Cian). 3 runas de marea por recoger. Completa el bucle: elige rama → extremo → cruza → regresa → reúne.',
+        controls: {
+            move: '<span class="key">← →</span> / <span class="key">A D</span>',
+            jump: '<span class="key">↑</span> / <span class="key">W</span> / <span class="key">Espacio</span>',
+            slide: '<span class="key">↓</span> / <span class="key">S</span>',
+            dash: '<span class="key">K</span>',
+            attack: '<span class="key">J</span>',
+            power: '<span class="key">L</span> (Escudo Σ, cuesta 1 energía)',
+            answer: '<span class="key">A / B / C</span> (Izq / Centro / Der)'
+        },
+        duo: 'En DOS JUGADORES: ambos reciben la misma pregunta. El primero en acertar avanza y espera (sin penalización). El segundo recibe una NUEVA pregunta, pierde 50 pts/seg y debe acertar para reunirse. El ganador del desafío gana bonus de puntos.'
+    },
+    {
+        title: 'OBSERVATORIO DE FRACCIONES — NIVEL 2',
+        theme: 'Fracciones y astronomía',
+        objective: 'Asciende las terrazas, alinea el orrery fraccionario y cruza el eclipse para vencer al Centinela.',
+        obstacles: [
+            { name: 'Salto terraza 1', key: '<span class="key">↑ / W</span>', desc: 'Salta entre plataformas giratorias' },
+            { name: 'Dash orbital 1', key: '<span class="key">K</span>', desc: 'Dash a través de la órbita giratoria' },
+            { name: 'Salto eclipse', key: '<span class="key">↑ / W</span>', desc: 'Cruza el puente celeste durante el eclipse' },
+            { name: 'Dash orbital 2', key: '<span class="key">K</span>', desc: 'Segunda órbita — sincroniza tu dash' },
+            { name: 'Deslizamiento estelar', key: '<span class="key">↓ / S</span>', desc: 'Deslízate bajo la barrera astral' }
+        ],
+        math: 'Tres instrumentos armilares con fracciones: suma, fracción de cantidad, división. Elige A/B/C en el instrumento correcto.',
+        altar: 'Pregunta de fracciones en el altar del orrery. Respuesta correcta alinea las órbitas.',
+        guardian: 'Golpea 3 veces al Centinela con <span class="key">J</span>. Tras el 3er golpe, responde su pregunta de fracciones. Si aciertas, el eclipse se disipa y el paso queda libre.',
+        labyrinth: 'Laberinto de 3 puertas con patrón distinto. 3 runas astrales. Completa el bucle memorizando la ruta.',
+        controls: {
+            move: '<span class="key">← →</span> / <span class="key">A D</span>',
+            jump: '<span class="key">↑</span> / <span class="key">W</span> / <span class="key">Espacio</span>',
+            slide: '<span class="key">↓</span> / <span class="key">S</span>',
+            dash: '<span class="key">K</span>',
+            attack: '<span class="key">J</span>',
+            power: '<span class="key">L</span> (Escudo Σ)',
+            answer: '<span class="key">A / B / C</span>'
+        },
+        duo: 'Misma mecánica: el primero acierta → avanza y espera. El segundo recibe NUEVA pregunta de fracciones, pierde puntos por tiempo, y debe acertar para reunirse.'
+    },
+    {
+        title: 'FORJA DEL VOLCÁN ALGEBRAICO — NIVEL 3',
+        theme: 'Álgebra y magma',
+        objective: 'Equilibra la fundición, domina los pistones y derriba al Titán para cerrar la expedición.',
+        obstacles: [
+            { name: 'Puente magma 1', key: '<span class="key">↑ / W</span>', desc: 'Salta sobre los puentes de magma' },
+            { name: 'Deslizamiento 1', key: '<span class="key">↓ / S</span>', desc: 'Deslízate bajo la compuerta de la forja' },
+            { name: 'Dash pistón 1', key: '<span class="key">K</span>', desc: 'Dash entre pistones activados' },
+            { name: 'Puente magma 2', key: '<span class="key">↑ / W</span>', desc: 'Segunda zona de puentes — más rápido' },
+            { name: 'Deslizamiento 2', key: '<span class="key">↓ / S</span>', desc: 'Compuerta final — timing preciso' },
+            { name: 'Dash núcleo', key: '<span class="key">K</span>', desc: 'Dash al núcleo algebraico' }
+        ],
+        math: 'Tres contrapesos algebraicos: ecuaciones de 1 y 2 pasos (x + n = m, ax = b, ax + b = c). Elige la palanca correcta (A/B/C).',
+        altar: 'Ecuación algebraica en el altar del equilibrio. Respuesta correcta activa los contrapesos.',
+        guardian: 'Golpea 3 veces al Titán con <span class="key">J</span>. Tras el 3er golpe, resuelve su ecuación. Si aciertas, el Titán cede el paso al portal final.',
+        labyrinth: 'Laberinto final con pistones activos. 3 runas ígneas. Bucle más exigente: memoriza la ruta entre pistones.',
+        controls: {
+            move: '<span class="key">← →</span> / <span class="key">A D</span>',
+            jump: '<span class="key">↑</span> / <span class="key">W</span> / <span class="key">Espacio</span>',
+            slide: '<span class="key">↓</span> / <span class="key">S</span>',
+            dash: '<span class="key">K</span>',
+            attack: '<span class="key">J</span>',
+            power: '<span class="key">L</span> (Escudo Σ, vital en Maestro)',
+            answer: '<span class="key">A / B / C</span>'
+        },
+        duo: 'El primero resuelve → avanza y espera. El segundo recibe NUEVA ecuación, pierde puntos por segundo, debe acertar para reunirse. En MAESTRO: penalización más dura, menos tiempo.'
+    }
+];
+
+// General help sections
+const GENERAL_HELP = {
+    controls: `
+        <h3>CONTROLES BÁSICOS</h3>
+        <ul>
+            <li><span class="key">← →</span> / <span class="key">A D</span> — Mover izquierda/derecha</li>
+            <li><span class="key">↑</span> / <span class="key">W</span> / <span class="key">Espacio</span> — Saltar</li>
+            <li><span class="key">↓</span> / <span class="key">S</span> — Deslizar</li>
+            <li><span class="key">K</span> — Dash (atravesar barreras, invencibilidad breve)</li>
+            <li><span class="key">J</span> — Atacar / Interactuar (golpear al guardián)</li>
+            <li><span class="key">L</span> — Poder: Escudo Σ (cuesta 1 energía, inmunidad 3s)</li>
+            <li><span class="key">A / B / C</span> — Responder: Izquierda / Centro / Derecha</li>
+            <li><span class="key">Enter</span> — Confirmar / Iniciar</li>
+            <li><span class="key">Esc</span> — Pausar / Menú</li>
+            <li><span class="key">M</span> — Silenciar/Activar audio</li>
+        </ul>
+        <p class="note">En DOS JUGADORES: P1 desliza con <span class="key">↓</span>, P2 con <span class="key">N</span>. P2 responde con <span class="key">U / I / O</span>.</p>
+    `,
+    difficulties: `
+        <h3>DIFICULTADES</h3>
+        <ul>
+            <li><b>EXPLORADOR</b> — Velocidad reducida, ventanas amplias, matemática base, guía reforzada. Multiplicador: x1.0</li>
+            <li><b>AVENTURERO</b> — Experiencia estándar, retos combinados. Multiplicador: x1.25</li>
+            <li><b>MAESTRO</b> — Velocidad máxima, matemática avanzada, menos tiempo, más puntos. Multiplicador: x1.6</li>
+        </ul>
+    `,
+    ucom: `
+        <h3>MANDOS UCOM USB (2 JUGADORES)</h3>
+        <ul>
+            <li><b>Botón 4 (△/Y)</b> — Respuesta A / Confirmar en menús</li>
+            <li><b>Botón 1 (×/A)</b> — Respuesta B</li>
+            <li><b>Botón 2 (○/B)</b> — Respuesta C</li>
+            <li><b>Botón 3 (□/X)</b> — Atacar / Acción (J)</li>
+            <li><b>START</b> — Iniciar / Confirmar en menús / Pausar</li>
+            <li><b>Palanca ↑</b> — Saltar</li>
+            <li><b>Palanca ↓</b> — Deslizar (P1)</li>
+            <li><b>Palanca ← →</b> — Mover</li>
+            <li><b>Cruzeta</b> — Navegación menús (igual que palanca)</li>
+        </ul>
+        <p class="note">Calibra en AJUSTES → CONTROLES → CALIBRAR MANDO UCOM. Guarda por dispositivo.</p>
+    `,
+    duo: `
+        <h3>MODO DOS JUGADORES (DUELO 2J)</h3>
+        <ul>
+            <li>Ambos exploradores reciben la <b>misma pregunta inicial</b>.</li>
+            <li>El <b>primero en acertar</b> avanza físicamente, gana bonus de puntos y <b>espera</b> sin penalización.</li>
+            <li>El <b>segundo</b> recibe una <b>NUEVA pregunta</b> (distinta), comienza a perder <b>50 puntos/segundo</b> y debe acertar para reunirse.</li>
+            <li>Si el segundo falla, recibe <b>otra pregunta válida</b> hasta acertar.</li>
+            <li>Al acertar, <b>deja de perder puntos</b> y se reúne con el primero.</li>
+            <li>La <b>ventaja de puntuación se conserva</b> para el resultado final.</li>
+            <li>El ganador se determina por <b>puntuación final total</b>, no por velocidad.</li>
+        </ul>
+        <div class="duo-note">
+            <b>Clave:</b> Nadie depende del otro para responder o avanzar. Cada uno resuelve su propio desafío matemático.
+        </div>
+    `
+};
 // Premium Waterfall V2 is an isolated, reviewable production section. The
 // inherited campaign labyrinth started at the same distance as the hydraulic
 // bridge and placed tall walls across the camera boom. Keep the campaign
@@ -1499,7 +1641,10 @@ function createIntegratedGame() {
         settingsVibration: document.querySelector('#setting-vibration'),
         settingsSensitivity: document.querySelector('#setting-sensitivity'),
         settingsTestGamepad: document.querySelector('#setting-test-gamepad'),
-        gamepadIndicator: document.querySelector('.gamepad-indicator')
+        gamepadIndicator: document.querySelector('.gamepad-indicator'),
+        helpScreen: document.querySelector('#help-screen'),
+        helpTitle: document.querySelector('#help-title'),
+        helpContent: document.querySelector('#help-content')
     };
     const touchEnabled = query.get('touch') === '1' || navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
     document.body.classList.toggle('touch-enabled', touchEnabled);
@@ -1520,7 +1665,8 @@ function createIntegratedGame() {
     const screenIds = {
         MENU: 'menu-screen', SESSION: 'session-screen', DIFFICULTY: 'difficulty-screen', CONTROLS: 'controls-screen',
         LEADERBOARD: 'leaderboard-screen', HISTORY: 'history-screen', SETTINGS: 'settings-screen',
-        INTRO: 'intro-screen', COUNTDOWN: 'countdown-screen', PAUSED: 'pause-screen', RESULT: 'result-screen'
+        INTRO: 'intro-screen', COUNTDOWN: 'countdown-screen', PAUSED: 'pause-screen', RESULT: 'result-screen',
+        HELP: 'help-screen'
     };
     const ACTIONS = Object.freeze(Object.fromEntries(ACTIVE_CAMPAIGN_ADAPTER.actions.map(action => [action, action])));
     const profiles = ACTIVE_CAMPAIGN_ADAPTER.difficultyProfiles;
@@ -3754,6 +3900,9 @@ function createIntegratedGame() {
         } else if (phase === 'SETTINGS') {
             motionController.setVisible(false); contactShadow.visible = false; contactCore.visible = false; runner.state = 'DISABLED';
             loadSettingsUI();
+        } else if (phase === 'HELP') {
+            motionController.setVisible(false); contactShadow.visible = false; contactCore.visible = false; runner.state = 'DISABLED';
+            game.menuSelection = 0;
         } else if (phase === 'INTRO') {
             if (game.levelStarted) {
                 session.players.forEach((player, index) => Object.assign(player, session.levelStart[index]));
@@ -3841,9 +3990,14 @@ function createIntegratedGame() {
             }
             return;
         }
-        const items = game.phase === 'PAUSED' ? ui.pauseChoices : ui.resultChoices;
-        game.menuSelection = (game.menuSelection + direction + items.length) % items.length;
-        select(items, game.menuSelection); audio.cue('confirm');
+        if (game.phase === 'PAUSED') {
+            game.menuSelection = (game.menuSelection + direction + ui.pauseChoices.length) % ui.pauseChoices.length;
+            select(ui.pauseChoices, game.menuSelection); audio.cue('confirm'); return;
+        }
+        if (game.phase === 'RESULT') {
+            game.menuSelection = (game.menuSelection + direction + ui.resultChoices.length) % ui.resultChoices.length;
+            select(ui.resultChoices, game.menuSelection); audio.cue('confirm'); return;
+        }
     }
     function confirm() {
         audio.ensure();
@@ -3861,7 +4015,8 @@ function createIntegratedGame() {
         else if (game.phase === 'PLAYING') pause();
         else if (game.phase === 'PAUSED') {
             if (game.menuSelection === 0) resume();
-            else if (game.menuSelection === 1) setPhase('INTRO');
+            else if (game.menuSelection === 1) showHelp();
+            else if (game.menuSelection === 2) setPhase('INTRO');
             else setPhase('MENU');
         } else if (game.phase === 'RESULT') {
             if (game.menuSelection === 0) {
@@ -3884,7 +4039,49 @@ function createIntegratedGame() {
             } else setPhase('MENU');
         } else if (game.phase === 'LEADERBOARD' || game.phase === 'HISTORY' || game.phase === 'SETTINGS') {
             setPhase('MENU');
+        } else if (game.phase === 'HELP') {
+            setPhase('PAUSED');
         }
+    }
+    function showHelp() {
+        const levelHelp = HELP_CONTENT[LEVEL_INDEX];
+        let html = `<h3>${levelHelp.title}</h3>
+        <p class="note">${levelHelp.theme}</p>
+        <h3>OBJETIVO</h3>
+        <p>${levelHelp.objective}</p>
+        <h3>OBSTÁCULOS</h3>
+        <ul>`;
+        levelHelp.obstacles.forEach(obs => {
+            html += `<li><b>${obs.name}</b> — ${obs.key} ${obs.desc}</li>`;
+        });
+        html += `</ul>
+        <h3>MATEMÁTICAS</h3>
+        <p>${levelHelp.math}</p>
+        <h3>ALTAR</h3>
+        <p>${levelHelp.altar}</p>
+        <h3>GUARDIÁN</h3>
+        <p>${levelHelp.guardian}</p>
+        <h3>LABERINTO</h3>
+        <p>${levelHelp.labyrinth}</p>
+        <h3>CONTROLES</h3>
+        <ul>
+            <li>Mover: ${levelHelp.controls.move}</li>
+            <li>Saltar: ${levelHelp.controls.jump}</li>
+            <li>Deslizar: ${levelHelp.controls.slide}</li>
+            <li>Dash: ${levelHelp.controls.dash}</li>
+            <li>Atacar: ${levelHelp.controls.attack}</li>
+            <li>Poder: ${levelHelp.controls.power}</li>
+            <li>Responder: ${levelHelp.controls.answer}</li>
+        </ul>
+        <div class="duo-note">${levelHelp.duo}</div>
+        <h3>GENERAL</h3>
+        ${GENERAL_HELP.controls}
+        ${GENERAL_HELP.difficulties}
+        ${GENERAL_HELP.ucom}
+        ${GENERAL_HELP.duo}`;
+        ui.helpContent.innerHTML = html;
+        ui.helpTitle.textContent = levelHelp.title;
+        setPhase('HELP');
     }
     function pause() {
         if (!['PLAYING', 'PORTAL'].includes(game.phase)) return;
@@ -4395,6 +4592,7 @@ function createIntegratedGame() {
     }));
     document.querySelector('#controls-screen')?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'CONTROLS') confirm(); });
     ui.intro?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'INTRO') confirm(); });
+    document.querySelector('#help-screen')?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'HELP') confirm(); });
     ui.pauseChoices.forEach((choice, index) => choice.addEventListener('pointerdown', event => {
         if (!touchEnabled || game.phase !== 'PAUSED') return;
         event.preventDefault(); game.menuSelection = index; select(ui.pauseChoices, index); confirm();
@@ -4679,7 +4877,7 @@ function createIntegratedGame() {
             const axisY = Math.abs(stickY) > deadzone ? stickY : hatY;
             
             // Menu navigation with D-pad/analog stick (for all menu phases)
-            const menuPhases = ['MENU', 'SESSION', 'DIFFICULTY', 'CONTROLS', 'LEADERBOARD', 'HISTORY', 'SETTINGS', 'PAUSED', 'RESULT'];
+            const menuPhases = ['MENU', 'SESSION', 'DIFFICULTY', 'CONTROLS', 'LEADERBOARD', 'HISTORY', 'SETTINGS', 'PAUSED', 'RESULT', 'HELP'];
             if (menuPhases.includes(game.phase)) {
                 // Horizontal navigation (left/right) - for changing options in some menus
                 if (axisX < -deadzone && Math.abs(prevAxes[0] || 0) <= deadzone) {
@@ -6054,7 +6252,7 @@ function createIntegratedGame() {
         portalData.coreMaterial.uniforms.uTime.value = state.elapsed;
         portalData.orbitA.rotation.z += delta * .19; portalData.orbitB.rotation.z -= delta * .27; portalData.particles.rotation.z += delta * .012;
         if (game.toastTimer > 0) { game.toastTimer -= delta; if (game.toastTimer <= 0) ui.toast.classList.remove('active'); }
-        if (game.phase === 'MENU' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS' || game.phase === 'RESULT' || game.phase === 'PAUSED') {
+        if (game.phase === 'MENU' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS' || game.phase === 'RESULT' || game.phase === 'PAUSED' || game.phase === 'HELP') {
             updateAttractCamera(delta);
             if (game.phase === 'RESULT') updateResult();
             if (game.phase === 'CONTROLS' && game.phaseTimer > 3.0) setPhase('INTRO');
