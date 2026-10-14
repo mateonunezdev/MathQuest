@@ -8,7 +8,7 @@
 >
 > El candidato actual contiene una campaña 3D de tres capítulos: **Santuarios de las Cascadas**, **Observatorio de Fracciones** y **Forja del Núcleo Algebraico**. El jugador elige **Explorador**, **Aventurero** o **Maestro** una vez y completa los tres niveles con puntuación acumulativa. Cada capítulo incluye seis obstáculos de acción, una ruta física de respuesta, un laberinto manual de bifurcación/retorno con tres runas y tres puertas de paso, un segundo mecanismo matemático arquitectónico, un miniboss Acechador de Runas, un combate contra guardián matemático y un salto de portal animado. Dos bancos rotativos de matemáticas proporcionan **54 configuraciones de encuentro verificadas** a lo largo de la campaña.
 >
-> El juego usa acciones abstractas —mover izq/der, saltar, deslizar, atacar, dash, poder, confirmar, pausar, y respuestas A/B/C— para que teclado, pantalla táctil, futuro joystick o controles Arduino compartan una sola autoridad. Controles de teclado actuales: flechas/WASD más **J/K/L**, **Enter**, **Esc**, y **A/B/C**. Sesiones locales **Un Jugador**, **Duelo 2J** y **Equipo 2J** aceptan nombres de jugador y rastrean resultados individuales/de equipo; ambos participantes comparten actualmente una corrida de Explorador.
+> El juego usa acciones abstractas —mover izq/der, saltar, deslizar, atacar, dash, poder, confirmar, pausar, y respuestas A/B/C— para que teclado, pantalla táctil, futuro joystick o controles Arduino compartan una sola autoridad. Controles de teclado actuales: flechas/WASD más **J/K/L**, **Enter**, **Esc**, y **A/B/C**. Sesiones locales **Un Jugador** y **Duelo 2J** (competencia matemática) aceptan nombres de jugador y rastrean resultados individuales; ambos participantes comparten actualmente una corrida de Explorador.
 >
 > Acceso QA directo soporta `?level=1|2|3`, `&difficulty=0|1|2`, y `&mathSet=0|1`. Añade `&playtest=1` para recopilar un reporte local sin nombres `mathquest-playtest-v1` para sesiones de usabilidad facilitada. Comandos de verificación útiles incluyen `npm run test:campaign-3d`, `npm run test:exploration-3d`, `npm run test:all-ages-3d`, y `npm run test:campaign-visual -- 1 2 3`. Ver [`docs/ALL_AGES_PLAYTEST_PROTOCOL.md`](docs/ALL_AGES_PLAYTEST_PROTOCOL.md).
 >
@@ -20,7 +20,7 @@
 
 - **Tres mundos únicos**: Santuario de las Cascadas (aritmética), Observatorio de Fracciones (fracciones), Forja del Núcleo Algebraico (álgebra)
 - **Tres dificultades**: Explorador (guiado), Aventurero (estándar), Maestro (avanzado, más puntos)
-- **Modos de juego**: Un Jugador (récord personal), Duelo 2J (competencia matemática), Equipo 2J (puntuación compartida)
+- **Modos de juego**: Un Jugador (récord personal), Duelo 2J (competencia matemática cara a cara)
 - **Controles UCOM USB**: Dos mandos tipo PlayStation con mapeo Botón 4=A, Botón 1=B, Botón 2=C, Botón 3=Acción, START=Iniciar
 - **Matemáticas sincronizadas**: En modo dos jugadores, cada explorador recibe su propio desafío y los letreros 3D se actualizan correctamente
 - **Combate contra jefes**: Golpea 3 veces al guardián → pregunta matemática → respuesta correcta → el gigante levanta la mano → paso libre
@@ -48,7 +48,7 @@
 | Pausa | Esc | START (en menús) |
 | Silenciar audio | M | — |
 
-> **Nota**: El mando del jugador 2 usa tecla **N** para deslizar. Los botones de respuesta del jugador 2 en teclado son **U/I/O**.
+> **Nota**: El mando del jugador 2 usa tecla **N** para deslizar. En modo DOS JUGADORES, el jugador 1 responde con **A/B/C** y el jugador 2 con **U/I/O**.
 
 ---
 
@@ -84,35 +84,41 @@ La versión publicada se actualiza automáticamente desde la rama `main` via Git
 ## 🧪 Tests y QA
 
 ```bash
-# Suite principal de movimiento/integración 3D
+# Suite principal de movimiento/integración 3D (requiere Brave/Chromium)
 npm test
 
-# Tests específicos de campaña 3D
+# Tests específicos de campaña 3D (3 mundos × 3 dificultades)
 npm run test:campaign-3d
 
-# Tests de sesiones multijugador
+# Tests de sesiones multijugador (solo/duel, nombres, scores)
 npm run test:session-3d
 
-# Tests de gamepad UCOM
+# Tests de gamepad UCOM (navegación menús, botones A/B/C/START)
 npm run test:gamepad-3d
 
-# Tests de etiquetas matemáticas visuales
+# Tests de etiquetas matemáticas visuales (512px, glifos ≥42px)
 npm run test:math-label-visual
 
-# Tests de mecanismos Maestro (presión)
+# Tests de mecanismos Maestro (placas de presión)
 npm run test:mastery-3d
 
-# Tests de combate guardián
+# Tests de combate guardián (3 golpes → pregunta → liberación)
 npm run test:guardian-combat
 
-# Tests de exploración/labyrinth
+# Tests de miniboss Acechador de Runas
+npm run test:stalker-combat
+
+# Tests de exploración/labyrinth (bifurcación, runas, bucles)
 npm run test:exploration-3d
 
-# Tests de all-ages (accesibilidad)
+# Tests de accesibilidad all-ages (perfiles Explorador/Aventurero/Maestro)
 npm run test:all-ages-3d
+
+# Tests de campaña visual (capturas + video contacto)
+npm run test:campaign-visual
 ```
 
-> Los tests usan Playwright con Brave/Chromium headless. Requieren `npm install` previo.
+> Los tests usan Playwright con Brave/Chromium. Requieren `npm install` previo. El modo headless usa SwiftShader (CPU) y puede ser lento; para validación visual usa modo headed.
 
 ---
 
@@ -172,15 +178,16 @@ mathquest-starter/
 
 ## 📸 Capturas de Pantalla
 
-| Menú Principal | Selección Dos Jugadores | Dificultades | Gameplay Nivel 1 |
-|---|---|---|---|
-| ![Menu](docs/assets/menu.png) | ![Session](docs/assets/session.png) | ![Difficulty](docs/assets/difficulty.png) | ![Level1](docs/assets/level1.png) |
+Las capturas se generan automáticamente ejecutando `npm test` (suite completa) o `npm run test:campaign-visual` (solo campaña). Los archivos se guardan en `/screenshots/` con prefijo `OFFICIAL_3D_CANDIDATE_`.
 
-| Gameplay Nivel 2 | Gameplay Nivel 3 | Resultado Duelo | Clasificación |
-|---|---|---|---|
-| ![Level2](docs/assets/level2.png) | ![Level3](docs/assets/level3.png) | ![Result](docs/assets/result.png) | ![Leaderboard](docs/assets/leaderboard.png) |
+Para generar capturas actuales:
+```bash
+npm run serve
+# En otra terminal:
+npm test
+```
 
-> Las capturas se generan automáticamente en `npm test` y `npm run test:campaign-visual`.
+> **Nota**: Las capturas requieren Brave/Chromium instalado y funcionan en modo headed (visible) para mejor renderizado WebGL.
 
 ---
 
@@ -245,16 +252,16 @@ Este proyecto está licenciado bajo la **MIT License** — ver archivo [LICENSE]
 ## 📋 Estado del Proyecto
 
 **v0.1.0 — Candidato Oficial 3D** ✅
-- ✅ Tres mundos jugables (Cascadas, Fracciones, Álgebra)
-- ✅ Tres dificultades (Explorador, Aventurero, Maestro)
-- ✅ Un Jugador y Dos Jugadores (Duelo/Equipo)
-- ✅ Controles UCOM USB con calibración
-- ✅ Matemáticas sincronizadas en modo dúo
-- ✅ Combate guardián (3 golpes → pregunta → gigante levanta mano)
-- ✅ Laberintos de exploración con runas y bucles
-- ✅ Clasificación e historial persistentes
-- ✅ Audio procedural accesible
-- ✅ GitHub Pages deploy automático
-- ✅ Suite QA Playwright (20+ tests)
+- ✅ Tres mundos jugables: Santuario de las Cascadas, Observatorio de Fracciones, Forja del Núcleo Algebraico
+- ✅ Tres dificultades: Explorador (guiado), Aventurero (estándar), Maestro (avanzado, más puntos)
+- ✅ Un Jugador y Dos Jugadores (Duelo 2J competitivo)
+- ✅ Controles UCOM USB con calibración interactiva (5 pasos, guarda por dispositivo)
+- ✅ Matemáticas sincronizadas en modo dúo (letreros 3D y HUD actualizados por jugador activo)
+- ✅ Combate guardián: 3 golpes (J) → pregunta matemática → respuesta correcta → gigante levanta mano → paso libre
+- ✅ Laberintos de exploración: bifurcación, 3 runas, bucle cierre, 3 puertas de paso
+- ✅ Clasificación e historial persistentes en localStorage (50 récords, 100 partidas)
+- ✅ Audio procedural WebAudio con compresor, mute persistente (tecla M)
+- ✅ GitHub Pages deploy automático desde main
+- ✅ Suite QA Playwright (18 tests especializados documentados)
 
-**Próximos pasos**: Asset rigging producción, validación hardware Arduino física, playtest multiedad presencial.
+**Pendientes verificados**: Validación física mandos UCOM (requiere hardware), playtest multiedad presencial, asset rigging producción.
