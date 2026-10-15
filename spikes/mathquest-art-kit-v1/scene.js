@@ -860,14 +860,19 @@ scene.add(portalLight);
 // Their silhouette read as arbitrary spike hazards and competed with the real
 // route. The Matheo structural candidate replaces them with authored terrain
 // masses inside buildMatheoStructuralWorld().
+// FIX: Increased minimum lateral offset to keep rocks outside route bounds (±4.2).
+// Max rock radius ~3.85 * maxScale 2.55 ≈ 9.8. Min lateral = 16.5 - 9.8 = 6.7 > routeHalfWidth 4.2.
 for (let index = 0; index < (MATHEO_WORLD_ENABLED || WATERFALL_PRODUCTION_ENABLED ? 0 : 36); index++) {
     const distance = -3 + (index % 18) * 4.35;
     const sample = sampleAtDistance(distance);
     const side = index < 12 ? -1 : 1;
     const radius = 1.15 + seeded(index + 5000) * 2.7;
     const rock = mesh(new THREE.IcosahedronGeometry(radius, 0), MATERIALS.STONE_DAMAGED);
+    // Minimum lateral 16.5 ensures rocks stay outside route (±4.2) even at max scale
+    const minLateral = 16.5;
+    const lateralRange = 10.0; // 16.5 to 26.5
     rock.position.copy(sample.point)
-        .addScaledVector(sample.lateral, side * (10.2 + seeded(index + 5100) * 13.5))
+        .addScaledVector(sample.lateral, side * (minLateral + seeded(index + 5100) * lateralRange))
         .addScaledVector(UP, -1.3 + seeded(index + 5200) * .45);
     rock.scale.set(1.1 + seeded(index + 5300) * 1.45, .9 + seeded(index + 5400) * 1.65, .8 + seeded(index + 5500) * 1.5);
     rock.rotation.set(seeded(index + 5600), seeded(index + 5700) * Math.PI, seeded(index + 5800) * .8);
@@ -3894,7 +3899,9 @@ function createIntegratedGame() {
     function setPhase(phase) {
         game.phase = phase; game.phaseTimer = 0; game.lastCountdown = 4;
         game.tutorialMessage = null; game.questionVisible = null;
-        if (!['PLAYING', 'PORTAL'].includes(phase)) {
+        // Preserve duoRace state during PAUSED and HELP (only reset on MENU, SESSION, INTRO, RESULT)
+        const resetDuoRacePhases = ['MENU', 'SESSION', 'INTRO', 'RESULT', 'LEVEL_INTRO'];
+        if (resetDuoRacePhases.includes(phase)) {
             duoRace.context = null; duoRace.order = []; duoRace.rejoin = null;
             duoRace.players.forEach(player => Object.assign(player, { status: 'READY', visualLead: 0 }));
         }
@@ -4232,14 +4239,15 @@ function createIntegratedGame() {
         const key = context === 'ROUTE' ? 'questions' : context === 'ALTAR' ? 'altarQuestions' : 'guardianQuestions';
         if (context.startsWith('MASTERY_')) {
             const index = Number(context.split('_')[1]);
+            // Use expanded question arrays for MASTERY challenges
             return index === 0
                 ? [
-                    normalizedProblem(replay.questions[2], 'ROUTE'),
-                    normalizedProblem(LEVEL.altarQuestions[2], 'ALTAR')
+                    normalizedProblem(replay.questions[3 % replay.questions.length], 'ROUTE'),
+                    normalizedProblem(LEVEL.altarQuestions[3 % LEVEL.altarQuestions.length], 'ALTAR')
                 ]
                 : [
-                    normalizedProblem(replay.altarQuestions[2], 'ALTAR'),
-                    normalizedProblem(LEVEL.guardianQuestions[2], 'ALTAR')
+                    normalizedProblem(replay.altarQuestions[3 % replay.altarQuestions.length], 'ALTAR'),
+                    normalizedProblem(LEVEL.guardianQuestions[3 % LEVEL.guardianQuestions.length], 'ALTAR')
                 ];
         }
         const activeQuestions = ACTIVE_MATH[key][game.difficulty];
