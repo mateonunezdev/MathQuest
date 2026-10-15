@@ -304,6 +304,12 @@ kbd { padding: 7px 12px; margin-left: 8px; border: 1px solid rgba(106,244,235,.6
 .gamepad-indicator .gp.connected { border-color: var(--cyan); background: rgba(106,244,235,.15); color: var(--cyan); }
 .gamepad-indicator .gp .num { font-size: 7px; }
 
+/* Level Intro Screen */
+#level-intro-screen .level-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; width: min(800px, 88vw); margin: 20px auto 0; padding: 0 16px; }
+#level-intro-screen .control-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid rgba(106,244,235,.16); background: linear-gradient(145deg, rgba(3,18,23,.86), rgba(8,35,39,.38)); border-radius: 2px; }
+#level-intro-screen .control-item b { color: var(--cyan); font: 700 13px system-ui; min-width: 100px; }
+#level-intro-screen .control-item span { color: #cfe8e4; font: 600 12px system-ui; }
+
 /* Result screen enhancements */
 .result-winner { animation: winnerPulse 2s ease-in-out infinite; }
 @keyframes winnerPulse { 50% { text-shadow: 0 0 20px rgba(214,156,69,.8); } }

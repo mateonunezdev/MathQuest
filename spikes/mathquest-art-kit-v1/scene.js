@@ -1644,7 +1644,12 @@ function createIntegratedGame() {
         gamepadIndicator: document.querySelector('.gamepad-indicator'),
         helpScreen: document.querySelector('#help-screen'),
         helpTitle: document.querySelector('#help-title'),
-        helpContent: document.querySelector('#help-content')
+        helpContent: document.querySelector('#help-content'),
+        levelIntroScreen: document.querySelector('#level-intro-screen'),
+        levelIntroChapter: document.querySelector('#level-intro-chapter'),
+        levelIntroTitle: document.querySelector('#level-intro-title'),
+        levelIntroObjective: document.querySelector('#level-intro-objective'),
+        levelIntroControls: document.querySelector('#level-intro-controls')
     };
     const touchEnabled = query.get('touch') === '1' || navigator.maxTouchPoints > 0 || matchMedia('(pointer: coarse)').matches;
     document.body.classList.toggle('touch-enabled', touchEnabled);
@@ -1662,11 +1667,26 @@ function createIntegratedGame() {
     introObjective.textContent = LEVEL.objective;
     resultTitle.textContent = LEVEL_INDEX < LEVELS.length - 1 ? 'PORTAL DESBLOQUEADO' : 'EXPEDICIÓN COMPLETADA';
     resultPrimary.textContent = LEVEL_INDEX < LEVELS.length - 1 ? 'SIGUIENTE NIVEL' : 'NUEVA CAMPAÑA';
+    
+    // Level intro screen content
+    ui.levelIntroChapter.textContent = `${LEVEL.chapter}`;
+    ui.levelIntroTitle.textContent = LEVEL.name;
+    ui.levelIntroObjective.textContent = LEVEL.objective;
+    ui.levelIntroControls.innerHTML = `
+        <div class="control-item"><b>← → / A D</b><span>Mover</span></div>
+        <div class="control-item"><b>↑ / W / Espacio</b><span>Saltar</span></div>
+        <div class="control-item"><b>↓ / S</b><span>Deslizar</span></div>
+        <div class="control-item"><b>K</b><span>Dash</span></div>
+        <div class="control-item"><b>J</b><span>Atacar</span></div>
+        <div class="control-item"><b>L</b><span>Poder (Escudo Σ)</span></div>
+        <div class="control-item"><b>A / B / C</b><span>Responder</span></div>
+    `;
+    
     const screenIds = {
         MENU: 'menu-screen', SESSION: 'session-screen', DIFFICULTY: 'difficulty-screen', CONTROLS: 'controls-screen',
         LEADERBOARD: 'leaderboard-screen', HISTORY: 'history-screen', SETTINGS: 'settings-screen',
         INTRO: 'intro-screen', COUNTDOWN: 'countdown-screen', PAUSED: 'pause-screen', RESULT: 'result-screen',
-        HELP: 'help-screen'
+        HELP: 'help-screen', LEVEL_INTRO: 'level-intro-screen'
     };
     const ACTIONS = Object.freeze(Object.fromEntries(ACTIVE_CAMPAIGN_ADAPTER.actions.map(action => [action, action])));
     const profiles = ACTIVE_CAMPAIGN_ADAPTER.difficultyProfiles;
@@ -1705,7 +1725,8 @@ function createIntegratedGame() {
         players: [0, 1].map(() => ({
             status: 'READY', problem: null, startedAt: 0, responseMs: 0,
             wrongFlash: 0, visualLead: 0,
-            slideAnticipation: 0, slideTimer: 0
+            slideAnticipation: 0, slideTimer: 0,
+            wrongCount: 0
         }))
     };
     const game = {
@@ -3903,6 +3924,9 @@ function createIntegratedGame() {
         } else if (phase === 'HELP') {
             motionController.setVisible(false); contactShadow.visible = false; contactCore.visible = false; runner.state = 'DISABLED';
             game.menuSelection = 0;
+        } else if (phase === 'LEVEL_INTRO') {
+            motionController.setVisible(false); contactShadow.visible = false; contactCore.visible = false; runner.state = 'DISABLED';
+            game.menuSelection = 0;
         } else if (phase === 'INTRO') {
             if (game.levelStarted) {
                 session.players.forEach((player, index) => Object.assign(player, session.levelStart[index]));
@@ -4010,7 +4034,8 @@ function createIntegratedGame() {
             else if (action === 'controls') { confirmSweep(); setPhase('CONTROLS'); }
         } else if (game.phase === 'SESSION') { applySessionSetup(); }
         else if (game.phase === 'DIFFICULTY') { confirmSweep(); game.difficulty = game.selection; game.mastery.forEach(mechanism => { mechanism.root.visible = game.difficulty === 2; }); updateMathPresentation(); audio.cue('confirm'); setPhase('CONTROLS'); }
-        else if (game.phase === 'CONTROLS') { audio.cue('confirm'); setPhase('INTRO'); }
+        else if (game.phase === 'CONTROLS') { audio.cue('confirm'); setPhase('LEVEL_INTRO'); }
+        else if (game.phase === 'LEVEL_INTRO') { audio.cue('confirm'); setPhase('INTRO'); }
         else if (game.phase === 'INTRO') { audio.cue('confirm'); setPhase('COUNTDOWN'); }
         else if (game.phase === 'PLAYING') pause();
         else if (game.phase === 'PAUSED') {
@@ -4040,6 +4065,8 @@ function createIntegratedGame() {
         } else if (game.phase === 'LEADERBOARD' || game.phase === 'HISTORY' || game.phase === 'SETTINGS') {
             setPhase('MENU');
         } else if (game.phase === 'HELP') {
+            setPhase('PAUSED');
+        } else if (game.phase === 'LEVEL_INTRO') {
             setPhase('PAUSED');
         }
     }
@@ -4202,6 +4229,7 @@ function createIntegratedGame() {
     function duoProblemCandidates(context) {
         const replay = MATH_REPLAY_SETS[LEVEL_INDEX];
         const alternateMath = ACTIVE_MATH === LEVEL ? replay : LEVEL;
+        const key = context === 'ROUTE' ? 'questions' : context === 'ALTAR' ? 'altarQuestions' : 'guardianQuestions';
         if (context.startsWith('MASTERY_')) {
             const index = Number(context.split('_')[1]);
             return index === 0
@@ -4214,21 +4242,36 @@ function createIntegratedGame() {
                     normalizedProblem(LEVEL.guardianQuestions[2], 'ALTAR')
                 ];
         }
-        const key = context === 'ROUTE' ? 'questions' : context === 'ALTAR' ? 'altarQuestions' : 'guardianQuestions';
-        return [ACTIVE_MATH[key][game.difficulty], alternateMath[key][game.difficulty]]
-            .map(problem => normalizedProblem(problem, context));
+        const activeQuestions = ACTIVE_MATH[key][game.difficulty];
+        const replayQuestions = replay[key][game.difficulty];
+        const alternateQuestions = alternateMath[key][game.difficulty];
+        const candidates = [
+            normalizedProblem(activeQuestions, context),
+            normalizedProblem(replayQuestions, context),
+            normalizedProblem(alternateQuestions, context)
+        ];
+        const seen = new Set();
+        return candidates.filter(p => {
+            if (seen.has(p.prompt)) return false;
+            seen.add(p.prompt);
+            return true;
+        });
     }
-    function duoProblem(context, alternate = false, previousProblem = null) {
+    function duoProblem(context, alternate = false, previousProblem = null, wrongCount = 0) {
         const candidates = duoProblemCandidates(context);
         if (!alternate || !previousProblem) return candidates[0];
-        return candidates.find(problem => problem.prompt !== previousProblem.prompt) || candidates[0];
+        const filtered = candidates.filter(p => p.prompt !== previousProblem.prompt);
+        if (filtered.length === 0) return candidates[0];
+        const index = Math.min(wrongCount, filtered.length - 1);
+        return filtered[index];
     }
     function beginDuoChallenge(context) {
         if (!duoEnabled() || duoRace.context === context) return;
         duoRace.context = context; duoRace.order = []; duoRace.rejoin = null;
         duoRace.players.forEach(player => Object.assign(player, {
             status: 'ANSWERING', problem: duoProblem(context, false), startedAt: runner.gameplayTime,
-            responseMs: 0, wrongFlash: 0, visualLead: 0
+            responseMs: 0, wrongFlash: 0, visualLead: 0,
+            wrongCount: 0
         }));
         session.activeIndex = 0;
         updateHud();
@@ -4294,14 +4337,15 @@ function createIntegratedGame() {
         player.answers++; runner.questions++;
         const correct = answerIndex === racePlayer.problem.correctIndex;
         if (!correct) {
-            racePlayer.wrongFlash = .6; racePlayer.problem = duoProblem(context, true, racePlayer.problem);
+            racePlayer.wrongCount++;
+            racePlayer.wrongFlash = .6; racePlayer.problem = duoProblem(context, true, racePlayer.problem, racePlayer.wrongCount);
             player.score = Math.max(0, player.score - 80); runner.score = Math.max(0, runner.score - 80); runner.combo = 1;
             toast(`${player.name} · RESPUESTA INCORRECTA · NUEVO RETO`, 1.25); audio.cue('wrong'); updateHud();
-            // Update 3D math signs for the new question
-            console.log('[resolveDuoAnswer] incorrect answer, new problem:', racePlayer.problem?.prompt, 'choices:', racePlayer.problem?.choices);
+            console.log('[resolveDuoAnswer] incorrect answer, new problem:', racePlayer.problem?.prompt, 'choices:', racePlayer.problem?.choices, 'wrongCount:', racePlayer.wrongCount);
             updateDuoMathSigns(context);
             return false;
         }
+        racePlayer.wrongCount = 0;
         const first = duoRace.order.length === 0;
         const base = context === 'ROUTE' ? 750 : context === 'ALTAR' ? 900 : context === 'GUARDIAN' ? 1100 : 640;
         const speedBonus = Math.max(0, 360 - Math.round(elapsedMs / 35));
@@ -4320,7 +4364,7 @@ function createIntegratedGame() {
             // Keep the shared challenge clock running. The remaining explorer
             // receives a fresh question, but their total response time still
             // includes the time spent at the original gate.
-            other.problem = duoProblem(context, true, other.problem);
+            other.problem = duoProblem(context, true, other.problem, 0);
             session.activeIndex = otherIndex;
             // Update 3D math signs for the second player's new question
             console.log('[resolveDuoAnswer] first correct, other player:', otherIndex, 'new problem:', other.problem?.prompt, 'choices:', other.problem?.choices);
@@ -4448,7 +4492,7 @@ function createIntegratedGame() {
         if (code === 'KeyM') return ACTIONS.TOGGLE_AUDIO;
         if (code === 'Enter') return ACTIONS.CONFIRM;
         if (code === 'Escape') return ACTIONS.PAUSE;
-        if (['MENU', 'SESSION', 'DIFFICULTY', 'PAUSED', 'RESULT'].includes(game.phase)) {
+        if (['MENU', 'SESSION', 'DIFFICULTY', 'PAUSED', 'RESULT', 'LEVEL_INTRO'].includes(game.phase)) {
             if (code === 'ArrowUp' || code === 'KeyW') return ACTIONS.NAV_PREVIOUS;
             if (code === 'ArrowDown' || code === 'KeyS') return ACTIONS.NAV_NEXT;
             if (code === 'ArrowLeft' || code === 'KeyA') return ACTIONS.NAV_PREVIOUS;
@@ -4592,6 +4636,7 @@ function createIntegratedGame() {
     }));
     document.querySelector('#controls-screen')?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'CONTROLS') confirm(); });
     ui.intro?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'INTRO') confirm(); });
+    ui.levelIntroScreen?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'LEVEL_INTRO') confirm(); });
     document.querySelector('#help-screen')?.addEventListener('pointerdown', () => { if (touchEnabled && game.phase === 'HELP') confirm(); });
     ui.pauseChoices.forEach((choice, index) => choice.addEventListener('pointerdown', event => {
         if (!touchEnabled || game.phase !== 'PAUSED') return;
@@ -6252,7 +6297,7 @@ function createIntegratedGame() {
         portalData.coreMaterial.uniforms.uTime.value = state.elapsed;
         portalData.orbitA.rotation.z += delta * .19; portalData.orbitB.rotation.z -= delta * .27; portalData.particles.rotation.z += delta * .012;
         if (game.toastTimer > 0) { game.toastTimer -= delta; if (game.toastTimer <= 0) ui.toast.classList.remove('active'); }
-        if (game.phase === 'MENU' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS' || game.phase === 'RESULT' || game.phase === 'PAUSED' || game.phase === 'HELP') {
+        if (game.phase === 'MENU' || game.phase === 'DIFFICULTY' || game.phase === 'CONTROLS' || game.phase === 'RESULT' || game.phase === 'PAUSED' || game.phase === 'HELP' || game.phase === 'LEVEL_INTRO') {
             updateAttractCamera(delta);
             if (game.phase === 'RESULT') updateResult();
             if (game.phase === 'CONTROLS' && game.phaseTimer > 3.0) setPhase('INTRO');
